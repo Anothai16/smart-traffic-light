@@ -1,0 +1,312 @@
+// src/views/traffic/TrafficManagement.tsx
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Flex, Button, Typography, Input, Divider, message, Spin } from 'antd';
+import classNames from 'classnames';
+import {
+    apiGetTrafficModes,
+    apiGetIntersectionData,
+    apiUpdateIntersectionTimes,
+    apiGetModeStatus,
+    apiUpdateTrafficMode,
+} from '@/services/TrafficService';
+import type { AxiosError } from 'axios';
+
+const { Title } = Typography;
+
+interface Mode {
+    name: string;
+    color: string;
+}
+
+interface IntersectionTimeData {
+    Intersection_ID: number;
+    Name: string;
+    New_Red_Duration: number;
+    New_Green_Duration: number;
+}
+
+interface ApiErrorResponse {
+    message: string;
+}
+
+const TrafficManagement = () => {
+    const [messageApi, contextHolder] = message.useMessage();
+    const [currentMode, setCurrentMode] = useState('');
+    const [selectedMode, setSelectedMode] = useState('');
+    const [modes, setModes] = useState<Mode[]>([]);
+    const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    // ✅ เพิ่ม state ใหม่เพื่อจัดการสถานะการตอบกลับของ API
+    const [apiResponseStatus, setApiResponseStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+    const fetchTrafficData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const modesResponse = await apiGetTrafficModes();
+            if (modesResponse.data.modes) {
+                const apiModes = modesResponse.data.modes.map(m => {
+                    let colorClass = '';
+                    switch (m.Mode_Name) {
+                        case 'Auto':
+                            colorClass = 'bg-green-500';
+                            break;
+                        case 'Intelligence':
+                            colorClass = 'bg-blue-500';
+                            break;
+                        case 'Caution':
+                            colorClass = 'bg-yellow-500';
+                            break;
+                        case 'Stop':
+                            colorClass = 'bg-red-500';
+                            break;
+                        default:
+                            colorClass = 'bg-gray-500';
+                    }
+                    return {
+                        name: m.Mode_Name,
+                        color: colorClass,
+                    };
+                });
+                setModes(apiModes);
+            }
+            const intersectionsResponse = await apiGetIntersectionData();
+            if (intersectionsResponse.data.intersections) {
+                setIntersectionTimes(intersectionsResponse.data.intersections);
+            }
+            const modeStatusResponse = await apiGetModeStatus();
+            const modeFromApi = modeStatusResponse.data.currentMode;
+            if (modeFromApi) {
+                setCurrentMode(modeFromApi);
+                setSelectedMode(modeFromApi);
+            } else {
+                setCurrentMode('No Mode Selected');
+                setSelectedMode('No Mode Selected');
+            }
+        } catch (error) {
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            messageApi.error(`Failed to fetch traffic data. Error: ${errorMessage}`);
+        } finally {
+            setLoading(false);
+        }
+    }, [messageApi]);
+
+    useEffect(() => {
+        fetchTrafficData();
+    }, [fetchTrafficData]);
+
+    // ✅ ใช้ useEffect เพื่อรอให้ apiResponseStatus มีค่าก่อนจะแสดงผล
+    useEffect(() => {
+        if (apiResponseStatus) {
+            if (apiResponseStatus.success) {
+                messageApi.success(apiResponseStatus.message);
+            } else {
+                messageApi.error(apiResponseStatus.message);
+            }
+            setApiResponseStatus(null); // ล้างค่าเมื่อแสดงผลเสร็จ
+        }
+    }, [apiResponseStatus, messageApi]);
+
+    const currentModeDetails = modes.find(m => m.name === currentMode);
+
+    const handleUpdateMode = async () => {
+        if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
+            messageApi.info('Please select a different mode.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const payload = { modeName: selectedMode };
+            const response = await apiUpdateTrafficMode(payload);
+
+            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
+            if (response.data?.success) {
+                setCurrentMode(selectedMode);
+                setApiResponseStatus({ success: true, message: response.data.message || `Successfully changed mode to ${selectedMode}!` });
+            } else {
+                setApiResponseStatus({ success: false, message: response.data.message || `Failed to change mode.` });
+            }
+
+        } catch (error) {
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            setApiResponseStatus({ success: false, message: `Failed to change mode. Error: ${errorMessage}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
+        setIntersectionTimes(prev => {
+            const newTimes = [...prev];
+            const updatedTime = { ...newTimes[index] };
+            if (color === 'red') {
+                updatedTime.New_Red_Duration = parseInt(value, 10) || 0;
+            } else {
+                updatedTime.New_Green_Duration = parseInt(value, 10) || 0;
+            }
+            newTimes[index] = updatedTime;
+            return newTimes;
+        });
+    };
+
+    const handleSave = async () => {
+        if (selectedMode !== 'Auto') {
+            messageApi.warning('Please select Auto mode to change intersection times.');
+            return;
+        }
+        try {
+            setLoading(true);
+            const payload = {
+                intersections: intersectionTimes.map(item => ({
+                    Intersection_ID: item.Intersection_ID,
+                    New_Red_Duration: Number(item.New_Red_Duration),
+                    New_Green_Duration: Number(item.New_Green_Duration),
+                })),
+            };
+
+            const response = await apiUpdateIntersectionTimes(payload);
+            
+            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
+            if (response.data?.success) {
+                setApiResponseStatus({ success: true, message: response.data.message || 'Successfully changed!' });
+            } else {
+                setApiResponseStatus({ success: false, message: response.data.message || 'Failed to change intersection times.' });
+            }
+
+        } catch (error: any) {
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            setApiResponseStatus({ success: false, message: `An error occurred: ${errorMessage}` });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return <Flex justify="center" align="middle" style={{ minHeight: '100vh', padding: '20px' }}><Spin size="large" /></Flex>;
+    }
+
+    return (
+        <>
+            {contextHolder}
+            <Flex vertical gap="large" style={{ padding: '24px' }}>
+                <Flex justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+                    <Title level={4} style={{ margin: 0 }}>
+                        Traffic Light Management
+                    </Title>
+                    <Flex align="center" gap="small" className="font-semibold text-gray-700">
+                        <span className="text-base">Status:</span>
+                        <div className="flex items-center gap-2">
+                            <div
+                                className={classNames(
+                                    'rounded-full w-4 h-4',
+                                    currentModeDetails?.color || 'bg-gray-400'
+                                )}
+                            />
+                            <span className="font-bold text-lg">{currentMode || 'No mode selected'}</span>
+                        </div>
+                    </Flex>
+                </Flex>
+                <Card title="Traffic Mode" className="shadow-lg rounded-lg">
+                    <Flex vertical gap="large" className="w-full">
+                        <div className="mb-2">
+                            <span className="mr-2 text-base font-semibold">Current Mode :</span>
+                            <Input className="w-40 rounded-md" value={selectedMode} readOnly />
+                        </div>
+                        <Button
+                            type="primary"
+                            className="w-full mb-4 text-lg font-bold py-6 flex items-center justify-center rounded-lg"
+                            onClick={handleUpdateMode}
+                        >
+                            Select Mode
+                        </Button>
+                        <Flex justify="space-between" gap="large" wrap="wrap">
+                            {modes.map(mode => (
+                                <Card
+                                    key={mode.name}
+                                    className={classNames(
+                                        "flex-1 min-w-[150px] text-center cursor-pointer transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg",
+                                        selectedMode === mode.name ? 'border-2 border-blue-500' : ''
+                                    )}
+                                    onClick={() => setSelectedMode(mode.name)}
+                                >
+                                    <Flex vertical align="center" gap="small">
+                                        <div className="font-bold text-lg">{mode.name}</div>
+                                        <div
+                                            className={classNames(
+                                                'rounded-full w-24 h-24',
+                                                mode.color
+                                            )}
+                                        />
+                                    </Flex>
+                                </Card>
+                            ))}
+                        </Flex>
+                    </Flex>
+                </Card>
+                {selectedMode === 'Auto' && (
+                    <Card title="Traffic Light Manage" className="shadow-lg rounded-lg">
+                        <Flex vertical gap="large" className="w-full">
+                            <div className="text-center mb-4">
+                                <h5 className="font-bold text-lg">Set time auto mode</h5>
+                            </div>
+                            {intersectionTimes.map((intersection, index) => (
+                                <div key={intersection.Intersection_ID}>
+                                    <Flex align="middle" justify="space-between" wrap="wrap" gap="middle">
+                                        <Button type="primary" className="font-bold w-full md:w-auto h-10">
+                                            {intersection.Name}
+                                        </Button>
+                                        <Flex gap="large" wrap="wrap" className="flex-1">
+                                            <div className="flex-1 min-w-[180px]">
+                                                <Flex align="center" gap="small" className="mb-2">
+                                                    <span className="font-bold text-red-500">Red</span>
+                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Red_Duration} seconds</span>
+                                                </Flex>
+                                                <Input
+                                                    type="number"
+                                                    value={intersection.New_Red_Duration.toString()}
+                                                    onChange={e => handleTimeChange(index, 'red', e.target.value)}
+                                                    placeholder="Enter new red time"
+                                                    className="rounded-md"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-[180px]">
+                                                <Flex align="center" gap="small" className="mb-2">
+                                                    <span className="font-bold text-green-500">Green</span>
+                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Green_Duration} seconds</span>
+                                                </Flex>
+                                                <Input
+                                                    type="number"
+                                                    value={intersection.New_Green_Duration.toString()}
+                                                    onChange={e => handleTimeChange(index, 'green', e.target.value)}
+                                                    placeholder="Enter new green time"
+                                                    className="rounded-md"
+                                                />
+                                            </div>
+                                        </Flex>
+                                    </Flex>
+                                    <Divider className="my-4" />
+                                </div>
+                            ))}
+                            <Flex justify="flex-end" className="mt-4">
+                                <Button type="primary" onClick={handleSave} className="font-bold py-2 px-6 rounded-lg">
+                                    <Flex align="center" gap="small">
+                                        Change
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </Flex>
+                                </Button>
+                            </Flex>
+                        </Flex>
+                    </Card>
+                )}
+            </Flex>
+        </>
+    );
+};
+
+export default TrafficManagement;
