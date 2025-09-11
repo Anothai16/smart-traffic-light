@@ -23,6 +23,9 @@ CREATE TABLE stl.Traffic_Mode (
     Mode_ID INT IDENTITY(1,1) PRIMARY KEY,
     Mode_Name NVARCHAR(255),
     Red_Duration INT,
+    Yellow_Duration INT,
+    Green_Duration INT,
+    Create_Date DATETIME,
     Update_Date DATETIME
 );
 GO

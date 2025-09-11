@@ -16,7 +16,7 @@ if (!hasDbConfig(config)) {
 
 // MS SQL configuration object using values from the main config
 export const sqlConfig: sql.config = {
-    server: "BITNBK17003", // Server IP address or hostname
+    server: "DESKTOP-QDN7QAS", // Server IP address or hostname
     port: 1433, // Default MS SQL port
     user: "admin", // Database user
     password: "1234", // Database password

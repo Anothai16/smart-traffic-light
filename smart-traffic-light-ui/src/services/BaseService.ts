@@ -4,7 +4,7 @@ import appConfig from '@/configs/app.config'
 import { TOKEN_TYPE, REQUEST_HEADER_AUTH_KEY } from '@/constants/api.constant'
 import { PERSIST_STORE_NAME } from '@/constants/app.constant'
 import deepParseJson from '@/utils/deepParseJson'
-import store, { signOutSuccess } from '../store'
+import store, { signOutSuccess } from '../store' // นำเข้า signOutSuccess action
 
 const unauthorizedCode = [401]
 
@@ -17,8 +17,6 @@ BaseService.interceptors.request.use(
     (config) => {
         const rawPersistData = localStorage.getItem(PERSIST_STORE_NAME)
         const persistData = deepParseJson(rawPersistData)
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let accessToken = (persistData as any).auth.session.token
 
         if (!accessToken) {
@@ -43,8 +41,12 @@ BaseService.interceptors.response.use(
     (error) => {
         const { response } = error
 
+        // ตรวจสอบว่ามี response และสถานะเป็น 401 หรือไม่
         if (response && unauthorizedCode.includes(response.status)) {
+            // เรียก action signOutSuccess เพื่อล้างข้อมูลผู้ใช้
             store.dispatch(signOutSuccess())
+            // อาจจะต้อง Redirect ไปหน้า Login ด้วย
+            // window.location.href = '/sign-in' // หรือใช้ useNavigate() ใน Component
         }
 
         return Promise.reject(error)

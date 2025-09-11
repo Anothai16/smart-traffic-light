@@ -30,7 +30,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
                 authority: result.user.authority,
             });
 
-            console.log('✅ Token has been created with a 2-hour expiration.');
+             console.log(`✅ Token for user: ${body.username} has been created with a 2 hours expiration.`);
 
             return { user: result.user, token };
         } catch (error: any) {
@@ -63,10 +63,28 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
             set.status = 400;
             return { message: error.message };
         }
-    }, {
-        body: t.Object({
-            username: t.String(),
-            password: t.String(),
-            email: t.String(),
-        })
+    })
+    .get('/protected-route', async ({ set, jwt, headers }) => {
+        const authHeader = headers['authorization'];
+        if (!authHeader) {
+            set.status = 401;
+            console.log('❌ Unauthorized: Authorization header is missing.');
+            return { message: 'Authorization header is missing.' };
+        }
+
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = await jwt.verify(token);
+            if (!payload) {
+                set.status = 401;
+                console.log('❌ Unauthorized: Invalid or expired token.');
+                return { message: 'Invalid or expired token.' };
+            }
+            // Logic for protected route
+            return { message: 'Access granted to protected route.' };
+        } catch (error) {
+            set.status = 401;
+            console.log('❌ Unauthorized: Token verification failed.');
+            return { message: 'Token verification failed.' };
+        }
     });

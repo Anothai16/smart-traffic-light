@@ -5,23 +5,25 @@ VALUES
 ('Stop', 999, 0, 0, GETDATE(), GETDATE()),
 ('Caution', 0, 30, 0, GETDATE(), GETDATE());
 
-
-
+select * from stl.Master_Intersection
+delete from stl.Master_Intersection
 INSERT INTO stl.Master_Intersection (Name, Intersection_Number, IP_Address, Location, Create_Date, Update_Date) VALUES
-('Sathorn-Narathiwat', 1, '192.168.1.101', '‡∏ñ‡∏ô‡∏ô‡∏™‡∏≤‡∏ó‡∏£‡∏ï‡∏±‡∏î‡∏Å‡∏±‡∏ö‡∏ñ‡∏ô‡∏ô‡∏ô‡∏£‡∏≤‡∏ò‡∏¥‡∏ß‡∏≤‡∏™', GETDATE(), GETDATE()),
-('Asoke-Sukhumvit', 2, '192.168.1.102', '‡πÅ‡∏¢‡∏Å‡∏≠‡πÇ‡∏®‡∏Å‡∏°‡∏ô‡∏ï‡∏£‡∏µ‡∏ï‡∏±‡∏î‡∏Å‡∏±‡∏ö‡∏ñ‡∏ô‡∏ô‡∏™‡∏∏‡∏Ç‡∏∏‡∏°‡∏ß‡∏¥‡∏ó', GETDATE(), GETDATE()),
-('Ratchada-Ladprao', 3, '192.168.1.103', '‡πÅ‡∏¢‡∏Å‡∏£‡∏±‡∏ä‡∏î‡∏≤‡∏†‡∏¥‡πÄ‡∏©‡∏Å‡∏ï‡∏±‡∏î‡∏Å‡∏±‡∏ö‡∏ñ‡∏ô‡∏ô‡∏•‡∏≤‡∏î‡∏û‡∏£‡πâ‡∏≤‡∏ß', GETDATE(), GETDATE()),
-('Victory Monument', 4, '192.168.1.104', '‡∏≠‡∏ô‡∏∏‡∏™‡∏≤‡∏ß‡∏£‡∏µ‡∏¢‡πå‡∏ä‡∏±‡∏¢‡∏™‡∏°‡∏£‡∏†‡∏π‡∏°‡∏¥', GETDATE(), GETDATE());
+('Sathorn-Narathiwat', 1, '192.168.1.101', '∂ππ “∑√µ—¥°—∫∂πππ√“∏‘«“ ', GETDATE(), GETDATE()),
+('Asoke-Sukhumvit', 2, '192.168.1.102', '·¬°Õ‚»°¡πµ√’µ—¥°—∫∂ππ ÿ¢ÿ¡«‘∑', GETDATE(), GETDATE()),
+('Ratchada-Ladprao', 3, '192.168.1.103', '·¬°√—™¥“¿‘‡…°µ—¥°—∫∂ππ≈“¥æ√È“«', GETDATE(), GETDATE()),
+('Victory Monument', 4, '192.168.1.104', 'Õπÿ “«√’¬Ï™—¬ ¡√¿Ÿ¡‘', GETDATE(), GETDATE());
 GO
 
 -- Mock Data for Setting_Mode_Log table
 INSERT INTO stl.Setting_Mode_Log (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Yellow_Duration, Old_Green_Duration, New_Red_Duration, New_Yellow_Duration, New_Green_Duration, Create_Date, Update_Date)
 VALUES
-(21, 14, 5, '08:30:00', '2024-09-08', 35, 3, 50, 40, 3, 60, GETDATE(), GETDATE()),
-(21, 14, 6, '09:15:00', '2024-09-08', 45, 3, 70, 40, 3, 65, GETDATE(), GETDATE()),
-(21, 14, 7, '10:45:00', '2024-09-08', 30, 3, 45, 30, 3, 45, GETDATE(), GETDATE()),
-(21, 14, 8, '11:00:00', '2024-09-08', 55, 3, 80, 50, 3, 75, GETDATE(), GETDATE());
+(1, 7, 13, '08:30:00', '2024-09-08', 35, 3, 50, 40, 3, 60, GETDATE(), GETDATE()),
+(1, 7, 14, '09:15:00', '2024-09-08', 45, 3, 70, 40, 3, 65, GETDATE(), GETDATE()),
+(1, 7, 15, '10:45:00', '2024-09-08', 30, 3, 45, 30, 3, 45, GETDATE(), GETDATE()),
+(1, 7, 16, '11:00:00', '2024-09-08', 55, 3, 80, 50, 3, 75, GETDATE(), GETDATE());
 
+-- §” —Ëßπ’È„™È HASHBYTES ‡æ◊ËÕ‡¢È“√À— √À— ºË“π¥È«¬Õ—≈°Õ√‘∑÷¡ SHA2_256
+-- „π°“√„™Èß“π®√‘ß §«√·∑π∑’Ë 'password' ¥È«¬√À— ºË“π∑’ËµÈÕß°“√‡¢È“√À— 
 INSERT INTO stl.Admin (
     Username,
     Password,
@@ -37,3 +39,8 @@ INSERT INTO stl.Admin (
 ) VALUES
 ('anothai', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', 'SuperAdmin', 'Anothai', 'Leakvichain', '1234567890123', 'anothai.r@email.com', '0812345678', GETDATE(), GETDATE(), GETDATE()),
 ('admin', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', 'Admin', 'Somsri', 'Rakchart', '9876543210987', 'somsri.r@email.com', '0898765432', GETDATE(), GETDATE(), GETDATE());
+
+delete from stl.Admin
+select * from stl.Admin
+
+SELECT @@SERVERNAME AS ServerName;
