@@ -3,11 +3,13 @@ import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePic
 import { message } from 'antd'; // ✅ นำเข้า message
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { apiGetAccounts, apiCreateAccount, apiDeleteAccount } from '@/services/AccountConfigurationService';
 import type { AxiosResponse, AxiosError } from 'axios';
 import { ColumnsType } from 'antd/es/table';
 
 const { Title } = Typography;
+dayjs.extend(utc);
 
 interface Account {
     Admin_ID: number;
@@ -147,7 +149,11 @@ const ViewAllAccount: React.FC = () => {
             title: 'Register date',
             dataIndex: 'Register_Date',
             key: 'Register_Date',
-            render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+            render: (date: string) => {
+            // ✅ ใช้ dayjs.utc() เพื่อให้ถือว่าข้อมูลที่ได้มาเป็น UTC
+            const formattedDate = dayjs.utc(date);
+            return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
+        },
             sorter: (a, b) => a.Register_Date.localeCompare(b.Register_Date),
         },
         {
@@ -155,7 +161,7 @@ const ViewAllAccount: React.FC = () => {
             dataIndex: 'Role',
             key: 'Role',
             render: (role: Account['Role']) => (
-                <Tag color={role === 'superadmin' ? 'purple' : 'blue'}>
+                <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
                     {role.toUpperCase()}
                 </Tag>
             ),

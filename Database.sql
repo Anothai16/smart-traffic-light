@@ -98,7 +98,7 @@ GO
 -- Create Picture_Log table with a foreign key to Traffic_Log
 CREATE TABLE stl.Picture_Log (
     Picture_ID INT IDENTITY(1,1) PRIMARY KEY,
-    Traffic_Log_ID INT FOREIGN KEY REFERENCES stl.Traffic_Log(Traffic_Log_ID),
+    Intersection_ID INT FOREIGN KEY REFERENCES stl.Master_Intersection(Intersection_ID),
     Image_Path NVARCHAR(255),
     Time TIME,
     Date DATE
