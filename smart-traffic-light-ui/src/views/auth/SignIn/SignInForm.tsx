@@ -10,6 +10,7 @@ import useAuth from '@/utils/hooks/useAuth'
 import { Field, Form, Formik } from 'formik'
 import * as Yup from 'yup'
 import type { CommonProps } from '@/@types/common'
+import Cookies from 'js-cookie'
 
 interface SignInFormProps extends CommonProps {
     disableSubmit?: boolean
@@ -44,7 +45,7 @@ const SignInForm = (props: SignInFormProps) => {
         values: SignInFormSchema,
         setSubmitting: (isSubmitting: boolean) => void,
     ) => {
-        const { username, password } = values
+        const { username, password, rememberMe } = values
         setSubmitting(true)
 
         try {
@@ -52,15 +53,28 @@ const SignInForm = (props: SignInFormProps) => {
 
             if (result?.status === 'failed') {
                 setMessage('Invalid username or password.')
+            } else {
+                // เมื่อล็อกอินสำเร็จ ให้บันทึกหรือลบคุกกี้ตามสถานะของ Remember Me
+                if (rememberMe) {
+                    Cookies.set('rememberedUsername', username, { expires: 7 })
+                    Cookies.set('rememberedPassword', password, { expires: 7 })
+                } else {
+                    Cookies.remove('rememberedUsername')
+                    Cookies.remove('rememberedPassword')
+                }
             }
         } catch (error: any) {
-            // เมื่อได้รับข้อผิดพลาดจาก Backend (เช่น 401 Unauthorized)
-            // จะเข้ามาในส่วนนี้เพื่อจัดการข้อผิดพลาด
-            setMessage('Invalid username or password.'); 
+            setMessage('Invalid username or password.')
         } finally {
-            // ✅ ย้าย setSubmitting(false) มาไว้ที่นี่ เพื่อให้ปุ่มหยุดหมุนเสมอ
-            setSubmitting(false);
+            setSubmitting(false)
         }
+    }
+
+    // กำหนด initialValues ให้กับ Formik โดยดึงค่าจาก Cookies ตั้งแต่แรก
+    const initialValues = {
+        username: Cookies.get('rememberedUsername') || '',
+        password: Cookies.get('rememberedPassword') || '',
+        rememberMe: !!(Cookies.get('rememberedUsername') && Cookies.get('rememberedPassword')),
     }
 
     return (
@@ -71,11 +85,7 @@ const SignInForm = (props: SignInFormProps) => {
                 </Alert>
             )}
             <Formik
-                initialValues={{
-                    username: '',
-                    password: '',
-                    rememberMe: true,
-                }}
+                initialValues={initialValues}
                 validationSchema={validationSchema}
                 onSubmit={(values, { setSubmitting }) => {
                     if (!disableSubmit) {
@@ -139,10 +149,6 @@ const SignInForm = (props: SignInFormProps) => {
                             >
                                 {isSubmitting ? 'Signing in...' : 'Sign In'}
                             </Button>
-                            {/* <div className="mt-4 text-center">
-                                <span>{`Don't have an account yet?`} </span>
-                                <ActionLink to={signUpUrl}>Sign up</ActionLink>
-                            </div> */}
                         </FormContainer>
                     </Form>
                 )}
