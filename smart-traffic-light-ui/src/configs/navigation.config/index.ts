@@ -65,6 +65,16 @@ const navigationConfig: NavigationTree[] = [
                         authority: [],
                         subMenu: [],
                     },
+                    {
+                        key: 'appsProject.IntersectionView',
+                        path: `/project/IntersectionView`,
+                        title: 'Intersection View',
+                        translateKey: 'appsProject.IntersectionView',
+                        icon: 'history',
+                        type: NAV_ITEM_TYPE_ITEM,
+                        authority: [],
+                        subMenu: [],
+                    },
         ],
     },
     /** Example purpose only, please remove */

@@ -42,4 +42,10 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/project/SettingHistory')),
         authority: [],
     },
+    {
+        key: 'appsProject.IntersectionView',
+        path: `/project/IntersectionView`,
+        component: lazy(() => import('@/views/project/IntersectionView')),
+        authority: [],
+    },
 ]
