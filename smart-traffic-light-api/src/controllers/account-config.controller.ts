@@ -18,10 +18,12 @@ export const AccountConfigController = {
      * @param body ข้อมูลใน Request body สำหรับสร้างบัญชี.
      */
     async createAccount(body: any) {
-        const { username, password, email } = body;
+        const { username, Email, ID_Card, Phone_Number } = body; 
 
         const userExists = await AuthService.findByUsername(username);
-        const emailUsed = await AuthService.findByEmail(email);
+        const emailUsed = await AuthService.findByEmail(Email);
+        const idCardUsed = await AccountConfigService.findByIDCard(ID_Card); 
+        const phoneNumberUsed = await AccountConfigService.findByPhoneNumber(Phone_Number); 
 
         if (userExists) {
             throw new Error('User already exists!');
@@ -29,6 +31,14 @@ export const AccountConfigController = {
         
         if (emailUsed) {
             throw new Error('Email already used!');
+        }
+
+        if (idCardUsed) {
+            throw new Error('ID Card already used!');
+        }
+        
+        if (phoneNumberUsed) {
+            throw new Error('Phone Number already used!');
         }
 
         const newAccount = await AccountConfigService.createAccount(body);
@@ -44,18 +54,8 @@ export const AccountConfigController = {
     },
 
     /**
-     * จัดการตรรกะสำหรับการลบบัญชีผู้ใช้.
-     * @param accountId ID ของบัญชีที่ต้องการลบ
-     */
-    async deleteAccount(accountId: number) {
-        if (!accountId) {
-            throw new Error('Account ID is required for deletion.');
-        }
-        await AccountConfigService.deleteAccount(accountId);
-    },
-    /**
-     * ✅ เพิ่ม: จัดการตรรกะสำหรับการลบบัญชีผู้ใช้หลายรายการ.
-     * @param accountIds Array ของ Admin_ID ที่ต้องการลบ.
+     * จัดการตรรกะสำหรับการลบบัญชีผู้ใช้หลายรายการ
+     * @param accountIds ID ของบัญชีที่ต้องการลบ (ในรูปแบบ Array)
      */
     async deleteAccounts(accountIds: number[]) {
         try {
@@ -67,6 +67,47 @@ export const AccountConfigController = {
             throw new Error(error.message);
         }
     },
-
     
+    /**
+     * จัดการตรรกะสำหรับการอัปเดตบัญชีผู้ใช้.
+     * @param accountId ID ของบัญชีที่ต้องการอัปเดต
+     * @param body ข้อมูลใน Request body สำหรับอัปเดตบัญชี.
+     */
+    async updateAccount(accountId: number, body: any) {
+        if (!accountId) {
+            throw new Error('Account ID is required for update.');
+        }
+
+        const { Email, ID_Card, Phone_Number } = body; 
+        const currentAccount = await AccountConfigService.getAccountById(accountId);
+
+        if (Email !== currentAccount.Email) {
+            const emailUsed = await AuthService.findByEmail(Email);
+            if (emailUsed) {
+                if (emailUsed.Admin_ID !== accountId) {
+                    throw new Error('Email already used!');
+                }
+            }
+        }
+        
+        if (ID_Card !== currentAccount.ID_Card) {
+            const idCardUsed = await AccountConfigService.findByIDCard(ID_Card);
+            if (idCardUsed) {
+                if (idCardUsed.Admin_ID !== accountId) {
+                    throw new Error('ID Card already used!');
+                }
+            }
+        }
+        
+        if (Phone_Number !== currentAccount.Phone_Number) {
+            const phoneNumberUsed = await AccountConfigService.findByPhoneNumber(Phone_Number);
+            if (phoneNumberUsed) {
+                if (phoneNumberUsed.Admin_ID !== accountId) {
+                    throw new Error('Phone Number already used!');
+                }
+            }
+        }
+        
+        await AccountConfigService.updateAccount(accountId, body);
+    },
 };

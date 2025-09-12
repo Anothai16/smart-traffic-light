@@ -11,7 +11,6 @@ export const AccountConfigService = {
 
     /**
      * ดึงข้อมูลผู้ใช้ทั้งหมดจากตาราง Admin.
-     * @returns ข้อมูลผู้ใช้ทั้งหมดในรูปแบบ Array.
      */
     async getAllAccounts() {
         try {
@@ -24,80 +23,149 @@ export const AccountConfigService = {
             return null;
         }
     },
-
+    
+    /**
+     * ฟังก์ชันสำหรับดึงข้อมูลผู้ใช้ตาม Admin_ID
+     */
+    async getAccountById(adminId: number) {
+        try {
+            const pool = await getDbPool();
+            const request = new sql.Request(pool);
+            request.input('adminId', sql.Int, adminId);
+            const result = await request.query`SELECT * FROM stl.Admin WHERE Admin_ID = @adminId`;
+            return result.recordset[0];
+        } catch (err) {
+            console.error('SQL error:', err);
+            throw new Error('Failed to retrieve account details.');
+        }
+    },
     
     /**
      * สร้างผู้ใช้ใหม่ในฐานข้อมูล.
-     * @param data ข้อมูลผู้ใช้ที่ใช้ในการสร้าง
      */
-    async createAccount(data: { username: string, password: string, firstName: string, lastName: string, idCard: string, email: string, phoneNumber: string, role: string }) {
+    async createAccount(data: { username: string, password: string, First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
         try {
             const hashedPassword = sha256(data.password);
             const pool = await getDbPool();
             const request = new sql.Request(pool);
 
-            // ✅ แก้ไข: ใช้ request.input() เพื่อกำหนดพารามิเตอร์แต่ละตัวอย่างชัดเจน
-            request.input('username', sql.NVarChar, data.username);
-            request.input('password', sql.NVarChar, hashedPassword);
-            request.input('role', sql.NVarChar, data.role);
-            request.input('firstName', sql.NVarChar, data.firstName);
-            request.input('lastName', sql.NVarChar, data.lastName);
-            request.input('idCard', sql.NVarChar, data.idCard);
-            request.input('email', sql.NVarChar, data.email);
-            request.input('phoneNumber', sql.NVarChar, data.phoneNumber);
+            request.input('username', sql.NVarChar(50), data.username);
+            request.input('password', sql.NVarChar(64), hashedPassword);
+            request.input('firstName', sql.NVarChar(100), data.First_Name);
+            request.input('lastName', sql.NVarChar(100), data.Last_Name);
+            request.input('idCard', sql.NVarChar(13), data.ID_Card);
+            request.input('email', sql.NVarChar(100), data.Email);
+            request.input('phoneNumber', sql.NVarChar(10), data.Phone_Number);
+            request.input('role', sql.NVarChar(50), data.Role);
+            request.input('registerDate', sql.Date, data.Register_Date);
 
-            // ✅ สร้าง Query String โดยใช้ชื่อพารามิเตอร์ที่เรากำหนดไว้
-            const createQuery = `
-                INSERT INTO stl.Admin (
-                    Username, Password, Role, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Create_Date, Update_Date
-                ) VALUES (
-                    @username, @password, @role, @firstName, @lastName, @idCard, @email, @phoneNumber, GETDATE(), GETDATE(), GETDATE()
-                );
+            const result = await request.query`
+                INSERT INTO stl.Admin (Username, Password, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Role)
+                VALUES (@username, @password, @firstName, @lastName, @idCard, @email, @phoneNumber, @registerDate, @role);
+                SELECT * FROM stl.Admin WHERE Username = @username;
             `;
-            await request.query(createQuery);
-
-            // ✅ ส่วนนี้ยังคงใช้ template literal ได้ตามปกติ
-            const result = await request.query`SELECT * FROM stl.Admin WHERE Username = ${data.username}`;
             return result.recordset[0];
         } catch (err) {
             console.error('SQL error:', err);
             throw new Error('Failed to create account in database.');
         }
     },
-    /**
-     * ลบบัญชีผู้ใช้จากฐานข้อมูล.
-     * @param accountId ID ของบัญชีที่ต้องการลบ
-     */
-    async deleteAccount(accountId: number) {
+
+    async deleteAccounts(accountIds: number[]) {
         try {
             const pool = await getDbPool();
-            const request = new sql.Request(pool);
-            await request.query`
-                DELETE FROM stl.Admin WHERE Admin_ID = ${accountId};
+            const transaction = new sql.Transaction(pool);
+            await transaction.begin();
+
+            const request = new sql.Request(transaction);
+
+            const placeholders = accountIds.map((_, index) => `@id${index}`).join(', ');
+
+            const deleteQuery = `
+                DELETE FROM stl.Admin
+                WHERE Admin_ID IN (${placeholders});
             `;
-        } catch (err) {
+
+            accountIds.forEach((id, index) => {
+                request.input(`id${index}`, sql.Int, id);
+            });
+
+            const result = await request.query(deleteQuery);
+            await transaction.commit();
+
+            return result.rowsAffected;
+        } catch (err: any) {
             console.error('SQL error:', err);
-            throw new Error('Failed to delete account.');
+            throw new Error(err.originalError?.message || 'Failed to delete account in database.');
         }
     },
+    
     /**
-     * ✅ เพิ่ม: ลบบัญชีผู้ใช้หลายรายการ.
-     * @param accountIds Array ของ Admin_ID ที่ต้องการลบ.
+     * อัปเดตข้อมูลบัญชีผู้ใช้ในฐานข้อมูล.
      */
-    async deleteAccounts(accountIds: number[]) {
+    async updateAccount(adminId: number, data: { First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
         try {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
             
-            // ✅ ใช้คำสั่ง IN เพื่อลบหลายรายการในครั้งเดียว
-            const deleteQuery = `
-                DELETE FROM Admin WHERE Admin_ID IN (${accountIds.join(',')})
+            request.input('adminId', sql.Int, adminId);
+            request.input('firstName', sql.NVarChar, data.First_Name);
+            request.input('lastName', sql.NVarChar, data.Last_Name);
+            request.input('idCard', sql.NVarChar, data.ID_Card);
+            request.input('email', sql.NVarChar, data.Email);
+            request.input('phoneNumber', sql.NVarChar, data.Phone_Number);
+            request.input('role', sql.NVarChar, data.Role);
+            request.input('registerDate', sql.Date, data.Register_Date);
+            
+            const updateQuery = `
+                UPDATE stl.Admin
+                SET
+                    First_Name = @firstName,
+                    Last_Name = @lastName,
+                    ID_Card = @idCard,
+                    Email = @email,
+                    Phone_Number = @phoneNumber,
+                    Role = @role,
+                    Register_Date = @registerDate,
+                    Update_Date = GETDATE()
+                WHERE Admin_ID = @adminId;
             `;
-            const result = await request.query(deleteQuery);
-            return result.rowsAffected;
+            await request.query(updateQuery);
         } catch (err) {
             console.error('SQL error:', err);
-            throw new Error('Failed to delete accounts from database.');
+            throw new Error('Failed to update account.');
+        }
+    },
+    
+    /**
+     * ฟังก์ชันสำหรับค้นหาบัญชีจาก ID_Card
+     */
+    async findByIDCard(idCard: string) {
+        try {
+            const pool = await getDbPool();
+            const request = new sql.Request(pool);
+            request.input('idCard', sql.NVarChar(13), idCard);
+            const result = await request.query`SELECT * FROM stl.Admin WHERE ID_Card = @idCard`;
+            return result.recordset[0];
+        } catch (err) {
+            console.error('SQL error:', err);
+            return null;
+        }
+    },
+    
+    /**
+     * ฟังก์ชันสำหรับค้นหาบัญชีจาก Phone_Number
+     */
+    async findByPhoneNumber(phoneNumber: string) {
+        try {
+            const pool = await getDbPool();
+            const request = new sql.Request(pool);
+            request.input('phoneNumber', sql.NVarChar(10), phoneNumber);
+            const result = await request.query`SELECT * FROM stl.Admin WHERE Phone_Number = @phoneNumber`;
+            return result.recordset[0];
+        } catch (err) {
+            console.error('SQL error:', err);
+            return null;
         }
     },
 };

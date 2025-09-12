@@ -1,101 +1,107 @@
-import React, { useState } from 'react';
-import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, message } from 'antd';
+// src/views/account-config/AccountConfiguration.tsx
+
+import React, { useState, useEffect , useCallback} from 'react';
+import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space, Select } from 'antd';
+import { message } from 'antd';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import { apiGetAccounts, apiCreateAccount, apiDeleteAccount } from '@/services/AccountConfigurationService';
+import type { AxiosResponse, AxiosError } from 'axios';
+import { ColumnsType } from 'antd/es/table';
+import { SyncOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store';
 
 const { Title } = Typography;
+dayjs.extend(utc);
 
-// Mock Data for demonstration
 interface Account {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    idCard: string;
-    registerDate: string;
-    role: 'admin' | 'superadmin';
+    Admin_ID: number;
+    Username: string;
+    First_Name: string;
+    Last_Name: string;
+    Email: string;
+    ID_Card: string;
+    Register_Date: string;
+    Birthday: string;
+    Role: string;
 }
 
-const mockAccounts: Account[] = [
-    {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        idCard: '1234567890123',
-        registerDate: '2023-01-15',
-        role: 'admin',
-    },
-    {
-        id: '2',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@example.com',
-        idCard: '3210987654321',
-        registerDate: '2023-02-20',
-        role: 'superadmin',
-    },
-    {
-        id: '3',
-        firstName: 'Peter',
-        lastName: 'Jones',
-        email: 'peter.jones@example.com',
-        idCard: '9876543210987',
-        registerDate: '2023-03-10',
-        role: 'admin',
-    },
-    {
-        id: '4',
-        firstName: 'Mary',
-        lastName: 'Brown',
-        email: 'mary.brown@example.com',
-        idCard: '5678901234567',
-        registerDate: '2023-04-05',
-        role: 'superadmin',
-    },
-];
+interface AccountApiResponse {
+    accounts: Account[];
+}
 
-const getRoleTag = (role: Account['role']) => {
-    switch (role) {
-        case 'admin':
-            return <Tag color="blue">{role}</Tag>;
-        case 'superadmin':
-            return <Tag color="purple">{role}</Tag>;
-        default:
-            return <Tag>{role}</Tag>;
-    }
-};
+interface DeleteAccountResponse {
+    message: string;
+}
 
-const ViewAllAccount = () => {
-    const [dataSource, setDataSource] = useState<Account[]>(mockAccounts);
-    const [searchText, setSearchText] = useState('');
+const AccountConfiguration: React.FC = () => {
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
+    const [searchText, setSearchText] = useState('');
+    
     const [messageApi, contextHolder] = message.useMessage();
+
+    // ดึง authority จาก Redux store
+    const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
+    // console.log(userAuthority)
+    // กำหนดตัวเลือกสำหรับ dropdown ตาม authority
+    const roleOptions = userAuthority.includes('SuperAdmin')
+        ? [{ value: 'admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
+        : [{ value: 'admin', label: 'Admin' }];
+
+
+    const fetchAccounts = async () => {
+        try {
+            setLoading(true);
+            const response = await apiGetAccounts();
+            if (response.status === 200) {
+                setAccounts(response.data.accounts);
+            }
+        } catch (error) {
+            console.error("Failed to fetch accounts:", error);
+            messageApi.error('Failed to fetch accounts.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRefresh = useCallback(async () => {
+            await fetchAccounts();
+            messageApi.success('Data refreshed successfully!');
+        }, [fetchAccounts, messageApi]);
+
+    useEffect(() => {
+        fetchAccounts();
+    }, []);
 
     const handleSearch = (value: string) => {
         setSearchText(value);
-        const filteredData = mockAccounts.filter(account =>
+        const filteredData = accounts.filter(account =>
             Object.values(account).some(val =>
                 String(val).toLowerCase().includes(value.toLowerCase())
             )
         );
-        setDataSource(filteredData);
+        setAccounts(filteredData);
     };
 
-    const handleDelete = (id: string) => {
-        Modal.confirm({
-            title: 'Confirm Deletion',
-            content: 'Are you sure you want to delete this account?',
-            okText: 'Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: () => {
-                const newDataSource = dataSource.filter(account => account.id !== id);
-                setDataSource(newDataSource);
+    const handleDeleteAccount = async (adminId: number) => {
+        try {
+            const response = await apiDeleteAccount(adminId);
+            if (response.status === 200 || response.status === 204) {
                 messageApi.success('Account deleted successfully!');
-            },
-        });
+                fetchAccounts();
+            } else {
+                messageApi.error('Failed to delete account.');
+            }
+        } catch (error) {
+            const err = error as AxiosError<any>;
+            console.error("Failed to delete account:", err);
+            messageApi.error(err.response?.data?.message || 'Failed to delete account.');
+        }
     };
 
     const showModal = () => {
@@ -107,56 +113,89 @@ const ViewAllAccount = () => {
         form.resetFields();
     };
 
-    const onFinish = (values: any) => {
-        console.log('Received values of form: ', values);
-        setIsModalOpen(false);
-        form.resetFields();
+    const onFinish = async (values: any) => {
+        try {
+            const payload = {
+                username: values.username,
+                password: values.password,
+                firstName: values.firstName,
+                lastName: values.lastName,
+                idCard: values.idCard,
+                email: values.email,
+                phoneNumber: values.phoneNumber,
+                role: values.role, 
+                birthday: values.birthday?.format('YYYY-MM-DD'),
+                registerDate: values.registerDate?.format('YYYY-MM-DD'),
+            };
+
+            await apiCreateAccount(payload);
+            messageApi.success('Account created successfully!');
+            fetchAccounts();
+            handleCancel();
+        } catch (error) {
+            console.error("Failed to create account:", error);
+            messageApi.error('Failed to create account.');
+        }
     };
 
-    const columns: TableProps<Account>['columns'] = [
+    const columns: ColumnsType<Account> = [
         {
             title: 'Firstname',
-            dataIndex: 'firstName',
-            key: 'firstName',
-            sorter: (a, b) => a.firstName.localeCompare(b.firstName),
+            dataIndex: 'First_Name',
+            key: 'First_Name',
+            sorter: (a, b) => a.First_Name.localeCompare(b.First_Name),
         },
         {
             title: 'Lastname',
-            dataIndex: 'lastName',
-            key: 'lastName',
-            sorter: (a, b) => a.lastName.localeCompare(b.lastName),
+            dataIndex: 'Last_Name',
+            key: 'Last_Name',
+            sorter: (a, b) => a.Last_Name.localeCompare(b.Last_Name),
         },
         {
             title: 'Email',
-            dataIndex: 'email',
-            key: 'email',
-            sorter: (a, b) => a.email.localeCompare(b.email),
+            dataIndex: 'Email',
+            key: 'Email',
+            sorter: (a, b) => a.Email.localeCompare(b.Email),
         },
         {
             title: 'ID Card',
-            dataIndex: 'idCard',
-            key: 'idCard',
+            dataIndex: 'ID_Card',
+            key: 'ID_Card',
         },
         {
             title: 'Register date',
-            dataIndex: 'registerDate',
-            key: 'registerDate',
-            sorter: (a, b) => a.registerDate.localeCompare(b.registerDate),
+            dataIndex: 'Register_Date',
+            key: 'Register_Date',
+            render: (date: string) => {
+            const formattedDate = dayjs.utc(date);
+            return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
+        },
+            sorter: (a, b) => a.Register_Date.localeCompare(b.Register_Date),
         },
         {
             title: 'Role',
-            dataIndex: 'role',
-            key: 'role',
-            render: (role: Account['role']) => getRoleTag(role),
-            sorter: (a, b) => a.role.localeCompare(b.role),
+            dataIndex: 'Role',
+            key: 'Role',
+            render: (role: Account['Role']) => (
+                <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
+                    {role.toUpperCase()}
+                </Tag>
+            ),
+            sorter: (a, b) => a.Role.localeCompare(b.Role),
         },
         {
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
-                <Button type="primary" danger onClick={() => handleDelete(record.id)}>
-                    Delete
-                </Button>
+                <Popconfirm
+                    title="Delete the account"
+                    description="Are you sure to delete this account?"
+                    onConfirm={() => handleDeleteAccount(record.Admin_ID)}
+                    okText="Yes"
+                    cancelText="No"
+                >
+                    <Button type="primary" danger>Delete</Button>
+                </Popconfirm>
             ),
         },
     ];
@@ -179,17 +218,20 @@ const ViewAllAccount = () => {
                         <Button type="primary" onClick={showModal}>
                             ADD NEW ACCOUNT
                         </Button>
+                        <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
+                                                Refresh
+                                            </Button>
                     </Flex>
                 </Flex>
                 <Card>
                     <Table
                         columns={columns}
-                        dataSource={dataSource}
-                        rowKey="id"
+                        dataSource={accounts}
+                        rowKey="Admin_ID"
                         pagination={{ pageSize: 10 }}
+                        loading={loading}
                     />
                 </Card>
-
                 <Modal
                     title="Create New Account"
                     open={isModalOpen}
@@ -203,7 +245,6 @@ const ViewAllAccount = () => {
                         onFinish={onFinish}
                         layout="vertical"
                     >
-                        {/* Personal Information Section */}
                         <Card
                             title="Personal Information"
                             style={{ marginBottom: '24px' }}
@@ -276,8 +317,6 @@ const ViewAllAccount = () => {
                                 <DatePicker style={{ width: '100%' }} />
                             </Form.Item>
                         </Card>
-
-                        {/* Account Information Section */}
                         <Card title="Account Information">
                             <Row gutter={16}>
                                 <Col span={24}>
@@ -287,6 +326,18 @@ const ViewAllAccount = () => {
                                         rules={[{ required: true, message: 'Please input your username!' }]}
                                     >
                                         <Input />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="role"
+                                        label="Role"
+                                        rules={[{ required: true, message: 'Please select a role!' }]}
+                                    >
+                                        {/* ใช้ Select และ roleOptions */}
+                                        <Select options={roleOptions} />
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -322,8 +373,6 @@ const ViewAllAccount = () => {
                                 </Col>
                             </Row>
                         </Card>
-
-                        {/* Submit and Cancel Buttons */}
                         <Flex justify="flex-end" style={{ marginTop: '24px' }}>
                             <Button onClick={handleCancel} style={{ marginRight: '8px' }}>
                                 Cancel
@@ -339,4 +388,4 @@ const ViewAllAccount = () => {
     );
 };
 
-export default ViewAllAccount;
+export default AccountConfiguration;

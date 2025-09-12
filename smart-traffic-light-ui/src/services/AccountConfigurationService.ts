@@ -24,10 +24,26 @@ export async function apiCreateAccount(data: any) {
     });
 }
 
-export async function apiDeleteAccount(accountId: number) {
+export async function apiDeleteAccount(accountIds: number[]) {
     return ApiService.fetchData({
         url: '/account-config/delete',
-        method: 'delete',
-        data: { accountId },
+        method: 'post',
+        data: { accountIds },
     });
 }
+
+/**
+ * ✅ เพิ่ม: ฟังก์ชันสำหรับอัปเดตข้อมูลบัญชีผู้ใช้.
+ * @param adminId ID ของบัญชีที่ต้องการแก้ไข
+ * @param data ข้อมูลใหม่ที่จะนำไปอัปเดต
+ * @returns AxiosResponse
+ */
+export async function apiUpdateAccount(adminId: number, data: any) {
+    return ApiService.fetchData({
+        url: `/account-config/update/${adminId}`, // กำหนด URL ให้ตรงกับ route ของ backend
+        method: 'put', // ใช้ method 'put' สำหรับการอัปเดต
+        data,
+    });
+}
+
+

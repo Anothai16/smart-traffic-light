@@ -48,4 +48,16 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/project/IntersectionView')),
         authority: [],
     },
+    {
+        key: 'appsProject.SystemPerformance',
+        path: `/project/SystemPerformance`,
+        component: lazy(() => import('@/views/project/SystemPerformance')),
+        authority: [],
+    },
+    {
+        key: 'appsProject.CameraManagement',
+        path: `/project/CameraManagement`,
+        component: lazy(() => import('@/views/project/CameraManagement')),
+        authority: [],
+    },
 ]

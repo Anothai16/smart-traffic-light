@@ -1,21 +1,21 @@
 // src/views/account-config/AccountConfiguration.tsx
 
-import React, { useState, useEffect , useCallback} from 'react';
-import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space, Select } from 'antd';
-import { message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space, Select, message } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { apiGetAccounts, apiCreateAccount, apiDeleteAccount } from '@/services/AccountConfigurationService';
+import { apiGetAccounts, apiCreateAccount, apiDeleteAccount, apiUpdateAccount } from '@/services/AccountConfigurationService';
 import type { AxiosResponse, AxiosError } from 'axios';
 import { ColumnsType } from 'antd/es/table';
-import { SyncOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 
 const { Title } = Typography;
 dayjs.extend(utc);
 
+// Interface สำหรับข้อมูลบัญชี
 interface Account {
     Admin_ID: number;
     Username: string;
@@ -24,8 +24,8 @@ interface Account {
     Email: string;
     ID_Card: string;
     Register_Date: string;
-    Birthday: string;
     Role: string;
+    Phone_Number: string; 
 }
 
 interface AccountApiResponse {
@@ -36,23 +36,25 @@ interface DeleteAccountResponse {
     message: string;
 }
 
+interface ErrorResponseData {
+  message: string;
+}
+
 const AccountConfiguration: React.FC = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
     const [searchText, setSearchText] = useState('');
-    
+    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+
     const [messageApi, contextHolder] = message.useMessage();
 
-    // ดึง authority จาก Redux store
     const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
-    // console.log(userAuthority)
-    // กำหนดตัวเลือกสำหรับ dropdown ตาม authority
+
     const roleOptions = userAuthority.includes('SuperAdmin')
         ? [{ value: 'admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
         : [{ value: 'admin', label: 'Admin' }];
-
 
     const fetchAccounts = async () => {
         try {
@@ -70,9 +72,9 @@ const AccountConfiguration: React.FC = () => {
     };
 
     const handleRefresh = useCallback(async () => {
-            await fetchAccounts();
-            messageApi.success('Data refreshed successfully!');
-        }, [fetchAccounts, messageApi]);
+        await fetchAccounts();
+        messageApi.success('Data refreshed successfully!');
+    }, [fetchAccounts, messageApi]);
 
     useEffect(() => {
         fetchAccounts();
@@ -88,24 +90,42 @@ const AccountConfiguration: React.FC = () => {
         setAccounts(filteredData);
     };
 
-    const handleDeleteAccount = async (adminId: number) => {
-        try {
-            const response = await apiDeleteAccount(adminId);
-            if (response.status === 200 || response.status === 204) {
-                messageApi.success('Account deleted successfully!');
-                fetchAccounts();
-            } else {
-                messageApi.error('Failed to delete account.');
-            }
-        } catch (error) {
-            const err = error as AxiosError<any>;
-            console.error("Failed to delete account:", err);
-            messageApi.error(err.response?.data?.message || 'Failed to delete account.');
+    const handleDeleteAccount = async (adminIds: number[]) => {
+    try {
+        const response = await apiDeleteAccount(adminIds);
+        if (response.status === 200 || response.status === 204) {
+            messageApi.success('Account deleted successfully!');
+            fetchAccounts();
+        } else {
+            messageApi.error('Failed to delete account.');
         }
-    };
+    } catch (error) {
+        const err = error as AxiosError<any>;
+        console.error("Failed to delete account:", err);
+        messageApi.error(err.response?.data?.message || 'Failed to delete account.');
+    }
+};
+
+    const handleEdit = (record: Account) => {
+    setEditingAccount(record);
+    setIsModalOpen(true);
+    form.setFieldsValue({
+        First_Name: record.First_Name,
+        Last_Name: record.Last_Name,
+        Email: record.Email,
+        ID_Card: record.ID_Card,
+        Phone_Number: record.Phone_Number,
+        // ✅ แก้ไข: ลบ .toLowerCase() ออก เพื่อให้แสดงผลตามค่าจริงจาก backend
+        Role: record.Role,
+        Register_Date: record.Register_Date ? dayjs(record.Register_Date) : null,
+        Username: record.Username,
+    });
+};
 
     const showModal = () => {
+        setEditingAccount(null);
         setIsModalOpen(true);
+        form.resetFields();
     };
 
     const handleCancel = () => {
@@ -114,29 +134,55 @@ const AccountConfiguration: React.FC = () => {
     };
 
     const onFinish = async (values: any) => {
-        try {
-            const payload = {
-                username: values.username,
-                password: values.password,
-                firstName: values.firstName,
-                lastName: values.lastName,
-                idCard: values.idCard,
-                email: values.email,
-                phoneNumber: values.phoneNumber,
-                role: values.role, 
-                birthday: values.birthday?.format('YYYY-MM-DD'),
-                registerDate: values.registerDate?.format('YYYY-MM-DD'),
-            };
+    try {
+        setLoading(true);
 
+        if (editingAccount) {
+            const payload = {
+                First_Name: values.First_Name,
+                Last_Name: values.Last_Name,
+                ID_Card: values.ID_Card,
+                Email: values.Email,
+                Phone_Number: values.Phone_Number,
+                Role: values.Role,
+                Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
+            };
+            await apiUpdateAccount(editingAccount.Admin_ID, payload);
+            messageApi.success('Account updated successfully!');
+        } else {
+            const payload = {
+                username: values.Username,
+                password: values.password,
+                First_Name: values.First_Name,
+                Last_Name: values.Last_Name,
+                ID_Card: values.ID_Card,
+                Email: values.Email,
+                Phone_Number: values.Phone_Number,
+                Role: values.Role,
+                Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
+            };
             await apiCreateAccount(payload);
             messageApi.success('Account created successfully!');
-            fetchAccounts();
-            handleCancel();
-        } catch (error) {
-            console.error("Failed to create account:", error);
-            messageApi.error('Failed to create account.');
         }
-    };
+
+        fetchAccounts();
+        handleCancel();
+    } catch (error: unknown) {
+        // Now TypeScript knows that error.response.data has a 'message' property
+        if (isAxiosError(error) && error.response && error.response.data && error.response.data.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error('An unexpected error occurred.');
+        }
+    } finally {
+        setLoading(false);
+    }
+};
+    
+    // ✅ เพิ่ม: Helper function สำหรับตรวจสอบชนิดของ AxiosError
+    function isAxiosError(error: any): error is import("axios").AxiosError<ErrorResponseData> {
+    return error.isAxiosError === true;
+    }
 
     const columns: ColumnsType<Account> = [
         {
@@ -167,18 +213,19 @@ const AccountConfiguration: React.FC = () => {
             dataIndex: 'Register_Date',
             key: 'Register_Date',
             render: (date: string) => {
-            const formattedDate = dayjs.utc(date);
-            return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
-        },
+                const formattedDate = dayjs.utc(date);
+                return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
+            },
             sorter: (a, b) => a.Register_Date.localeCompare(b.Register_Date),
         },
         {
             title: 'Role',
             dataIndex: 'Role',
             key: 'Role',
+            // ✅ แก้ไข: เพิ่มการตรวจสอบค่า role ว่าเป็น string ก่อนใช้ toUpperCase()
             render: (role: Account['Role']) => (
                 <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
-                    {role.toUpperCase()}
+                    {role ? role.toUpperCase() : '-'}
                 </Tag>
             ),
             sorter: (a, b) => a.Role.localeCompare(b.Role),
@@ -187,15 +234,26 @@ const AccountConfiguration: React.FC = () => {
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
-                <Popconfirm
-                    title="Delete the account"
-                    description="Are you sure to delete this account?"
-                    onConfirm={() => handleDeleteAccount(record.Admin_ID)}
-                    okText="Yes"
-                    cancelText="No"
-                >
-                    <Button type="primary" danger>Delete</Button>
-                </Popconfirm>
+                <Space size="middle">
+                    {userAuthority.includes('SuperAdmin') && (
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEdit(record)}
+                        >
+                            Edit
+                        </Button>
+                    )}
+                    <Popconfirm
+                        title="Delete the account"
+                        description="Are you sure to delete this account?"
+                        onConfirm={() => handleDeleteAccount([record.Admin_ID])}
+                        okText="Yes"
+                        cancelText="No"
+                    >
+                        <Button type="primary" danger icon={<DeleteOutlined />}>Delete</Button>
+                    </Popconfirm>
+                </Space>
             ),
         },
     ];
@@ -215,12 +273,12 @@ const AccountConfiguration: React.FC = () => {
                             style={{ width: 250 }}
                             allowClear
                         />
-                        <Button type="primary" onClick={showModal}>
+                        <Button type="primary" onClick={showModal} icon={<PlusOutlined />}>
                             ADD NEW ACCOUNT
                         </Button>
                         <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
-                                                Refresh
-                                            </Button>
+                            Refresh
+                        </Button>
                     </Flex>
                 </Flex>
                 <Card>
@@ -233,7 +291,7 @@ const AccountConfiguration: React.FC = () => {
                     />
                 </Card>
                 <Modal
-                    title="Create New Account"
+                    title={editingAccount ? 'Edit Account' : 'Create New Account'}
                     open={isModalOpen}
                     onCancel={handleCancel}
                     footer={null}
@@ -241,7 +299,7 @@ const AccountConfiguration: React.FC = () => {
                 >
                     <Form
                         form={form}
-                        name="create_account_form"
+                        name="account_form"
                         onFinish={onFinish}
                         layout="vertical"
                     >
@@ -252,7 +310,7 @@ const AccountConfiguration: React.FC = () => {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="firstName"
+                                        name="First_Name"
                                         label="Firstname"
                                         rules={[{ required: true, message: 'Please input your Firstname!' }]}
                                     >
@@ -261,7 +319,7 @@ const AccountConfiguration: React.FC = () => {
                                 </Col>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="lastName"
+                                        name="Last_Name"
                                         label="Lastname"
                                         rules={[{ required: true, message: 'Please input your Lastname!' }]}
                                     >
@@ -272,113 +330,135 @@ const AccountConfiguration: React.FC = () => {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="idCard"
+                                        name="ID_Card"
                                         label="ID card"
-                                        rules={[{ required: true, message: 'Please input your ID card!' }]}
+                                        rules={[
+                                            { required: true, message: 'กรุณากรอกหมายเลขบัตรประชาชน!' },
+                                            {
+                                                validator: (_, value) => {
+                                                    const pattern = /^\d{13}$/;
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(new Error('กรุณากรอกหมายเลขบัตรประชาชนเป็นตัวเลข 13 หลักเท่านั้น!'));
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            },
+                                        ]}
                                     >
-                                        <Input />
+                                        <Input maxLength={13} />
                                     </Form.Item>
                                 </Col>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="birthday"
-                                        label="Birthday"
-                                        rules={[{ required: true, message: 'Please select your Birthday!' }]}
-                                    >
-                                        <DatePicker style={{ width: '100%' }} />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item
-                                        name="email"
+                                        name="Email"
                                         label="Email"
                                         rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
                                     >
                                         <Input />
                                     </Form.Item>
                                 </Col>
+                            </Row>
+                            <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="phoneNumber"
+                                        name="Phone_Number"
                                         label="Phone Number"
-                                        rules={[{ required: true, message: 'Please input your phone number!' }]}
+                                        rules={[
+                                            { required: true, message: 'กรุณากรอกเบอร์โทรศัพท์!' },
+                                            {
+                                                validator: (_, value) => {
+                                                    const pattern = /^\d{10}$/;
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(new Error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลักเท่านั้น!'));
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            },
+                                        ]}
                                     >
-                                        <Input />
+                                        <Input maxLength={10} />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Register_Date"
+                                        label="Register date"
+                                        rules={[{ required: true, message: 'Please select register date!' }]}
+                                    >
+                                        <DatePicker style={{ width: '100%' }} />
                                     </Form.Item>
                                 </Col>
                             </Row>
-                            <Form.Item
-                                name="registerDate"
-                                label="Register date"
-                                rules={[{ required: true, message: 'Please select register date!' }]}
-                            >
-                                <DatePicker style={{ width: '100%' }} />
-                            </Form.Item>
                         </Card>
                         <Card title="Account Information">
                             <Row gutter={16}>
                                 <Col span={24}>
                                     <Form.Item
-                                        name="username"
+                                        name="Username"
                                         label="Username"
-                                        rules={[{ required: true, message: 'Please input your username!' }]}
+                                        rules={[{ required: !editingAccount, message: 'Please input your username!' }]}
                                     >
-                                        <Input />
+                                        <Input disabled={!!editingAccount} />
                                     </Form.Item>
                                 </Col>
                             </Row>
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
-                                        name="role"
+                                        name="Role"
                                         label="Role"
                                         rules={[{ required: true, message: 'Please select a role!' }]}
                                     >
-                                        {/* ใช้ Select และ roleOptions */}
                                         <Select options={roleOptions} />
                                     </Form.Item>
                                 </Col>
                             </Row>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item
-                                        name="password"
-                                        label="Password"
-                                        rules={[{ required: true, message: 'Please input your password!' }]}
-                                    >
-                                        <Input.Password />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={12}>
-                                    <Form.Item
-                                        name="confirmPassword"
-                                        label="Confirm Password"
-                                        dependencies={['password']}
-                                        rules={[
-                                            { required: true, message: 'Please confirm your password!' },
-                                            ({ getFieldValue }) => ({
-                                                validator(_, value) {
-                                                    if (!value || getFieldValue('password') === value) {
-                                                        return Promise.resolve();
-                                                    }
-                                                    return Promise.reject(new Error('The two passwords that you entered do not match!'));
-                                                },
-                                            }),
-                                        ]}
-                                    >
-                                        <Input.Password />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                            {!editingAccount && (
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            name="password"
+                                            label="Password"
+                                            rules={[{ required: !editingAccount, message: 'Please input your password!' }]}
+                                        >
+                                            <Input.Password />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            name="confirmPassword"
+                                            label="Confirm Password"
+                                            dependencies={['password']}
+                                            rules={[
+                                                { required: !editingAccount, message: 'Please confirm your password!' },
+                                                ({ getFieldValue }) => ({
+                                                    validator(_, value) {
+                                                        if (!value || getFieldValue('password') === value) {
+                                                            return Promise.resolve();
+                                                        }
+                                                        return Promise.reject(new Error('The two passwords that you entered do not match!'));
+                                                    },
+                                                }),
+                                            ]}
+                                        >
+                                            <Input.Password />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            )}
                         </Card>
                         <Flex justify="flex-end" style={{ marginTop: '24px' }}>
                             <Button onClick={handleCancel} style={{ marginRight: '8px' }}>
                                 Cancel
                             </Button>
                             <Button type="primary" htmlType="submit">
-                                Create
+                                {editingAccount ? 'Save' : 'Create'}
                             </Button>
                         </Flex>
                     </Form>

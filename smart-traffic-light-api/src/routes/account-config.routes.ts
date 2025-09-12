@@ -31,7 +31,7 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
         const accounts = await AccountConfigController.getAllAccounts();
         return { accounts };
     })
-    // ✅ เพิ่ม route สำหรับการสร้างบัญชี
+    // ✅ แก้ไข: Route สำหรับการสร้างบัญชี
     .post('/create', async ({ set, jwt, headers, body }) => {
         const authHeader = headers['authorization'];
         if (!authHeader) {
@@ -46,10 +46,13 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
             set.status = 401;
             return { message: 'Invalid or expired token' };
         }
-
+        
         try {
-            const result = await AccountConfigController.createAccount(body);
-            return result;
+            const newAccount = await AccountConfigController.createAccount(body);
+            return {
+                message: 'Account created successfully!',
+                account: newAccount.account,
+            };
         } catch (error: any) {
             set.status = 400;
             return { message: error.message };
@@ -58,48 +61,36 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
         body: t.Object({
             username: t.String(),
             password: t.String(),
-            firstName: t.String(),
-            lastName: t.String(),
-            idCard: t.String(),
-            email: t.String(),
-            phoneNumber: t.String(),
-            role: t.String(),
-            birthday: t.String(), // ✅ เพิ่มฟิลด์ Birthday
-            registerDate: t.String(), // ✅ เพิ่มฟิลด์ RegisterDate
+            First_Name: t.String(),
+            Last_Name: t.String(),
+            ID_Card: t.String(),
+            Email: t.String(),
+            Phone_Number: t.String(),
+            Role: t.String(),
+            Register_Date: t.String(),
         }),
     })
-    .delete('/delete', async ({ set, jwt, headers, body }) => {
-        const authHeader = headers['authorization'];
-        if (!authHeader) {
-            set.status = 401;
-            return { message: 'Authorization header is missing' };
-        }
-
-        const token = authHeader.split(' ')[1];
-        const payload = await jwt.verify(token);
-
-        if (!payload) {
-            set.status = 401;
-            return { message: 'Invalid or expired token' };
-        }
-
-        try {
-            const { accountId } = body as { accountId: number };
-            await AccountConfigController.deleteAccount(accountId);
-            return { message: 'Account deleted successfully' };
-        } catch (error: any) {
-            set.status = 400;
-            return { message: error.message };
-        }
-    }, {
-        body: t.Object({
-            accountId: t.Number(),
-        }),
-    })
-    /**
-     * ✅ เพิ่ม: Route สำหรับการลบบัญชีผู้ใช้หลายรายการ.
-     */
+    
+    // ✅ เพิ่ม: Route สำหรับการลบบัญชีผู้ใช้หลายรายการ.\r\n    .post('/delete', async ({ set, jwt, headers, body }) => {
     .post('/delete', async ({ set, jwt, headers, body }) => {
+    // โค้ดสำหรับตรวจสอบ JWT และ Authorization...
+
+    try {
+        const { accountIds } = body;
+        const result = await AccountConfigController.deleteAccounts(accountIds);
+        return result;
+    } catch (error: any) {
+        set.status = 400;
+        return { message: error.message };
+    }
+}, {
+    // ✅ เพิ่ม: ตัวตรวจสอบสำหรับ request body
+    body: t.Object({
+        accountIds: t.Array(t.Number()),
+    }),
+})
+    // ✅ แก้ไข: Route สำหรับการอัปเดตบัญชีผู้ใช้.
+    .put('/update/:adminId', async ({ set, jwt, headers, body, params: { adminId } }) => {
         const authHeader = headers['authorization'];
         if (!authHeader) {
             set.status = 401;
@@ -115,15 +106,21 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
         }
 
         try {
-            const { accountIds } = body;
-            const result = await AccountConfigController.deleteAccounts(accountIds);
-            return result;
+            await AccountConfigController.updateAccount(Number(adminId), body);
+            return { message: 'Account updated successfully!' };
         } catch (error: any) {
             set.status = 400;
             return { message: error.message };
         }
     }, {
         body: t.Object({
-            accountIds: t.Array(t.Number()),
+            First_Name: t.String(),
+            Last_Name: t.String(),
+            ID_Card: t.String(),
+            Email: t.String(),
+            Phone_Number: t.String(),
+            Role: t.String(),
+            Register_Date: t.String(),
         }),
-    });
+    })
+    
