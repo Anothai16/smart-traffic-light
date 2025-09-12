@@ -6,7 +6,6 @@ import {
     NAV_MODE_DARK,
     NAV_MODE_THEMED,
     NAV_MODE_TRANSPARENT,
-    SIDE_NAV_CONTENT_GUTTER,
     LOGO_X_GUTTER,
 } from '@/constants/theme.constant'
 import Logo from '@/components/template/Logo'
@@ -86,13 +85,13 @@ const SideNav = () => {
                         !sideNavCollapse && 'side-nav-expand',
                     )}
                 >
-                    <div className="side-nav-header">
+                    <div className="side-nav-header flex justify-center items-center">
                         <Logo
                             mode={logoMode()}
                             type={sideNavCollapse ? 'streamline' : 'full'}
                             className={
                                 sideNavCollapse
-                                    ? SIDE_NAV_CONTENT_GUTTER
+                                    ? 'py-2' // Adjust padding for collapsed state
                                     : LOGO_X_GUTTER
                             }
                         />

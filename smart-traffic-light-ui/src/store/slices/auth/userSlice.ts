@@ -7,7 +7,7 @@ export type UserState = {
     firstName?: string
     lastName?: string
     email?: string
-    authority?: string[]
+    authority: string[]
 }
 
 const initialState: UserState = {

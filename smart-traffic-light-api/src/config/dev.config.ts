@@ -16,11 +16,11 @@ if (!hasDbConfig(config)) {
 
 // MS SQL configuration object using values from the main config
 export const sqlConfig: sql.config = {
-    server: "DESKTOP-QDN7QAS", // Server IP address or hostname
-    port: 1433, // Default MS SQL port
-    user: "admin", // Database user
-    password: "1234", // Database password
-    database: "Smart_Traffic_Light", // Database name
+    server: config.DB_HOST || '', // Server IP address or hostname
+    port: config.DB_PORT || 1433, // Default MS SQL port
+    user: config.DB_USER || '', // Database user
+    password: config.DB_PASSWORD || '', // Database password
+    database: config.DB_NAME || '', // Database name
     connectionTimeout: 30000, // Connection timeout in milliseconds
     requestTimeout: 180000, // Connection timeout in milliseconds
     pool: {

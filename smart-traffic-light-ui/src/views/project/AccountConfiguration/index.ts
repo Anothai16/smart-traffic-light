@@ -1,3 +1,3 @@
-import ViewAllAccount from './AccountConfiguration'
+import AccountConfiguration from './AccountConfiguration'
 
-export default ViewAllAccount
+export default AccountConfiguration

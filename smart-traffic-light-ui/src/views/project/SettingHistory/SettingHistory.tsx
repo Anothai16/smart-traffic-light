@@ -79,7 +79,7 @@ const SettingHistory: React.FC = () => {
             title: 'Mode',
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
-            render: (modeName) => <Tag color="blue">{modeName || 'Unknown'}</Tag>,
+            render: (modeName) => <Tag color="green">{modeName || 'Unknown'}</Tag>,
         },
         {
             title: 'Admin Name',
@@ -141,7 +141,26 @@ const SettingHistory: React.FC = () => {
             title: 'Traffic Mode',
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
-            render: (modeName) => <Tag color="geekblue">{modeName || 'Unknown'}</Tag>,
+            render: (modeName) => {
+            let color;
+            switch (modeName) {
+                case 'Auto':
+                    color = 'green';
+                    break;
+                case 'Intelligence':
+                    color = 'blue';
+                    break;
+                case 'Caution':
+                    color = 'yellow';
+                    break;
+                case 'Stop':
+                    color = 'red';
+                    break;
+                default:
+                    color = 'geekblue'; // สีเริ่มต้นสำหรับโหมดที่ไม่รู้จัก
+            }
+            return <Tag color={color}>{modeName || 'Unknown'}</Tag>;
+            },
         },
         {
             title: 'Change Date',
@@ -174,7 +193,7 @@ const SettingHistory: React.FC = () => {
                 </Flex>
                 <Card className="shadow-lg rounded-lg">
                     <Tabs defaultActiveKey="1">
-                        <TabPane tab="Setting Mode History" key="1">
+                        <TabPane tab="Auto Mode Configuration History" key="1">
                             <Table
                                 columns={settingModeColumns}
                                 dataSource={settingModeHistory}
@@ -183,7 +202,7 @@ const SettingHistory: React.FC = () => {
                                 scroll={{ x: 'max-content' }}
                             />
                         </TabPane>
-                        <TabPane tab="Traffic Mode History" key="2">
+                        <TabPane tab="Configuration Mode History" key="2">
                             <Table
                                 columns={modeLogColumns}
                                 dataSource={modeHistory}

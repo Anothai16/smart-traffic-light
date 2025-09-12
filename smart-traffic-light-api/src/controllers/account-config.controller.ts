@@ -67,4 +67,6 @@ export const AccountConfigController = {
             throw new Error(error.message);
         }
     },
+
+    
 };

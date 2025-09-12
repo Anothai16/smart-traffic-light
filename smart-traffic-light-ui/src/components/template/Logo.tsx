@@ -18,7 +18,7 @@ const Logo = (props: LogoProps) => {
         className,
         imgClass,
         style,
-        logoWidth = 'auto',
+        logoWidth = 160,
     } = props
 
     return (
@@ -31,7 +31,8 @@ const Logo = (props: LogoProps) => {
         >
             <img
                 className={imgClass}
-                src={`${LOGO_SRC_PATH}logo-${mode}-${type}.png`}
+                src='/img/logo/logoRMUT.png'
+                //src={`${LOGO_SRC_PATH}logo-${mode}-${type}.png`}
                 alt={`${APP_NAME} logo`}
             />
         </div>

@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space } from 'antd';
-import { message } from 'antd'; // ✅ นำเข้า message
+// src/views/account-config/AccountConfiguration.tsx
+
+import React, { useState, useEffect , useCallback} from 'react';
+import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space, Select } from 'antd';
+import { message } from 'antd';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { apiGetAccounts, apiCreateAccount, apiDeleteAccount } from '@/services/AccountConfigurationService';
 import type { AxiosResponse, AxiosError } from 'axios';
 import { ColumnsType } from 'antd/es/table';
+import { SyncOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store';
 
 const { Title } = Typography;
 dayjs.extend(utc);
@@ -31,15 +36,23 @@ interface DeleteAccountResponse {
     message: string;
 }
 
-const ViewAllAccount: React.FC = () => {
+const AccountConfiguration: React.FC = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
     const [searchText, setSearchText] = useState('');
     
-    // ✅ ใช้ Hook useMessage() เพื่อสร้าง instance ใหม่
     const [messageApi, contextHolder] = message.useMessage();
+
+    // ดึง authority จาก Redux store
+    const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
+    // console.log(userAuthority)
+    // กำหนดตัวเลือกสำหรับ dropdown ตาม authority
+    const roleOptions = userAuthority.includes('SuperAdmin')
+        ? [{ value: 'admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
+        : [{ value: 'admin', label: 'Admin' }];
+
 
     const fetchAccounts = async () => {
         try {
@@ -50,11 +63,16 @@ const ViewAllAccount: React.FC = () => {
             }
         } catch (error) {
             console.error("Failed to fetch accounts:", error);
-            messageApi.error('Failed to fetch accounts.'); // ✅ เปลี่ยนเป็น messageApi
+            messageApi.error('Failed to fetch accounts.');
         } finally {
             setLoading(false);
         }
     };
+
+    const handleRefresh = useCallback(async () => {
+            await fetchAccounts();
+            messageApi.success('Data refreshed successfully!');
+        }, [fetchAccounts, messageApi]);
 
     useEffect(() => {
         fetchAccounts();
@@ -74,15 +92,15 @@ const ViewAllAccount: React.FC = () => {
         try {
             const response = await apiDeleteAccount(adminId);
             if (response.status === 200 || response.status === 204) {
-                messageApi.success('Account deleted successfully!'); // ✅ เปลี่ยนเป็น messageApi
+                messageApi.success('Account deleted successfully!');
                 fetchAccounts();
             } else {
-                messageApi.error('Failed to delete account.'); // ✅ เปลี่ยนเป็น messageApi
+                messageApi.error('Failed to delete account.');
             }
         } catch (error) {
             const err = error as AxiosError<any>;
             console.error("Failed to delete account:", err);
-            messageApi.error(err.response?.data?.message || 'Failed to delete account.'); // ✅ เปลี่ยนเป็น messageApi
+            messageApi.error(err.response?.data?.message || 'Failed to delete account.');
         }
     };
 
@@ -97,7 +115,6 @@ const ViewAllAccount: React.FC = () => {
 
     const onFinish = async (values: any) => {
         try {
-            // ✅ แก้ไข: สร้าง payload โดยรวมข้อมูล Birthday และ Register date
             const payload = {
                 username: values.username,
                 password: values.password,
@@ -106,12 +123,12 @@ const ViewAllAccount: React.FC = () => {
                 idCard: values.idCard,
                 email: values.email,
                 phoneNumber: values.phoneNumber,
-                role: 'Admin', // กำหนด role เป็น 'user'
-                birthday: values.birthday?.format('YYYY-MM-DD'), // ✅ แปลงเป็นสตริง
-                registerDate: values.registerDate?.format('YYYY-MM-DD'), // ✅ แปลงเป็นสตริง
+                role: values.role, 
+                birthday: values.birthday?.format('YYYY-MM-DD'),
+                registerDate: values.registerDate?.format('YYYY-MM-DD'),
             };
 
-            await apiCreateAccount(payload); // ✅ ส่ง payload ใหม่
+            await apiCreateAccount(payload);
             messageApi.success('Account created successfully!');
             fetchAccounts();
             handleCancel();
@@ -150,7 +167,6 @@ const ViewAllAccount: React.FC = () => {
             dataIndex: 'Register_Date',
             key: 'Register_Date',
             render: (date: string) => {
-            // ✅ ใช้ dayjs.utc() เพื่อให้ถือว่าข้อมูลที่ได้มาเป็น UTC
             const formattedDate = dayjs.utc(date);
             return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
         },
@@ -202,6 +218,9 @@ const ViewAllAccount: React.FC = () => {
                         <Button type="primary" onClick={showModal}>
                             ADD NEW ACCOUNT
                         </Button>
+                        <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
+                                                Refresh
+                                            </Button>
                     </Flex>
                 </Flex>
                 <Card>
@@ -313,6 +332,18 @@ const ViewAllAccount: React.FC = () => {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
+                                        name="role"
+                                        label="Role"
+                                        rules={[{ required: true, message: 'Please select a role!' }]}
+                                    >
+                                        {/* ใช้ Select และ roleOptions */}
+                                        <Select options={roleOptions} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
                                         name="password"
                                         label="Password"
                                         rules={[{ required: true, message: 'Please input your password!' }]}
@@ -357,4 +388,4 @@ const ViewAllAccount: React.FC = () => {
     );
 };
 
-export default ViewAllAccount;
+export default AccountConfiguration;
