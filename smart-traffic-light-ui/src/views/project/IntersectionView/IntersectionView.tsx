@@ -5,7 +5,7 @@ import classNames from 'classnames';
 
 const { Title, Text } = Typography;
 
-// ข้อมูลจำลองสำหรับกล้องในแต่ละสี่แยก
+// Mock data for cameras at each intersection
 interface Camera {
     id: number;
     name: string;
@@ -14,10 +14,10 @@ interface Camera {
 }
 
 const mockCameras: Camera[] = [
-    { id: 1, name: 'กล้องแยกที่ 1 (ทิศเหนือ)', imageUrl: 'http://googleusercontent.com/image_generation_content/5', position: 'top' },
-    { id: 2, name: 'กล้องแยกที่ 2 (ทิศตะวันออก)', imageUrl: 'http://googleusercontent.com/image_generation_content/6', position: 'right' },
-    { id: 3, name: 'กล้องแยกที่ 3 (ทิศใต้)', imageUrl: 'http://googleusercontent.com/image_generation_content/7', position: 'bottom' },
-    { id: 4, name: 'กล้องแยกที่ 4 (ทิศตะวันตก)', imageUrl: 'http://googleusercontent.com/image_generation_content/8', position: 'left' },
+    { id: 1, name: 'Camera 1 (North)', imageUrl: 'http://googleusercontent.com/image_generation_content/5', position: 'top' },
+    { id: 2, name: 'Camera 2 (East)', imageUrl: 'http://googleusercontent.com/image_generation_content/6', position: 'right' },
+    { id: 3, name: 'Camera 3 (South)', imageUrl: 'http://googleusercontent.com/image_generation_content/7', position: 'bottom' },
+    { id: 4, name: 'Camera 4 (West)', imageUrl: 'http://googleusercontent.com/image_generation_content/8', position: 'left' },
 ];
 
 const IntersectionView: React.FC = () => {
@@ -37,47 +37,49 @@ const IntersectionView: React.FC = () => {
     const getCameraIconPosition = (position: string) => {
         switch (position) {
             case 'top':
-                return 'top-12 left-1/2 -translate-x-1/2';
+                return 'top-120 left-[45%]';
             case 'right':
-                return 'top-1/2 right-12 -translate-y-1/2';
+                return 'top-137 left-[46.3%]';
             case 'bottom':
-                return 'bottom-12 left-1/2 -translate-x-1/2';
+                return 'top-152 left-[41.23%]';
             case 'left':
-                return 'top-1/2 left-12 -translate-y-1/2';
+                return 'top-137 left-[36%]';
             default:
                 return '';
         }
     };
 
     return (
-        <div
-            className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg p-8"
-            style={{
-                backgroundImage: `url('http://googleusercontent.com/image_generation_content/3')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-            }}
-        >
-            <Title level={4} className="text-white text-center mt-4">
-                มุมมองสี่แยกจากด้านบน
+        <div className="p-4">
+            <Title level={4} className="text-center">
+                Top-Down View of the Intersection
             </Title>
-            <Text className="block text-white text-center mb-6">คลิกที่ไอคอนเพื่อดูภาพจากกล้องแบบเรียลไทม์</Text>
+            <Text className="block text-center mb-6">Click an icon to view the real-time camera feed.</Text>
 
-            {mockCameras.map((camera) => (
-                <Button
-                    key={camera.id}
-                    type="primary"
-                    shape="circle"
-                    icon={<CameraFilled />}
-                    size="large"
-                    onClick={() => showModal(camera)}
-                    className={classNames(
-                        'absolute z-10',
-                        'bg-blue-600 hover:bg-blue-700',
-                        getCameraIconPosition(camera.position)
-                    )}
-                />
-            ))}
+            <div
+                className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg"
+                style={{
+                    backgroundImage: `url('/img/others/map.png')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                }}
+            >
+                {mockCameras.map((camera) => (
+                    <Button
+                        key={camera.id}
+                        type="primary"
+                        shape="circle"
+                        icon={<CameraFilled />}
+                        size="large"
+                        onClick={() => showModal(camera)}
+                        className={classNames(
+                            'absolute z-10',
+                            'bg-blue-600 hover:bg-blue-700',
+                            getCameraIconPosition(camera.position)
+                        )}
+                    />
+                ))}
+            </div>
 
             <Modal
                 title={selectedCamera?.name}
