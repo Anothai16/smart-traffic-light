@@ -1,8 +1,12 @@
 // src/services/account-config.services.ts
 
 import sql from 'mssql';
-import { sha256 } from 'js-sha256';
+import { sha256 } from 'js-sha256'; // <--- อันนี้จะไม่ได้ใช้แล้ว
+import * as bcrypt from 'bcrypt'; // <--- เพิ่มไลบรารี bcrypt
 import { getDbPool } from '../config/dev.config';
+
+// กำหนดค่า Salt Rounds สำหรับ Bcrypt
+const saltRounds = 10;
 
 /**
  * Service สำหรับจัดการข้อมูลและการตรวจสอบผู้ใช้ (Admin).
@@ -45,12 +49,14 @@ export const AccountConfigService = {
      */
     async createAccount(data: { username: string, password: string, First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
         try {
-            const hashedPassword = sha256(data.password);
+            // เข้ารหัสรหัสผ่านด้วย Bcrypt
+            const hashedPassword = await bcrypt.hash(data.password, saltRounds); // <-- เปลี่ยนตรงนี้
+            
             const pool = await getDbPool();
             const request = new sql.Request(pool);
 
             request.input('username', sql.NVarChar(50), data.username);
-            request.input('password', sql.NVarChar(64), hashedPassword);
+            request.input('password', sql.NVarChar(64), hashedPassword); // <-- เปลี่ยนตรงนี้
             request.input('firstName', sql.NVarChar(100), data.First_Name);
             request.input('lastName', sql.NVarChar(100), data.Last_Name);
             request.input('idCard', sql.NVarChar(13), data.ID_Card);
