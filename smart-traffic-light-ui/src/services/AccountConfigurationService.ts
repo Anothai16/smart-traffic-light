@@ -46,4 +46,24 @@ export async function apiUpdateAccount(adminId: number, data: any) {
     });
 }
 
-
+/**
+ * ✅ เพิ่ม: ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้ปัจจุบัน
+ * @param oldPassword รหัสผ่านเดิม
+ * @param newPassword รหัสผ่านใหม่
+ */
+export async function apiChangePassword(oldPassword: string, newPassword: string) {
+    try {
+        const response = await ApiService.fetchData({
+            url: '/account-config/change-password',
+            method: 'put',
+            data: {
+                oldPassword,
+                newPassword
+            },
+        });
+        return response;
+    } catch (error: any) {
+        // ✅ ส่งข้อความ error จาก backend กลับมา
+        throw new Error(error.response?.data?.message || 'Failed to change password');
+    }
+}

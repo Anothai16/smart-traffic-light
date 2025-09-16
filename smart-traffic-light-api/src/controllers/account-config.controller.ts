@@ -110,4 +110,21 @@ export const AccountConfigController = {
         
         await AccountConfigService.updateAccount(accountId, body);
     },
+    /**
+     * ✅ NEW: จัดการตรรกะสำหรับเปลี่ยนรหัสผ่านของผู้ใช้
+     * @param adminId ID ของผู้ใช้
+     * @param body ข้อมูลใน Request body: oldPassword และ newPassword
+     */
+    async changePassword(adminId: number, body: { oldPassword: string, newPassword: string }) {
+        const { oldPassword, newPassword } = body;
+        
+        // ตรวจสอบว่ามีรหัสผ่านเก่าและใหม่หรือไม่
+        if (!oldPassword || !newPassword) {
+            throw new Error('Old password and new password are required.');
+        }
+
+        // เรียก Service เพื่อทำการเปลี่ยนรหัสผ่าน
+        const result = await AccountConfigService.changePassword(adminId, oldPassword, newPassword);
+        return result;
+    },
 };

@@ -8,7 +8,8 @@ export const AuthController = {
 
         const user = await AuthService.findByUsername(username);
 
-        if (!user || AuthService.hashPassword(password) !== user.Password) {
+        // ✅ ใช้ AuthService.comparePassword() เพื่อตรวจสอบรหัสผ่าน
+        if (!user || !(await AuthService.comparePassword(password, user.Password))) {
             throw new Error('Invalid username or password!');
         }
 
@@ -20,32 +21,6 @@ export const AuthController = {
                 lastName: user.Last_Name,
                 email: user.Email,
                 authority: user.Role.split(','),
-            }
-        };
-    },
-
-    async signUp(body: any) {
-        const { username, password, email } = body;
-
-        const userExists = await AuthService.findByUsername(username);
-        const emailUsed = await AuthService.findByEmail(email);
-
-        if (userExists) {
-            throw new Error('User already exists!');
-        }
-        
-        if (emailUsed) {
-            throw new Error('Email already used!');
-        }
-
-        const newUser = await AuthService.createAdmin({ username, password, email });
-        
-        return {
-            user: {
-                userId: newUser.Admin_ID,
-                userName: newUser.Username,
-                email: newUser.Email,
-                authority: [newUser.Role],
             }
         };
     },

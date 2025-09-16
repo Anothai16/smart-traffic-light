@@ -174,4 +174,43 @@ export const AccountConfigService = {
             return null;
         }
     },
+    /**
+     * ✅ NEW: ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้
+     * @param adminId ID ของผู้ใช้ที่ต้องการเปลี่ยนรหัสผ่าน
+     * @param oldPassword รหัสผ่านเก่าที่ผู้ใช้ป้อนเข้ามา
+     * @param newPassword รหัสผ่านใหม่ที่ผู้ใช้ต้องการตั้ง
+     */
+    async changePassword(adminId: number, oldPassword: string, newPassword: string) {
+        try {
+            const pool = await getDbPool();
+            const request = new sql.Request(pool);
+            
+            // 1. ค้นหาบัญชีผู้ใช้ด้วย Admin ID
+            const user = await this.getAccountById(adminId);
+            if (!user) {
+                throw new Error('User not found.');
+            }
+
+            // 2. ตรวจสอบรหัสผ่านเก่าด้วย bcrypt
+            const isPasswordMatch = await bcrypt.compare(oldPassword, user.Password);
+            if (!isPasswordMatch) {
+                throw new Error('Old password is incorrect.');
+            }
+
+            // 3. เข้ารหัสรหัสผ่านใหม่ด้วย bcrypt
+            const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+            
+            // 4. อัปเดตฐานข้อมูลด้วยรหัสผ่านใหม่
+            await request.query`
+                UPDATE stl.Admin
+                SET Password = ${hashedNewPassword}, Update_Date = GETDATE()
+                WHERE Admin_ID = ${adminId};
+            `;
+            
+            return { success: true, message: 'Password updated successfully!' };
+        } catch (err: any) {
+            console.error('SQL error in changePassword:', err);
+            throw new Error(err.message || 'Failed to change password.');
+        }
+    },
 };

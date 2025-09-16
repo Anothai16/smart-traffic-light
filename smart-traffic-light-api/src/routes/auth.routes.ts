@@ -47,23 +47,23 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     .post('/sign-out', () => {
         return { success: true, message: 'Signed out successfully' };
     })
-    .post('/sign-up', async ({ body, jwt, set }) => {
-        try {
-            const result = await AuthController.signUp(body);
+    // .post('/sign-up', async ({ body, jwt, set }) => {
+    //     try {
+    //         const result = await AuthController.signUp(body);
 
-            const token = await jwt.sign({
-                userId: result.user.userId,
-                Admin_ID: result.user.userId, // ✅ เพิ่ม Admin_ID ใน payload
-                email: result.user.email,
-                authority: result.user.authority,
-            });
+    //         const token = await jwt.sign({
+    //             userId: result.user.userId,
+    //             Admin_ID: result.user.userId, // ✅ เพิ่ม Admin_ID ใน payload
+    //             email: result.user.email,
+    //             authority: result.user.authority,
+    //         });
 
-            return { user: result.user, token };
-        } catch (error: any) {
-            set.status = 400;
-            return { message: error.message };
-        }
-    })
+    //         return { user: result.user, token };
+    //     } catch (error: any) {
+    //         set.status = 400;
+    //         return { message: error.message };
+    //     }
+    // })
     .get('/protected-route', async ({ set, jwt, headers }) => {
         const authHeader = headers['authorization'];
         if (!authHeader) {

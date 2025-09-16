@@ -123,4 +123,33 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
             Register_Date: t.String(),
         }),
     })
-    
+    // ✅ เพิ่ม: Route สำหรับเปลี่ยนรหัสผ่านของผู้ใช้
+    .put('/change-password', async ({ set, jwt, headers, body }) => {
+        const authHeader = headers['authorization'];
+        if (!authHeader) {
+            set.status = 401;
+            return { message: 'Authorization header is missing' };
+        }
+
+        const token = authHeader.split(' ')[1];
+        const payload = await jwt.verify(token);
+
+        if (!payload || !payload.Admin_ID) { 
+            set.status = 401;
+            return { message: 'Invalid or expired token' };
+        }
+
+        try {
+            const adminId = Number(payload.Admin_ID);
+            await AccountConfigController.changePassword(adminId, body);
+            return { message: 'Password changed successfully!' };
+        } catch (error: any) {
+            set.status = 400; // หรือ 401 ถ้าเป็นรหัสผ่านผิด
+            return { message: error.message };
+        }
+    }, {
+        body: t.Object({
+            oldPassword: t.String(),
+            newPassword: t.String(),
+        }),
+    });
