@@ -37,3 +37,7 @@ INSERT INTO stl.Admin (
 ) VALUES
 ('anothai', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', 'SuperAdmin', 'Anothai', 'Leakvichain', '1234567890123', 'anothai.r@email.com', '0812345678', GETDATE(), GETDATE(), GETDATE()),
 ('admin', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', 'Admin', 'Somsri', 'Rakchart', '9876543210987', 'somsri.r@email.com', '0898765432', GETDATE(), GETDATE(), GETDATE());
+
+
+$2b$10$NgHI1Ud9gv4/ykMfdmo26OQ0tXWkNKQEhJ92Ux7oCAWMYplgEpyKC
+12345
