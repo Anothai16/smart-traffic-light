@@ -1,4 +1,3 @@
-cat <<EOF > README.md
 # ระบบควบคุมสัญญาณไฟจราจร (Smart Traffic Light System)
 
 ## ภาพรวมของโปรเจกต์
