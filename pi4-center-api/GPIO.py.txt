@@ -1,0 +1,244 @@
+import time
+ import pyodbc
+ import yaml
+ import RPi.GPIO as GPIO # Import the GPIO library
+ 
+ # =========================================================================
+ # Load Configuration from YAML file
+ # =========================================================================
+ 
+ def load_config():
+     """Loads configuration settings from config.yaml."""
+     try:
+         with open('config.yaml', 'r') as file:
+             config = yaml.safe_load(file)
+             return config
+     except Exception as e:
+         print(f"Error loading config file: {e}")
+         # Return default configuration in case of an error
+         return {
+             'traffic_light': {
+                 'green_duration': 10,
+                 'yellow_duration': 3,
+                 'all_red_duration': 2,
+                 'light_size': 40,
+                 'spacing': 10
+             },
+             'gui': {
+                 'center_x': 275,
+                 'center_y': 275,
+                 'offset': 150
+             },
+             'database': {
+                 'driver': "{ODBC Driver 17 for SQL Server}",
+                 'server': "DESKTOP-QDN7QAS",
+                 'name': "Smart_Traffic_Light",
+                 'uid': "admin",
+                 'pwd': "1234"
+             }
+         }
+ 
+ CONFIG = load_config()
+ 
+ # =========================================================================
+ # GPIO Pin Mapping
+ # =========================================================================
+ 
+ GPIO_PINS = {
+     'N': {'green': 17, 'yellow': 18, 'red': 27},
+     'E': {'green': 22, 'yellow': 23, 'red': 24},
+     'S': {'green': 25, 'yellow': 5,  'red': 6},
+     'W': {'green': 12, 'yellow': 13, 'red': 16},
+ }
+ 
+ # =========================================================================
+ # Database Connection Function
+ # =========================================================================
+ 
+ def fetch_current_mode_from_db():
+     """
+     Fetches the latest operating mode from the 'stl.Mode_Log' table
+     and retrieves the corresponding 'Mode_Name' from 'stl.Traffic_Mode'.
+     """
+     db_config = CONFIG['database']
+     try:
+         cnxn_str = (
+             f"Driver={db_config['driver']};"
+             f"Server={db_config['server']};"
+             f"Database={db_config['name']};"
+             f"UID={db_config['uid']};"
+             f"PWD={db_config['pwd']};"
+         )
+         cnxn = pyodbc.connect(cnxn_str)
+         cursor = cnxn.cursor()
+         
+         cursor.execute("SELECT TOP 1 Mode_ID FROM stl.Mode_Log ORDER BY Create_Date DESC")
+         last_mode_id = cursor.fetchone()[0]
+         
+         cursor.execute("SELECT Mode_Name FROM stl.Traffic_Mode WHERE Mode_ID = ?", last_mode_id)
+         mode_name = cursor.fetchone()[0]
+         
+         cnxn.close()
+         return mode_name
+     except Exception as e:
+         print(f"Database connection error: {e}")
+         return "Auto"
+ 
+ # =========================================================================
+ # GPIO Traffic Light Controller
+ # =========================================================================
+ 
+ class TrafficControllerGPIO:
+     def __init__(self):
+         # GPIO setup
+         GPIO.setmode(GPIO.BCM)
+         for light in GPIO_PINS.values():
+             for pin in light.values():
+                 GPIO.setup(pin, GPIO.OUT)
+ 
+         self.mode = fetch_current_mode_from_db()
+         self.pending_mode = None
+         print(f"Initial mode: {self.mode}")
+         
+         self.current_phase = 0
+         self.run_mode()
+         self.check_mode_loop()
+ 
+     def cleanup(self):
+         """Clean up GPIO settings on program exit."""
+         GPIO.cleanup()
+ 
+     def set_lights(self, north_status, east_status, south_status, west_status):
+         """Sets the status of all traffic lights using GPIO."""
+         all_lights = [
+             (GPIO_PINS['N'], north_status),
+             (GPIO_PINS['E'], east_status),
+             (GPIO_PINS['S'], south_status),
+             (GPIO_PINS['W'], west_status)
+         ]
+         
+         # Turn off all lights first to prevent cross-lighting
+         for light_pins in GPIO_PINS.values():
+             for pin in light_pins.values():
+                 GPIO.output(pin, GPIO.LOW)
+ 
+         # Turn on the desired lights
+         for light_pins, status in all_lights:
+             if status == 'green':
+                 GPIO.output(light_pins['green'], GPIO.HIGH)
+             elif status == 'yellow':
+                 GPIO.output(light_pins['yellow'], GPIO.HIGH)
+             elif status == 'red':
+                 GPIO.output(light_pins['red'], GPIO.HIGH)
+ 
+     def check_mode_loop(self):
+         """Periodically checks the database for the current operating mode."""
+         new_mode = fetch_current_mode_from_db()
+         
+         if new_mode != self.mode:
+             if self.mode == 'Auto':
+                 self.pending_mode = new_mode
+                 print(f"Pending mode change to: {self.pending_mode}")
+             else:
+                 self.mode = new_mode
+                 print(f"Changing mode to: {self.mode}")
+                 self.run_mode()
+ 
+         # Use a delay instead of Tkinter's after method
+         time.sleep(3)
+         self.check_mode_loop()
+ 
+     def run_mode(self):
+         """Executes the appropriate function based on the fetched mode."""
+         print(f"Current Mode: {self.mode}")
+         
+         if self.mode == 'Auto':
+             self.start_cycle()
+         elif self.mode == 'Caution':
+             self.start_flashing_yellow()
+         elif self.mode == 'Stop':
+             self.start_flashing_red()
+ 
+     def start_cycle(self):
+         """Starts the normal traffic light cycle."""
+         traffic_config = CONFIG['traffic_light']
+         green_duration = traffic_config['green_duration']
+         yellow_duration = traffic_config['yellow_duration']
+         
+         if self.current_phase == 0:
+             self.run_phase('N', 'green', green_duration, 'red', 'red', 'red')
+         elif self.current_phase == 1:
+             self.run_phase('N', 'yellow', yellow_duration, 'red', 'red', 'red')
+         elif self.current_phase == 2:
+             self.run_phase('E', 'green', green_duration, 'red', 'red', 'red')
+         elif self.current_phase == 3:
+             self.run_phase('E', 'yellow', yellow_duration, 'red', 'red', 'red')
+         elif self.current_phase == 4:
+             self.run_phase('S', 'green', green_duration, 'red', 'red', 'red')
+         elif self.current_phase == 5:
+             self.run_phase('S', 'yellow', yellow_duration, 'red', 'red', 'red')
+         elif self.current_phase == 6:
+             self.run_phase('W', 'green', green_duration, 'red', 'red', 'red')
+         elif self.current_phase == 7:
+             self.run_phase('W', 'yellow', yellow_duration, 'red', 'red', 'red')
+ 
+     def run_phase(self, active_light, active_status, active_duration, *other_statuses):
+         """A generic function to run a single phase of the traffic cycle."""
+         self.set_lights(
+             other_statuses[0] if active_light != 'N' else active_status,
+             other_statuses[1] if active_light != 'E' else active_status,
+             other_statuses[2] if active_light != 'S' else active_status,
+             other_statuses[3] if active_light != 'W' else active_status
+         )
+         
+         print(f"Phase {self.current_phase}: {active_light} is {active_status} for {active_duration}s")
+         time.sleep(active_duration)
+         
+         if self.pending_mode:
+             self.mode = self.pending_mode
+             self.pending_mode = None
+             print(f"Green/Yellow phase finished. Switching to: {self.mode}")
+             self.run_mode()
+         else:
+             self.current_phase = (self.current_phase + 1) % 8
+             self.start_cycle()
+ 
+     def start_flashing_yellow(self):
+         while self.mode == 'Caution':
+             self.set_lights('red', 'red', 'red', 'red')
+             GPIO.output(GPIO_PINS['N']['yellow'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['E']['yellow'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['S']['yellow'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['W']['yellow'], GPIO.HIGH)
+             time.sleep(0.5)
+             GPIO.output(GPIO_PINS['N']['yellow'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['E']['yellow'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['S']['yellow'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['W']['yellow'], GPIO.LOW)
+             time.sleep(0.5)
+ 
+     def start_flashing_red(self):
+         while self.mode == 'Stop':
+             self.set_lights('red', 'red', 'red', 'red')
+             GPIO.output(GPIO_PINS['N']['red'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['E']['red'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['S']['red'], GPIO.HIGH)
+             GPIO.output(GPIO_PINS['W']['red'], GPIO.HIGH)
+             time.sleep(0.5)
+             GPIO.output(GPIO_PINS['N']['red'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['E']['red'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['S']['red'], GPIO.LOW)
+             GPIO.output(GPIO_PINS['W']['red'], GPIO.LOW)
+             time.sleep(0.5)
+ 
+ # =========================================================================
+ # Main Execution Block
+ # =========================================================================
+ 
+ if __name__ == "__main__":
+     controller = TrafficControllerGPIO()
+     try:
+         while True:
+             time.sleep(1) # Keep the main thread alive
+     except KeyboardInterrupt:
+         controller.cleanup()
