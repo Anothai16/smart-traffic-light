@@ -1,0 +1,21 @@
+# Traffic Light Configuration
+traffic_light:
+  green_duration: 10
+  yellow_duration: 3
+  all_red_duration: 2
+  light_size: 40
+  spacing: 10
+
+# GUI Configuration
+gui:
+  center_x: 275
+  center_y: 275
+  offset: 150
+
+# Database Configuration
+database:
+  driver: "{ODBC Driver 17 for SQL Server}"
+  server: "DESKTOP-QDN7QAS"
+  name: "Smart_Traffic_Light"
+  uid: "admin"
+  pwd: "1234"
