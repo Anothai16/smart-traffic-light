@@ -20,25 +20,6 @@ const mockCameras: Camera[] = [
     { id: 4, name: 'Camera 4 (West)', imageUrl: 'http://googleusercontent.com/image_generation_content/8', position: 'left' },
 ];
 
-// Define variables for traffic light image paths
-const RED_LIGHT_PATH = '/img/icons/traffic-light-red.png';
-const GREEN_LIGHT_PATH = '/img/icons/traffic-light-green.png';
-
-// Mock data for traffic lights (using image paths)
-interface TrafficLight {
-    id: number;
-    name: string;
-    imagePath: string;
-    position: 'top' | 'right' | 'bottom' | 'left';
-}
-
-const mockTrafficLights: TrafficLight[] = [
-    { id: 1, name: 'Northbound', imagePath: RED_LIGHT_PATH, position: 'top' },
-    { id: 2, name: 'Eastbound', imagePath: GREEN_LIGHT_PATH, position: 'right' },
-    { id: 3, name: 'Southbound', imagePath: RED_LIGHT_PATH, position: 'bottom' },
-    { id: 4, name: 'Westbound', imagePath: GREEN_LIGHT_PATH, position: 'left' },
-];
-
 const IntersectionView: React.FC = () => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
@@ -63,21 +44,6 @@ const IntersectionView: React.FC = () => {
                 return 'top-152 left-[41.23%]';
             case 'left':
                 return 'top-137 left-[36%]';
-            default:
-                return '';
-        }
-    };
-
-    const getTrafficLightPosition = (position: string) => {
-        switch (position) {
-            case 'top':
-                return 'top-10 left-[43%]';
-            case 'right':
-                return 'top-[45%] right-10';
-            case 'bottom':
-                return 'bottom-10 left-[43%]';
-            case 'left':
-                return 'top-[45%] left-10';
             default:
                 return '';
         }
@@ -112,22 +78,6 @@ const IntersectionView: React.FC = () => {
                             getCameraIconPosition(camera.position)
                         )}
                     />
-                ))}
-
-                {mockTrafficLights.map((light) => (
-                    <div
-                        key={light.id}
-                        className={classNames(
-                            'absolute z-10',
-                            getTrafficLightPosition(light.position)
-                        )}
-                    >
-                        <img
-                            src={light.imagePath}
-                            alt={`${light.name} traffic light`}
-                            className="w-10"
-                        />
-                    </div>
                 ))}
             </div>
 

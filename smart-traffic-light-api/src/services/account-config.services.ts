@@ -194,7 +194,7 @@ export const AccountConfigService = {
             // 2. ตรวจสอบรหัสผ่านเก่าด้วย bcrypt
             const isPasswordMatch = await bcrypt.compare(oldPassword, user.Password);
             if (!isPasswordMatch) {
-                throw new Error('Old password is incorrect.');
+                throw new Error('Password is incorrect.');
             }
 
             // 3. เข้ารหัสรหัสผ่านใหม่ด้วย bcrypt
