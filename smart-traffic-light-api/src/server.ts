@@ -8,11 +8,11 @@ import { swagger } from '@elysiajs/swagger';
 import { accountConfigRoutes } from './routes/account-config.routes';
 import { trafficRoutes } from './routes/traffic.routes';
 import { settingHistoryRoutes } from './routes/settingHistory.routes';
+import { io } from './socket-server'; // ✅ นำเข้า Socket.IO instance
+
 const app = new Elysia()
     .use(cors({ origin: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }))
     .use(swagger())
-
-    // --- Mount the auth routes ---
     .use(authRoutes)
     .use(accountConfigRoutes)
     .use(trafficRoutes)
@@ -33,9 +33,7 @@ const app = new Elysia()
         ctx.set.status = 500;
         return { status: 'error', message: 'An unexpected error occurred' };
     })
-
     .get('/', () => ('Welcome to the Smart Traffic Light API!'))
-
     .listen(config.PORT);
 
 console.log(
@@ -58,3 +56,5 @@ const cleanup = async (signal: string) => {
 
 process.on('SIGINT', () => cleanup('SIGINT'));
 process.on('SIGTERM', () => cleanup('SIGTERM'));
+
+export { io }; // ✅ Export io เพื่อให้ไฟล์อื่นสามารถนำไปใช้ได้ (ตัวอย่างเช่นใน traffic.routes.ts)

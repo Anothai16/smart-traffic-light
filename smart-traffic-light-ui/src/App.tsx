@@ -7,7 +7,7 @@ import Layout from '@/components/layouts'
 import mockServer from './mock'
 import appConfig from '@/configs/app.config'
 import './locales'
-
+import GlobalNotificationListener from './components/ui/Notification/GlobalNotificationListener';
 const environment = process.env.NODE_ENV
 
 /**
@@ -22,6 +22,7 @@ function App() {
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
                 <BrowserRouter>
+                    <GlobalNotificationListener /> 
                     <Theme>
                         <Layout />
                     </Theme>

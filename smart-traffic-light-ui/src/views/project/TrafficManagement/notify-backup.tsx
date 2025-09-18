@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Flex, Button, Typography, Input, Divider, Spin } from 'antd';
 import classNames from 'classnames';
+import { io } from 'socket.io-client';
 import {
     apiGetTrafficModes,
     apiGetIntersectionData,
@@ -13,8 +14,6 @@ import {
 import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
-// ✅ Import Socket Instance ที่สร้างไว้
-import { socket } from '@/services/socket';
 
 const { Title } = Typography;
 
@@ -33,6 +32,8 @@ interface IntersectionTimeData {
 interface ApiErrorResponse {
     message: string;
 }
+
+const socket = io('http://localhost:3000');
 
 const TrafficManagement = () => {
     const [currentMode, setCurrentMode] = useState('');
