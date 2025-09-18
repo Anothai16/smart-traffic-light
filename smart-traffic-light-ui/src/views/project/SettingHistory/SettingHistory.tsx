@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { apiGetSettingModeHistory, apiGetModeHistory } from '@/services/SettingHistoryService';
 import type { AxiosError } from 'axios';
 import { SyncOutlined } from '@ant-design/icons';
+import classNames from 'classnames';
 
 const { Title } = Typography;
 const { TabPane } = Tabs;
@@ -46,6 +47,7 @@ const SettingHistory: React.FC = () => {
     const [modeHistory, setModeHistory] = useState<ModeLog[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [messageApi, contextHolder] = message.useMessage();
+    const [latestAutoModeConfigs, setLatestAutoModeConfigs] = useState<SettingModeLog[]>([]);
 
     const fetchData = useCallback(async () => {
         try {
@@ -54,7 +56,22 @@ const SettingHistory: React.FC = () => {
                 apiGetSettingModeHistory(),
                 apiGetModeHistory(),
             ]);
-            setSettingModeHistory(settingModeResponse.data.history);
+
+            const settingHistory: SettingModeLog[] = settingModeResponse.data.history;
+            setSettingModeHistory(settingHistory);
+
+            const latestMap = new Map<number, SettingModeLog>();
+            settingHistory.forEach(log => {
+                const intersectionId = log.Intersection_ID;
+                if (intersectionId !== null && log.Mode_Name === 'Auto') {
+                    const existingLog = latestMap.get(intersectionId);
+                    if (!existingLog || dayjs(log.Create_Date).isAfter(dayjs(existingLog.Create_Date))) {
+                        latestMap.set(intersectionId, log);
+                    }
+                }
+            });
+            setLatestAutoModeConfigs(Array.from(latestMap.values()));
+
             setModeHistory(modeResponse.data.history);
         } catch (error) {
             const err = error as AxiosError;
@@ -142,24 +159,24 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
             render: (modeName) => {
-            let color;
-            switch (modeName) {
-                case 'Auto':
-                    color = 'green';
-                    break;
-                case 'Intelligence':
-                    color = 'blue';
-                    break;
-                case 'Caution':
-                    color = 'yellow';
-                    break;
-                case 'Stop':
-                    color = 'red';
-                    break;
-                default:
-                    color = 'geekblue'; // สีเริ่มต้นสำหรับโหมดที่ไม่รู้จัก
-            }
-            return <Tag color={color}>{modeName || 'Unknown'}</Tag>;
+                let color;
+                switch (modeName) {
+                    case 'Auto':
+                        color = 'green';
+                        break;
+                    case 'Intelligence':
+                        color = 'blue';
+                        break;
+                    case 'Caution':
+                        color = 'yellow';
+                        break;
+                    case 'Stop':
+                        color = 'red';
+                        break;
+                    default:
+                        color = 'geekblue';
+                }
+                return <Tag color={color}>{modeName || 'Unknown'}</Tag>;
             },
         },
         {
@@ -191,6 +208,43 @@ const SettingHistory: React.FC = () => {
                         Refresh
                     </Button>
                 </Flex>
+
+                <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg">
+                    {loading ? (
+                        <Flex justify="center" align="middle" style={{ minHeight: '150px' }}>
+                            <Spin tip="Loading..." />
+                        </Flex>
+                    ) : (
+                        <Flex gap="large" wrap="wrap" justify="space-around">
+                            {latestAutoModeConfigs.map(config => (
+                                <Card
+                                    key={config.Intersection_ID}
+                                    className="flex-1 min-w-[250px] text-center transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg"
+                                    style={{
+                                        border: '1px solid #d9d9d9',
+                                        backgroundColor: '#fafafa'
+                                    }}
+                                >
+                                    <Flex vertical align="center" gap="small">
+                                        <h5 className="font-bold text-lg mb-2">{config.Intersection_Name || `ID: ${config.Intersection_ID}`}</h5>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Tag color="red">Red</Tag>
+                                            <span className="font-bold text-lg">{config.New_Red_Duration} s</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Tag color="green">Green</Tag>
+                                            <span className="font-bold text-lg">{config.New_Green_Duration} s</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Last Updated by: {config.Admin_Name}
+                                        </p>
+                                    </Flex>
+                                </Card>
+                            ))}
+                        </Flex>
+                    )}
+                </Card>
+
                 <Card className="shadow-lg rounded-lg">
                     <Tabs defaultActiveKey="1">
                         <TabPane tab="Auto Mode Configuration History" key="1">

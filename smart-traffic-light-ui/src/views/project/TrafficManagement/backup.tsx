@@ -17,6 +17,7 @@ import { socket } from '@/services/socket';
 // ✅ Import useSelector จาก react-redux
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store'; // ต้อง import type ของ RootState ด้วย
+import { SyncOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -205,24 +206,27 @@ const TrafficManagement = () => {
 
     return (
         <>
-            <Flex vertical gap="large" style={{ padding: '24px' }}>
-                <Flex justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-                    <Title level={4} style={{ margin: 0 }}>
-                        Traffic Light Management
-                    </Title>
-                    <Flex align="center" gap="small" className="font-semibold text-gray-700">
-                        <span className="text-base">Status:</span>
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={classNames(
-                                    'rounded-full w-4 h-4',
-                                    currentModeDetails?.color || 'bg-gray-400'
-                                )}
-                            />
-                            <span className="font-bold text-lg">{currentMode || 'No mode selected'}</span>
-                        </div>
-                    </Flex>
+            <Flex justify="space-between" align="middle" style={{ padding: '24px', marginBottom: '16px' }}>
+                <Title level={4} style={{ margin: 0 }}>
+                    Traffic Light Management
+                </Title>
+                <Flex align="center" gap="small">
+                    <span className="text-base font-semibold text-gray-700">Status:</span>
+                    <div className="flex items-center gap-2">
+                        <div
+                            className={classNames(
+                                'rounded-full w-4 h-4',
+                                currentModeDetails?.color || 'bg-gray-400'
+                            )}
+                        />
+                        <span className="font-bold text-lg">{currentMode || 'No mode selected'}</span>
+                    </div>
+                    <Button onClick={fetchTrafficData} icon={<SyncOutlined />} loading={loading}>
+                            Refresh
+                        </Button>
                 </Flex>
+            </Flex>
+            <Flex vertical gap="large" style={{ padding: '0 24px 24px 24px' }}>
                 <Card title="Traffic Mode" className="shadow-lg rounded-lg">
                     <Flex vertical gap="large" className="w-full">
                         <div className="mb-2">

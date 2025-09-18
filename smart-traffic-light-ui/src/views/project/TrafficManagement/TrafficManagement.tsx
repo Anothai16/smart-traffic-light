@@ -14,9 +14,8 @@ import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
 import { socket } from '@/services/socket';
-// ✅ Import useSelector จาก react-redux
 import { useSelector } from 'react-redux';
-import type { RootState } from '@/store'; // ต้อง import type ของ RootState ด้วย
+import type { RootState } from '@/store';
 import { SyncOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
@@ -37,6 +36,8 @@ interface ApiErrorResponse {
     message: string;
 }
 
+const YELLOW_LIGHT_DURATION = 3;
+
 const TrafficManagement = () => {
     const [currentMode, setCurrentMode] = useState('');
     const [selectedMode, setSelectedMode] = useState('');
@@ -44,7 +45,6 @@ const TrafficManagement = () => {
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
-    // ✅ ดึง userName จาก Redux state
     const username = useSelector((state: RootState) => state.auth.user.firstName);
 
     const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, message: string) => {
@@ -123,14 +123,12 @@ const TrafficManagement = () => {
             setLoading(true);
             const payload = { modeName: selectedMode };
             const response = await apiUpdateTrafficMode(payload);
-            
+
             if (response.data?.success) {
                 setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
-                
-                // ✅ ส่ง userName ที่ได้จาก Redux state
-                const socketData = { 
-                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`, 
+                const socketData = {
+                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`,
                     senderId: socket.id,
                 };
                 socket.emit('traffic_mode_change', socketData);
@@ -148,15 +146,52 @@ const TrafficManagement = () => {
     };
 
     const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
+        const parsedValue = parseInt(value, 10);
+        
         setIntersectionTimes(prev => {
             const newTimes = [...prev];
             const updatedTime = { ...newTimes[index] };
+            
             if (color === 'red') {
-                updatedTime.New_Red_Duration = parseInt(value, 10) || 0;
+                updatedTime.New_Red_Duration = isNaN(parsedValue) ? 0 : parsedValue;
             } else {
-                updatedTime.New_Green_Duration = parseInt(value, 10) || 0;
+                updatedTime.New_Green_Duration = isNaN(parsedValue) ? 0 : parsedValue;
             }
             newTimes[index] = updatedTime;
+            
+            // ✅ คำนวณค่าสำหรับแยกอื่นตามหลักการใหม่
+            if (index === 0 && newTimes.length >= 4) {
+                const red1 = newTimes[0].New_Red_Duration || 0;
+                const green1 = newTimes[0].New_Green_Duration || 0;
+
+                // คำนวณค่าของแยกที่ 2
+                const newRed2 = red1 + green1 + YELLOW_LIGHT_DURATION;
+                newTimes[1] = {
+                    ...newTimes[1],
+                    New_Red_Duration: newRed2,
+                    New_Green_Duration: green1, // ค่าเขียวเท่ากับแยกแรก
+                };
+                
+                // คำนวณค่าของแยกที่ 3
+                const red2 = newTimes[1].New_Red_Duration || 0;
+                const green2 = newTimes[1].New_Green_Duration || 0;
+                const newRed3 = red2 + green2 + YELLOW_LIGHT_DURATION;
+                newTimes[2] = {
+                    ...newTimes[2],
+                    New_Red_Duration: newRed3,
+                    New_Green_Duration: green2, // ค่าเขียวเท่ากับแยกที่ 2
+                };
+                
+                // คำนวณค่าของแยกที่ 4
+                const red3 = newTimes[2].New_Red_Duration || 0;
+                const green3 = newTimes[2].New_Green_Duration || 0;
+                const newRed4 = red3 + green3 + YELLOW_LIGHT_DURATION;
+                newTimes[3] = {
+                    ...newTimes[3],
+                    New_Red_Duration: newRed4,
+                    New_Green_Duration: green3, // ค่าเขียวเท่ากับแยกที่ 3
+                };
+            }
             return newTimes;
         });
     };
@@ -175,15 +210,11 @@ const TrafficManagement = () => {
                     New_Green_Duration: Number(item.New_Green_Duration),
                 })),
             };
-
             const response = await apiUpdateIntersectionTimes(payload);
-            
             if (response.data?.success) {
                 showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
-                
-                // ✅ ส่ง userName ที่ได้จาก Redux state
-                const socketData = { 
-                    message: `Intersection times were updated by ${username || 'an admin'}.`, 
+                const socketData = {
+                    message: `Intersection times were updated by ${username || 'an admin'}.`,
                     senderId: socket.id,
                 };
                 socket.emit('traffic_time_change', socketData);
