@@ -12,7 +12,7 @@ import {
 import useAuth from '@/utils/hooks/useAuth'
 import useDirection from '@/utils/hooks/useDirection'
 import useLocale from '@/utils/hooks/useLocale'
-
+import useOnlineStatus from '../../hooks/useOnlineStatus';
 const layouts = {
     [LAYOUT_TYPE_CLASSIC]: lazy(() => import('./ClassicLayout')),
     [LAYOUT_TYPE_MODERN]: lazy(() => import('./ModernLayout')),
@@ -30,7 +30,7 @@ const Layout = () => {
     useDirection()
 
     useLocale()
-
+    useOnlineStatus();
     const AppLayout = useMemo(() => {
         if (authenticated) {
             return layouts[layoutType]

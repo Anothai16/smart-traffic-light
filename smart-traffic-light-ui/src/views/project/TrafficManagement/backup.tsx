@@ -1,7 +1,7 @@
 // src/views/traffic/TrafficManagement.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Flex, Button, Typography, Input, Divider, message, Spin } from 'antd';
+import { Card, Flex, Button, Typography, Input, Divider, Spin } from 'antd';
 import classNames from 'classnames';
 import {
     apiGetTrafficModes,
@@ -11,6 +11,12 @@ import {
     apiUpdateTrafficMode,
 } from '@/services/TrafficService';
 import type { AxiosError } from 'axios';
+import toast from '@/components/ui/toast';
+import Notification from '@/components/ui/Notification';
+import { socket } from '@/services/socket';
+// ✅ Import useSelector จาก react-redux
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store'; // ต้อง import type ของ RootState ด้วย
 
 const { Title } = Typography;
 
@@ -31,14 +37,22 @@ interface ApiErrorResponse {
 }
 
 const TrafficManagement = () => {
-    const [messageApi, contextHolder] = message.useMessage();
     const [currentMode, setCurrentMode] = useState('');
     const [selectedMode, setSelectedMode] = useState('');
     const [modes, setModes] = useState<Mode[]>([]);
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    // ✅ เพิ่ม state ใหม่เพื่อจัดการสถานะการตอบกลับของ API
-    const [apiResponseStatus, setApiResponseStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+    // ✅ ดึง userName จาก Redux state
+    const username = useSelector((state: RootState) => state.auth.user.firstName);
+
+    const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, message: string) => {
+        toast.push(
+            <Notification title={title} type={type}>
+                {message}
+            </Notification>
+        );
+    };
 
     const fetchTrafficData = useCallback(async () => {
         try {
@@ -86,33 +100,21 @@ const TrafficManagement = () => {
         } catch (error) {
             const err = error as AxiosError<ApiErrorResponse>;
             const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
-            messageApi.error(`Failed to fetch traffic data. Error: ${errorMessage}`);
+            showNotification('danger', 'Failed to fetch data', `Failed to fetch traffic data. Error: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
-    }, [messageApi]);
+    }, []);
 
     useEffect(() => {
         fetchTrafficData();
     }, [fetchTrafficData]);
 
-    // ✅ ใช้ useEffect เพื่อรอให้ apiResponseStatus มีค่าก่อนจะแสดงผล
-    useEffect(() => {
-        if (apiResponseStatus) {
-            if (apiResponseStatus.success) {
-                messageApi.success(apiResponseStatus.message);
-            } else {
-                messageApi.error(apiResponseStatus.message);
-            }
-            setApiResponseStatus(null); // ล้างค่าเมื่อแสดงผลเสร็จ
-        }
-    }, [apiResponseStatus, messageApi]);
-
     const currentModeDetails = modes.find(m => m.name === currentMode);
 
     const handleUpdateMode = async () => {
         if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
-            messageApi.info('Please select a different mode.');
+            showNotification('info', 'Change Mode', 'Please select a different mode.');
             return;
         }
 
@@ -120,19 +122,25 @@ const TrafficManagement = () => {
             setLoading(true);
             const payload = { modeName: selectedMode };
             const response = await apiUpdateTrafficMode(payload);
-
-            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
+            
             if (response.data?.success) {
                 setCurrentMode(selectedMode);
-                setApiResponseStatus({ success: true, message: response.data.message || `Successfully changed mode to ${selectedMode}!` });
+                showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
+                
+                // ✅ ส่ง userName ที่ได้จาก Redux state
+                const socketData = { 
+                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`, 
+                    senderId: socket.id,
+                };
+                socket.emit('traffic_mode_change', socketData);
+                console.log("Sent socket event:", socketData);
             } else {
-                setApiResponseStatus({ success: false, message: response.data.message || `Failed to change mode.` });
+                showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
-
         } catch (error) {
             const err = error as AxiosError<ApiErrorResponse>;
             const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
-            setApiResponseStatus({ success: false, message: `Failed to change mode. Error: ${errorMessage}` });
+            showNotification('danger', 'Failed to Change Mode', `Failed to change mode. Error: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
@@ -154,7 +162,7 @@ const TrafficManagement = () => {
 
     const handleSave = async () => {
         if (selectedMode !== 'Auto') {
-            messageApi.warning('Please select Auto mode to change intersection times.');
+            showNotification('warning', 'Save Failed', 'Please select Auto mode to change intersection times.');
             return;
         }
         try {
@@ -169,17 +177,23 @@ const TrafficManagement = () => {
 
             const response = await apiUpdateIntersectionTimes(payload);
             
-            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
             if (response.data?.success) {
-                setApiResponseStatus({ success: true, message: response.data.message || 'Successfully changed!' });
+                showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
+                
+                // ✅ ส่ง userName ที่ได้จาก Redux state
+                const socketData = { 
+                    message: `Intersection times were updated by ${username || 'an admin'}.`, 
+                    senderId: socket.id,
+                };
+                socket.emit('traffic_time_change', socketData);
+                console.log("Sent socket event:", socketData);
             } else {
-                setApiResponseStatus({ success: false, message: response.data.message || 'Failed to change intersection times.' });
+                showNotification('danger', 'Update Failed', response.data.message || 'Failed to change intersection times.');
             }
-
-        } catch (error: any) {
+        } catch (error) {
             const err = error as AxiosError<ApiErrorResponse>;
             const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
-            setApiResponseStatus({ success: false, message: `An error occurred: ${errorMessage}` });
+            showNotification('danger', 'Update Failed', `An error occurred: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
@@ -191,7 +205,6 @@ const TrafficManagement = () => {
 
     return (
         <>
-            {contextHolder}
             <Flex vertical gap="large" style={{ padding: '24px' }}>
                 <Flex justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
                     <Title level={4} style={{ margin: 0 }}>

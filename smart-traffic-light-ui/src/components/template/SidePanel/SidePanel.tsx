@@ -1,24 +1,28 @@
 import classNames from 'classnames'
 import Drawer from '@/components/ui/Drawer'
-import { HiOutlineCog } from 'react-icons/hi'
-import SidePanelContent, { SidePanelContentProps } from './SidePanelContent'
+import { HiOutlineUserGroup } from 'react-icons/hi'
+import SidePanelContent from './SidePanelContent'
 import withHeaderItem from '@/utils/hoc/withHeaderItem'
 import { setPanelExpand, useAppSelector, useAppDispatch } from '@/store'
 import type { CommonProps } from '@/@types/common'
+import { socket } from '@/services/socket'
 
-type SidePanelProps = SidePanelContentProps & CommonProps
+type SidePanelProps = CommonProps
 
 const _SidePanel = (props: SidePanelProps) => {
     const dispatch = useAppDispatch()
 
     const { className, ...rest } = props
 
-    const panelExpand = useAppSelector((state) => state.theme.panelExpand)
+    const signedIn = useAppSelector((state) => state.auth.session.signedIn)
 
+    const panelExpand = useAppSelector((state) => state.theme.panelExpand)
     const direction = useAppSelector((state) => state.theme.direction)
 
     const openPanel = () => {
         dispatch(setPanelExpand(true))
+        // ส่ง event ไปขอข้อมูลผู้ใช้ออนไลน์ล่าสุดจาก Server
+        socket.emit('request_online_users')
     }
 
     const closePanel = () => {
@@ -29,6 +33,10 @@ const _SidePanel = (props: SidePanelProps) => {
         }
     }
 
+    if (!signedIn) {
+        return null
+    }
+
     return (
         <>
             <div
@@ -36,10 +44,10 @@ const _SidePanel = (props: SidePanelProps) => {
                 onClick={openPanel}
                 {...rest}
             >
-                <HiOutlineCog />
+                <HiOutlineUserGroup />
             </div>
             <Drawer
-                title="Side Panel"
+                title="Online Users"
                 isOpen={panelExpand}
                 placement={direction === 'rtl' ? 'left' : 'right'}
                 width={375}
