@@ -13,8 +13,10 @@ import {
 import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
-// ✅ Import Socket Instance ที่สร้างไว้
 import { socket } from '@/services/socket';
+// ✅ Import useSelector จาก react-redux
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store'; // ต้อง import type ของ RootState ด้วย
 
 const { Title } = Typography;
 
@@ -40,6 +42,9 @@ const TrafficManagement = () => {
     const [modes, setModes] = useState<Mode[]>([]);
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+
+    // ✅ ดึง userName จาก Redux state
+    const username = useSelector((state: RootState) => state.auth.user.firstName);
 
     const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, message: string) => {
         toast.push(
@@ -118,13 +123,15 @@ const TrafficManagement = () => {
             const payload = { modeName: selectedMode };
             const response = await apiUpdateTrafficMode(payload);
             
-            console.log("API Response:", response.data);
-            
             if (response.data?.success) {
                 setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
                 
-                const socketData = { message: `Traffic mode was changed to ${selectedMode} by an admin.`, senderId: socket.id };
+                // ✅ ส่ง userName ที่ได้จาก Redux state
+                const socketData = { 
+                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`, 
+                    senderId: socket.id,
+                };
                 socket.emit('traffic_mode_change', socketData);
                 console.log("Sent socket event:", socketData);
             } else {
@@ -170,12 +177,14 @@ const TrafficManagement = () => {
 
             const response = await apiUpdateIntersectionTimes(payload);
             
-            console.log("API Response:", response.data);
-            
             if (response.data?.success) {
                 showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
                 
-                const socketData = { message: 'Intersection times were updated by an admin.', senderId: socket.id };
+                // ✅ ส่ง userName ที่ได้จาก Redux state
+                const socketData = { 
+                    message: `Intersection times were updated by ${username || 'an admin'}.`, 
+                    senderId: socket.id,
+                };
                 socket.emit('traffic_time_change', socketData);
                 console.log("Sent socket event:", socketData);
             } else {

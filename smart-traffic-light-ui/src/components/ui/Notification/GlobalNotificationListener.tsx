@@ -1,13 +1,14 @@
+// src/components/ui/Notification/GlobalNotificationListener.tsx
 import { useEffect } from 'react';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
-// ✅ Import Socket Instance ที่สร้างไว้
 import { socket } from '@/services/socket';
 
-// Interface เพื่อกำหนดชนิดข้อมูล
+// ✅ เพิ่ม username ใน interface
 interface SocketData {
     message: string;
     senderId: string;
+    username?: string;
 }
 
 const GlobalNotificationListener = () => {
@@ -29,7 +30,10 @@ const GlobalNotificationListener = () => {
             
             if (data.senderId !== socket.id) {
                 console.log("GLOBAL_LISTENER: Condition 'data.senderId !== socket.id' is TRUE. Showing notification.");
-                showNotification('Traffic Mode Updated', data.message);
+                
+                // ✅ ใช้ username ในการแสดงผล
+                const displayMessage = data.username ? data.message.replace('by an admin', `by ${data.username}`) : data.message;
+                showNotification('Traffic Mode Updated', displayMessage);
             } else {
                 console.log("GLOBAL_LISTENER: Condition 'data.senderId !== socket.id' is FALSE. Ignoring for sender.");
             }
@@ -42,7 +46,10 @@ const GlobalNotificationListener = () => {
 
             if (data.senderId !== socket.id) {
                 console.log("GLOBAL_LISTENER: Condition 'data.senderId !== socket.id' is TRUE. Showing notification.");
-                showNotification('Traffic Times Updated', data.message);
+                
+                // ✅ ใช้ username ในการแสดงผล
+                const displayMessage = data.username ? data.message.replace('by an admin', `by ${data.username}`) : data.message;
+                showNotification('Traffic Times Updated', displayMessage);
             } else {
                 console.log("GLOBAL_LISTENER: Condition 'data.senderId !== socket.id' is FALSE. Ignoring for sender.");
             }

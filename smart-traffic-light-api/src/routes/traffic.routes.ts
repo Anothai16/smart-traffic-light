@@ -92,13 +92,16 @@ export const trafficRoutes = new Elysia({ prefix: '/traffic' })
             }
 
             try {
-                const adminId = payload.Admin_ID;
+                // ✅ เพิ่มบรรทัดนี้เพื่อดึง username จาก JWT payload
+                const { Admin_ID: adminId, Username: username } = payload as { Admin_ID: number, Username: string };
                 if (typeof adminId !== 'number') {
                     set.status = 400;
                     return { message: 'Invalid Admin_ID in token payload.' };
                 }
                 const result = await TrafficController.updateTrafficMode(body, adminId);
-                return result;
+                
+                // ✅ ส่ง username กลับไปพร้อมกับผลลัพธ์
+                return { ...result, username };
             } catch (error: any) {
                 set.status = 400;
                 return { message: error.message };
@@ -128,13 +131,16 @@ export const trafficRoutes = new Elysia({ prefix: '/traffic' })
             }
             
             try {
-                const adminId = payload.Admin_ID;
+                // ✅ เพิ่มบรรทัดนี้เพื่อดึง username จาก JWT payload
+                const { Admin_ID: adminId, Username: username } = payload as { Admin_ID: number, Username: string };
                 if (typeof adminId !== 'number') {
                     set.status = 400;
                     return { message: 'Invalid Admin_ID in token payload.' };
                 }
                 const result = await TrafficController.updateIntersections(body, adminId);
-                return result;
+                
+                // ✅ ส่ง username กลับไปพร้อมกับผลลัพธ์
+                return { ...result, username };
             } catch (error: any) {
                 set.status = 400;   
                 return { message: error.message };
