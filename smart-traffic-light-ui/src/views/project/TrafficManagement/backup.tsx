@@ -1,7 +1,15 @@
+// src/views/traffic/TrafficManagement.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Flex, Button, Typography, Input, Divider, message, Spin } from 'antd';
 import classNames from 'classnames';
-import { apiGetTrafficModes, apiGetIntersectionData, apiUpdateIntersectionTimes } from '@/services/TrafficService';
+import {
+    apiGetTrafficModes,
+    apiGetIntersectionData,
+    apiUpdateIntersectionTimes,
+    apiGetModeStatus,
+    apiUpdateTrafficMode,
+} from '@/services/TrafficService';
 import type { AxiosError } from 'axios';
 
 const { Title } = Typography;
@@ -18,6 +26,10 @@ interface IntersectionTimeData {
     New_Green_Duration: number;
 }
 
+interface ApiErrorResponse {
+    message: string;
+}
+
 const TrafficManagement = () => {
     const [messageApi, contextHolder] = message.useMessage();
     const [currentMode, setCurrentMode] = useState('');
@@ -25,8 +37,9 @@ const TrafficManagement = () => {
     const [modes, setModes] = useState<Mode[]>([]);
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    // ✅ เพิ่ม state ใหม่เพื่อจัดการสถานะการตอบกลับของ API
+    const [apiResponseStatus, setApiResponseStatus] = useState<{ success: boolean; message: string } | null>(null);
 
-    // useCallback เพื่อให้ fetchTrafficData ไม่ถูกสร้างใหม่ทุก render หาก dependencies ไม่เปลี่ยน
     const fetchTrafficData = useCallback(async () => {
         try {
             setLoading(true);
@@ -57,35 +70,72 @@ const TrafficManagement = () => {
                 });
                 setModes(apiModes);
             }
-
             const intersectionsResponse = await apiGetIntersectionData();
             if (intersectionsResponse.data.intersections) {
                 setIntersectionTimes(intersectionsResponse.data.intersections);
             }
-
-            // ตั้งค่าโหมดเริ่มต้นเป็น 'Auto' หากมี
-            const defaultMode = modesResponse.data.modes.find(m => m.Mode_Name === 'Auto')?.Mode_Name || '';
-            setCurrentMode(defaultMode);
-            setSelectedMode(defaultMode);
-
+            const modeStatusResponse = await apiGetModeStatus();
+            const modeFromApi = modeStatusResponse.data.currentMode;
+            if (modeFromApi) {
+                setCurrentMode(modeFromApi);
+                setSelectedMode(modeFromApi);
+            } else {
+                setCurrentMode('No Mode Selected');
+                setSelectedMode('No Mode Selected');
+            }
         } catch (error) {
-            const err = error as AxiosError;
-            messageApi.error(`Failed to fetch traffic data. Error: ${err.message || 'Unknown error'}`);
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            messageApi.error(`Failed to fetch traffic data. Error: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
-    }, [messageApi]); // Dependencies สำหรับ useCallback
+    }, [messageApi]);
 
     useEffect(() => {
         fetchTrafficData();
-    }, [fetchTrafficData]); // Dependencies สำหรับ useEffect คือ fetchTrafficData ที่ถูก memoized ด้วย useCallback
+    }, [fetchTrafficData]);
+
+    // ✅ ใช้ useEffect เพื่อรอให้ apiResponseStatus มีค่าก่อนจะแสดงผล
+    useEffect(() => {
+        if (apiResponseStatus) {
+            if (apiResponseStatus.success) {
+                messageApi.success(apiResponseStatus.message);
+            } else {
+                messageApi.error(apiResponseStatus.message);
+            }
+            setApiResponseStatus(null); // ล้างค่าเมื่อแสดงผลเสร็จ
+        }
+    }, [apiResponseStatus, messageApi]);
 
     const currentModeDetails = modes.find(m => m.name === currentMode);
 
-    const handleSelectMode = (mode: string) => {
-        setSelectedMode(mode);
-        // สามารถเพิ่ม logic อื่นๆ เมื่อเปลี่ยนโหมดได้ที่นี่
-        // เช่น โหลดค่าเริ่มต้นของเวลาสำหรับโหมดที่เลือก หากต้องการ
+    const handleUpdateMode = async () => {
+        if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
+            messageApi.info('Please select a different mode.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const payload = { modeName: selectedMode };
+            const response = await apiUpdateTrafficMode(payload);
+
+            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
+            if (response.data?.success) {
+                setCurrentMode(selectedMode);
+                setApiResponseStatus({ success: true, message: response.data.message || `Successfully changed mode to ${selectedMode}!` });
+            } else {
+                setApiResponseStatus({ success: false, message: response.data.message || `Failed to change mode.` });
+            }
+
+        } catch (error) {
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            setApiResponseStatus({ success: false, message: `Failed to change mode. Error: ${errorMessage}` });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
@@ -93,7 +143,7 @@ const TrafficManagement = () => {
             const newTimes = [...prev];
             const updatedTime = { ...newTimes[index] };
             if (color === 'red') {
-                updatedTime.New_Red_Duration = parseInt(value, 10) || 0; // ใช้ || 0 เพื่อจัดการกรณีเป็น NaN
+                updatedTime.New_Red_Duration = parseInt(value, 10) || 0;
             } else {
                 updatedTime.New_Green_Duration = parseInt(value, 10) || 0;
             }
@@ -107,8 +157,8 @@ const TrafficManagement = () => {
             messageApi.warning('Please select Auto mode to change intersection times.');
             return;
         }
-
         try {
+            setLoading(true);
             const payload = {
                 intersections: intersectionTimes.map(item => ({
                     Intersection_ID: item.Intersection_ID,
@@ -117,11 +167,21 @@ const TrafficManagement = () => {
                 })),
             };
 
-            await apiUpdateIntersectionTimes(payload); // ส่ง payload ที่สร้างขึ้นใหม่
-            messageApi.success('Successfully changed!');
+            const response = await apiUpdateIntersectionTimes(payload);
+            
+            // ✅ เปลี่ยนจากการเรียก messageApi ตรงๆ มาเป็นการ set state แทน
+            if (response.data?.success) {
+                setApiResponseStatus({ success: true, message: response.data.message || 'Successfully changed!' });
+            } else {
+                setApiResponseStatus({ success: false, message: response.data.message || 'Failed to change intersection times.' });
+            }
+
         } catch (error: any) {
-            console.error('An error occurred during handleSave:', error);
-            messageApi.error(`An error occurred: ${error.message}`);
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            setApiResponseStatus({ success: false, message: `An error occurred: ${errorMessage}` });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -146,7 +206,7 @@ const TrafficManagement = () => {
                                     currentModeDetails?.color || 'bg-gray-400'
                                 )}
                             />
-                            <span className="font-bold text-lg">{currentMode || 'No Mode Selected'}</span>
+                            <span className="font-bold text-lg">{currentMode || 'No mode selected'}</span>
                         </div>
                     </Flex>
                 </Flex>
@@ -159,7 +219,7 @@ const TrafficManagement = () => {
                         <Button
                             type="primary"
                             className="w-full mb-4 text-lg font-bold py-6 flex items-center justify-center rounded-lg"
-                            onClick={() => { }} // ปุ่มนี้อาจจะใช้เลือกโหมดแบบอื่น หรืออาจจะถูกลบออกไป
+                            onClick={handleUpdateMode}
                         >
                             Select Mode
                         </Button>
@@ -171,7 +231,7 @@ const TrafficManagement = () => {
                                         "flex-1 min-w-[150px] text-center cursor-pointer transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg",
                                         selectedMode === mode.name ? 'border-2 border-blue-500' : ''
                                     )}
-                                    onClick={() => handleSelectMode(mode.name)}
+                                    onClick={() => setSelectedMode(mode.name)}
                                 >
                                     <Flex vertical align="center" gap="small">
                                         <div className="font-bold text-lg">{mode.name}</div>
@@ -187,7 +247,7 @@ const TrafficManagement = () => {
                         </Flex>
                     </Flex>
                 </Card>
-                {selectedMode === 'Auto' && ( // แสดงส่วนนี้เมื่อเลือกโหมด Auto เท่านั้น
+                {selectedMode === 'Auto' && (
                     <Card title="Traffic Light Manage" className="shadow-lg rounded-lg">
                         <Flex vertical gap="large" className="w-full">
                             <div className="text-center mb-4">
@@ -203,7 +263,7 @@ const TrafficManagement = () => {
                                             <div className="flex-1 min-w-[180px]">
                                                 <Flex align="center" gap="small" className="mb-2">
                                                     <span className="font-bold text-red-500">Red</span>
-                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Red_Duration} วินาที</span>
+                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Red_Duration} seconds</span>
                                                 </Flex>
                                                 <Input
                                                     type="number"
@@ -216,7 +276,7 @@ const TrafficManagement = () => {
                                             <div className="flex-1 min-w-[180px]">
                                                 <Flex align="center" gap="small" className="mb-2">
                                                     <span className="font-bold text-green-500">Green</span>
-                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Green_Duration} วินาที</span>
+                                                    <span className="text-sm text-gray-500">Default: {intersection.New_Green_Duration} seconds</span>
                                                 </Flex>
                                                 <Input
                                                     type="number"
