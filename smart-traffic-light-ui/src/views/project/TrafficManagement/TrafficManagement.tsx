@@ -17,6 +17,7 @@ import { socket } from '@/services/socket';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { SyncOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
@@ -44,7 +45,7 @@ const TrafficManagement = () => {
     const [modes, setModes] = useState<Mode[]>([]);
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     const username = useSelector((state: RootState) => state.auth.user.firstName);
 
     const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, message: string) => {
@@ -58,6 +59,7 @@ const TrafficManagement = () => {
     const fetchTrafficData = useCallback(async () => {
         try {
             setLoading(true);
+            setLastUpdated(dayjs().format('DD/MM/YYYY, HH:mm:ss'));
             const modesResponse = await apiGetTrafficModes();
             if (modesResponse.data.modes) {
                 const apiModes = modesResponse.data.modes.map(m => {
@@ -242,6 +244,11 @@ const TrafficManagement = () => {
                     Traffic Light Management
                 </Title>
                 <Flex align="center" gap="small">
+                    {lastUpdated && (
+                        <span className="text-sm text-gray-500">
+                            Last Updated: {lastUpdated}
+                        </span>
+                    )}
                     <span className="text-base font-semibold text-gray-700">Status:</span>
                     <div className="flex items-center gap-2">
                         <div

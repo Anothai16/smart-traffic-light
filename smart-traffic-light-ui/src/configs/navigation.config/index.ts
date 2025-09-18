@@ -66,37 +66,60 @@ const navigationConfig: NavigationTree[] = [
                         subMenu: [],
                     },
                     {
-                        key: 'appsProject.IntersectionView',
-                        path: `/project/IntersectionView`,
-                        title: 'Intersection View',
-                        translateKey: 'appsProject.IntersectionView',
-                        icon: 'history',
-                        type: NAV_ITEM_TYPE_ITEM,
-                        authority: [],
-                        subMenu: [],
-                    },
-                    {
-                        key: 'appsProject.SystemPerformance',
-                        path: `/project/SystemPerformance`,
-                        title: 'System Performance',
-                        translateKey: 'appsProject.SystemPerformance',
-                        icon: 'history',
-                        type: NAV_ITEM_TYPE_ITEM,
-                        authority: [],
-                        subMenu: [],
-                    },
-                    {
                         key: 'appsProject.CameraManagement',
                         path: `/project/CameraManagement`,
                         title: 'Camera Management',
                         translateKey: 'appsProject.CameraManagement',
-                        icon: 'history',
+                        icon: 'camera',
                         type: NAV_ITEM_TYPE_ITEM,
                         authority: [],
                         subMenu: [],
                     },
         ],
     },
+    {
+        key: 'test',
+        path: '/test',
+        title: 'Test Menu',
+        translateKey: 'Test Menu',
+        icon: '',
+        type: NAV_ITEM_TYPE_TITLE,
+        authority: [],
+        subMenu: [
+            {
+                        key: 'appsProject.CameraManagement',
+                        path: '',
+                        title: 'Performance & Camera',
+                        translateKey: 'appsProject.CameraManagement',
+                        icon: 'performance',
+                        type: NAV_ITEM_TYPE_COLLAPSE,
+                        authority: [],
+                        subMenu: [
+                            {
+                                key: 'appsProject.IntersectionView',
+                                path: `/project/IntersectionView`,
+                                title: 'Intersection View',
+                                translateKey: 'appsProject.IntersectionView',
+                                icon: 'history',
+                                type: NAV_ITEM_TYPE_ITEM,
+                                authority: [],
+                                subMenu: [],
+                            },
+                            {
+                                key: 'appsProject.SystemPerformance',
+                                path: `/project/SystemPerformance`,
+                                title: 'System Performance',
+                                translateKey: 'appsProject.SystemPerformance',
+                                icon: 'history',
+                                type: NAV_ITEM_TYPE_ITEM,
+                                authority: [],
+                                subMenu: [],
+                            },
+                        ],
+                    },
+                
+        ]
+    }
     /** Example purpose only, please remove */
      
 ]

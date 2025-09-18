@@ -48,6 +48,7 @@ const SettingHistory: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [messageApi, contextHolder] = message.useMessage();
     const [latestAutoModeConfigs, setLatestAutoModeConfigs] = useState<SettingModeLog[]>([]);
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
@@ -59,7 +60,7 @@ const SettingHistory: React.FC = () => {
 
             const settingHistory: SettingModeLog[] = settingModeResponse.data.history;
             setSettingModeHistory(settingHistory);
-
+            setLastUpdated(dayjs().format('DD/MM/YYYY, HH:mm:ss'));
             const latestMap = new Map<number, SettingModeLog>();
             settingHistory.forEach(log => {
                 const intersectionId = log.Intersection_ID;
@@ -204,9 +205,16 @@ const SettingHistory: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                         Traffic History
                     </Title>
+                    <Flex align="center" gap="small">
+                    {lastUpdated && (
+                        <span className="text-sm text-gray-500">
+                            Last Updated: {lastUpdated}
+                        </span>
+                    )}
                     <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
                         Refresh
                     </Button>
+                </Flex>
                 </Flex>
 
                 <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg">

@@ -66,8 +66,8 @@ export const AccountConfigService = {
             request.input('registerDate', sql.Date, data.Register_Date);
 
             const result = await request.query`
-                INSERT INTO stl.Admin (Username, Password, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Role)
-                VALUES (@username, @password, @firstName, @lastName, @idCard, @email, @phoneNumber, @registerDate, @role);
+                INSERT INTO stl.Admin (Username, Password, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Role , Create_Date, Update_Date)
+                VALUES (@username, @password, @firstName, @lastName, @idCard, @email, @phoneNumber, @registerDate, @role, GETDATE(), GETDATE());
                 SELECT * FROM stl.Admin WHERE Username = @username;
             `;
             return result.recordset[0];
