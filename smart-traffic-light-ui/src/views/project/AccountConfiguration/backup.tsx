@@ -207,6 +207,14 @@ const AccountConfiguration: React.FC = () => {
             title: 'ID Card',
             dataIndex: 'ID_Card',
             key: 'ID_Card',
+            render: (text: string) => {
+                if (!text || text.length <= 4) {
+                    return text;
+                }
+                const maskedPart = '********';
+                const lastFive = text.slice(-4);
+                return `${maskedPart}${lastFive}`;
+            },
         },
         {
             title: 'Register date',
