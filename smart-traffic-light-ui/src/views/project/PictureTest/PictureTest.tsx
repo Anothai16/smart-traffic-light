@@ -1,4 +1,4 @@
-// src/views/PictureTest.tsx (Final Combined Code)
+// src/views/PictureTest.tsx (FINAL VERSION: Multi-Mode Support)
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; 
 import { Card, Flex, Button, Typography, DatePicker, Spin, Alert, Image, Tag, Tooltip, Select } from 'antd';
@@ -6,13 +6,11 @@ import { FolderFilled, LeftOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/th';
 
-// *** นำเข้า Service และ Interface ที่สร้างขึ้น ***
 import { apiGetAvailableImageDates, apiGetImagesByDateAndLane, ImageObject } from '@/services/ImageService'; 
 
 dayjs.locale('th');
 const { Title } = Typography;
 
-// กำหนดรายการ Lane ที่สอดคล้องกับ Backend
 const LANE_OPTIONS = [
     'Lane 1 (PC-A)',
     'Lane 2 (PC-B)',
@@ -20,47 +18,71 @@ const LANE_OPTIONS = [
     'Lane 4 (PC-D)',
 ];
 
-const PictureLog = () => {
+// 🔴 NEW: ตัวเลือกสำหรับ Lane/Mode
+const LANE_MODES = [
+    { value: 'ALL', label: 'All Lanes (4 Lanes)' },
+    ...LANE_OPTIONS.map(lane => ({ value: lane, label: lane })),
+];
+
+const TrafficLog = () => {
     // State สำหรับการนำทางและข้อมูล
     const [selectedDate, setSelectedDate] = useState<string | null>(null); 
-    const [selectedLane, setSelectedLane] = useState<string>(LANE_OPTIONS[0]);
+    // 🔴 CHANGE: ใช้ 'ALL' เป็นค่าเริ่มต้น
+    const [selectedMode, setSelectedMode] = useState<string>('ALL'); 
     const [availableDates, setAvailableDates] = useState<string[]>([]);   
     const [images, setImages] = useState<ImageObject[]>([]);
     
     // State สำหรับการกรองและการโหลด
     const [filteredDate, setFilteredDate] = useState<Dayjs | null>(null); 
-    const [loading, setLoading] = useState(true); // ใช้ loading รวม
+    const [loading, setLoading] = useState(true); 
     const [error, setError] = useState<string | null>(null);
 
-    // *** 1. Logic การดึงรายการวันที่ (Folders) - ใช้ useCallback และรับ lane ***
-    const loadAvailableDates = useCallback(async (lane: string) => {
+    // 💡 Helper: กำหนดรายการ Lane ที่ต้องดึงข้อมูลตาม Mode ที่เลือก
+    const lanesToFetch = useMemo(() => {
+        return selectedMode === 'ALL' ? LANE_OPTIONS : [selectedMode];
+    }, [selectedMode]);
+
+    // *** 1. Logic การดึงรายการวันที่ (Folders) - ปรับให้รองรับหลาย Lane ***
+    const loadAvailableDates = useCallback(async (lanes: string[]) => {
         setLoading(true);
         setError(null);
-        setAvailableDates([]); // 💡 FIX: เคลียร์ State วันที่เก่าก่อนเริ่มโหลดใหม่
+        setAvailableDates([]);
+        
+        // ถ้าไม่มี Lane ให้ดึงข้อมูล ให้จบการทำงาน
+        if (lanes.length === 0) {
+            setLoading(false);
+            return;
+        }
+
         try {
-            // ✅ FIX: ส่ง lane ไปที่ API เพื่อให้ Backend กรองข้อมูล
-            const dates = await apiGetAvailableImageDates(lane); 
-            setAvailableDates(dates);
+            const datePromises = lanes.map(lane => apiGetAvailableImageDates(lane));
+            const results = await Promise.all(datePromises);
+            
+            // 💡 FIX: รวมผลลัพธ์ทั้งหมดและใช้ Set เพื่อคัดวันที่ซ้ำออก
+            const allDates = results.flat();
+            const uniqueDates = Array.from(new Set(allDates)); 
+            
+            setAvailableDates(uniqueDates);
         } catch (err: any) {
-            setError(err.message || 'Failed to fetch available dates.');
-            setAvailableDates([]); 
+            setError(err.message || 'Failed to fetch available dates for all lanes.');
+            setAvailableDates([]);
         } finally {
             setLoading(false);
         }
     }, []); 
 
-    // ✅ 2. useEffect: Logic หลักที่ทำให้ State เสถียรเมื่อ Lane เปลี่ยน
+    // ✅ 2. useEffect: Trigger การโหลดเมื่อ Mode เปลี่ยน
     useEffect(() => {
-        // เมื่อ Lane เปลี่ยน:
+        // เมื่อ Mode เปลี่ยน:
         setSelectedDate(null); // 1. กลับสู่หน้าเลือกวันที่
         setImages([]);        // 2. เคลียร์รูปภาพเก่า
-        loadAvailableDates(selectedLane); // 3. โหลดวันที่ใหม่สำหรับ Lane นี้
-    }, [selectedLane, loadAvailableDates]);
+        // 💡 เรียก loadAvailableDates ด้วย lanesToFetch
+        loadAvailableDates(lanesToFetch); 
+    }, [selectedMode, lanesToFetch, loadAvailableDates]);
 
 
-    // กรองวันที่ตาม DatePicker
+    // กรองวันที่ตาม DatePicker และเรียงลำดับ
     const displayDates = useMemo(() => {
-        // เรียงวันที่ (ล่าสุดไปเก่าสุด) ก่อนกรอง
         const sortedDates = availableDates.slice().sort((a, b) => dayjs(b).diff(dayjs(a)));
         
         if (!filteredDate) return sortedDates;
@@ -70,21 +92,28 @@ const PictureLog = () => {
     }, [availableDates, filteredDate]);
 
 
-    // *** 3. Logic การโหลดรูปภาพเมื่อเลือกวันที่ ***
+    // *** 3. Logic การโหลดรูปภาพเมื่อเลือกวันที่ - ปรับให้รองรับหลาย Lane ***
     const handleDateClick = async (date: string) => {
-        if (!selectedLane) {
-            alert("Please select a Lane first.");
-            return;
-        }
         setSelectedDate(date);
         setLoading(true); 
         setError(null);
-        setImages([]); // เคลียร์รูปภาพเก่า
+        setImages([]);
 
         try {
-            // เรียก API ด้วย date และ selectedLane
-            const imageList = await apiGetImagesByDateAndLane(date, selectedLane); 
-            setImages(imageList);
+            // 🔴 NEW: ถ้าเป็น 'ALL' ให้วนลูปดึงข้อมูลจากทุก Lane
+            if (selectedMode === 'ALL') {
+                const imagePromises = LANE_OPTIONS.map(lane => 
+                    apiGetImagesByDateAndLane(date, lane)
+                );
+                const results = await Promise.all(imagePromises);
+                // 💡 รวมรูปภาพทั้งหมดเข้าด้วยกัน
+                const allImages = results.flat().sort((a, b) => a.timestamp.localeCompare(b.timestamp)); 
+                setImages(allImages);
+            } else {
+                // โหมด Single Lane (โค้ดเดิม)
+                const imageList = await apiGetImagesByDateAndLane(date, selectedMode); 
+                setImages(imageList);
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to load images.');
         } finally {
@@ -92,24 +121,27 @@ const PictureLog = () => {
         }
     };
     
-    // *** 4. Logic การจัดการการเปลี่ยน Lane ***
-    const handleLaneChange = (lane: string) => {
-        // การตั้งค่า State selectedLane ใหม่จะไปกระตุ้น useEffect ด้านบนให้ทำงานทันที
-        setSelectedLane(lane);
+    // *** 4. Logic การจัดการการเปลี่ยน Mode (Lane) ***
+    const handleModeChange = (mode: string) => {
+        // การตั้งค่า State selectedMode ใหม่จะไปกระตุ้น useEffect ด้านบนให้ทำงาน
+        setSelectedMode(mode);
+        setFilteredDate(null); // รีเซ็ต DatePicker
     };
 
     // ----------------------------------------------------
     // UI View 2: แสดงรูปภาพภายในวันที่และ Lane ที่เลือก
     // ----------------------------------------------------
+    const currentModeText = selectedMode === 'ALL' ? 'All Lanes' : selectedMode;
+    
     if (selectedDate) {
         return (
             <Flex vertical gap="large" style={{ padding: '24px' }}>
                 <Flex justify="space-between" align="middle" className="mb-6 p-4 border-b border-gray-200">
                     <Button onClick={() => setSelectedDate(null)} icon={<LeftOutlined />}>
-                        Back to Dates ({selectedLane})
+                        Back to Dates ({currentModeText})
                     </Button>
                     <Title level={4} style={{ margin: 0 }} className="text-gray-800">
-                        Images for {dayjs(selectedDate).format('DD MMMM YYYY')} ({selectedLane})
+                        Images for {dayjs(selectedDate).format('DD MMMM YYYY')} ({currentModeText})
                     </Title>
                     <div></div>
                 </Flex>
@@ -122,7 +154,7 @@ const PictureLog = () => {
                     ) : error ? (
                         <Alert message="Error" description={error} type="error" showIcon />
                     ) : images.length === 0 ? (
-                        <Alert message="ไม่พบข้อมูล" description={`ไม่พบรูปภาพในวันที่ ${selectedDate} สำหรับ ${selectedLane}`} type="info" showIcon />
+                        <Alert message="ไม่พบข้อมูล" description={`ไม่พบรูปภาพในวันที่ ${selectedDate} สำหรับ ${currentModeText}`} type="info" showIcon />
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                             {images.map(img => (
@@ -143,6 +175,7 @@ const PictureLog = () => {
                                         title={<Tooltip title={img.title}><div className="truncate text-sm font-semibold">{img.title}</div></Tooltip>}
                                         description={
                                             <Flex vertical gap={4}>
+                                                {/* 💡 แสดง Tag Lane เสมอ */}
                                                 <Tag color="blue" className='w-fit'>{img.lane}</Tag>
                                                 <div className="text-xs text-gray-500">
                                                     {dayjs(img.timestamp).format('HH:mm:ss')}
@@ -169,17 +202,18 @@ const PictureLog = () => {
                     Traffic Log
                 </Title>
                 <Flex gap="middle" align="middle">
-                    {/* Selector สำหรับเลือก Lane */}
+                    {/* 🔴 NEW: Selector สำหรับเลือก Mode/Lane */}
                     <Select
-                        placeholder="Select Lane"
-                        value={selectedLane}
-                        onChange={handleLaneChange}
-                        options={LANE_OPTIONS.map(lane => ({ value: lane, label: lane }))}
+                        placeholder="Select Mode/Lane"
+                        value={selectedMode}
+                        onChange={handleModeChange}
+                        options={LANE_MODES} // ใช้ LANE_MODES ใหม่
                         style={{ width: 200 }}
                         className="shadow-sm"
                     />
                     <DatePicker 
                         onChange={setFilteredDate} 
+                        value={filteredDate}
                         placeholder="Filter by date" 
                         className="shadow-sm" 
                         allowClear
@@ -187,7 +221,7 @@ const PictureLog = () => {
                 </Flex>
             </Flex>
             <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
-                <Title level={5} style={{ marginTop: 0 }}>Available Dates for {selectedLane}</Title>
+                <Title level={5} style={{ marginTop: 0 }}>Available Dates for {currentModeText}</Title>
                 
                 {loading ? (
                     <Flex justify="center" align="middle" style={{ height: 300 }}>
@@ -195,12 +229,12 @@ const PictureLog = () => {
                     </Flex>
                 ) : error ? (
                      <Alert message="Error" description={error} type="error" showIcon />
-                ) : displayDates.length === 0 ? ( // 💡 ตรวจสอบจาก displayDates ที่ถูกกรองแล้ว
+                ) : displayDates.length === 0 ? (
                     <Alert 
                         message="ไม่พบข้อมูล" 
                         description={filteredDate 
-                            ? `ไม่พบ Folder รูปภาพในวันที่ ${filteredDate.format('DD/MM/YYYY')} สำหรับ ${selectedLane}`
-                            : `ไม่พบ Folder รูปภาพใดๆ สำหรับ ${selectedLane}`
+                            ? `ไม่พบ Folder รูปภาพในวันที่ ${filteredDate.format('DD/MM/YYYY')} สำหรับ ${currentModeText}`
+                            : `ไม่พบ Folder รูปภาพใดๆ สำหรับ ${currentModeText}`
                         } 
                         type="info" 
                         showIcon 
@@ -224,4 +258,4 @@ const PictureLog = () => {
     );
 };
 
-export default PictureLog;
+export default TrafficLog;
