@@ -115,6 +115,16 @@ const navigationConfig: NavigationTree[] = [
                                 authority: [],
                                 subMenu: [],
                             },
+                            {
+                                key: 'appsProject.PictureTest',
+                                path: `/project/PictureTest`,
+                                title: 'Picture Test',
+                                translateKey: 'appsProject.PictureTest',
+                                icon: 'history',
+                                type: NAV_ITEM_TYPE_ITEM,
+                                authority: [],
+                                subMenu: [],
+                            },
                         ],
                     },
                 

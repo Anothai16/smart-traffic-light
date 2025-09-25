@@ -2,21 +2,15 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { config } from './config';
-import { authRoutes } from './routes/auth.routes'; 
 import { closeDbPool } from './config/dev.config'; 
-import { swagger } from '@elysiajs/swagger';
-import { accountConfigRoutes } from './routes/account-config.routes';
-import { trafficRoutes } from './routes/traffic.routes';
-import { settingHistoryRoutes } from './routes/settingHistory.routes';
-import { io } from './socket-server'; // ✅ นำเข้า Socket.IO instance
 
+import { swagger } from '@elysiajs/swagger';
+import { io } from './socket-server';
+import { appRoutes } from './router';
 const app = new Elysia()
     .use(cors({ origin: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }))
     .use(swagger())
-    .use(authRoutes)
-    .use(accountConfigRoutes)
-    .use(trafficRoutes)
-    .use(settingHistoryRoutes)
+    .use(appRoutes)
     .onError((ctx: any) => {
         if ((ctx.error as any)?.code === 'VALIDATION') {
             ctx.set.status = 400;

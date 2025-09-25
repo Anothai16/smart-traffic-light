@@ -60,4 +60,10 @@ export const protectedRoutes = [
         component: lazy(() => import('@/views/project/CameraManagement')),
         authority: [],
     },
+    {
+        key: 'appsProject.PictureTest',
+        path: `/project/PictureTest`,
+        component: lazy(() => import('@/views/project/PictureTest')),
+        authority: [],
+    },
 ]
