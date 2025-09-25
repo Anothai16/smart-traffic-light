@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { Card, Flex, Typography, DatePicker, Table, Tag, Button, message } from 'antd';
+// src/views/dashboard/ProjectDashboard.tsx
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { Card, Flex, Typography, DatePicker, Table, Tag, Button, message, Spin } from 'antd';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -8,108 +10,39 @@ import {
     AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { SyncOutlined } from '@ant-design/icons';
+import {
+    apiGetTrafficModes,
+    apiGetModeStatus,
+} from '@/services/TrafficService';
+import type { AxiosError } from 'axios';
+import classNames from 'classnames';
+
+interface Mode {
+    name: string;
+    color: string;
+}
+
+interface ApiErrorResponse {
+    message: string;
+}
 
 // Extend dayjs with the plugin
 dayjs.extend(isSameOrBefore);
 
-// ข้อมูลจำลองสำหรับแสดงผล
+// Data mocks and component logic
 const mockTrafficData = [
-    {
-        Date: '2025-02-06',
-        Lane: 'Lane 1',
-        Vehicle_Count: 48,
-        Red_Count: 32,
-        Yellow_Count: 50,
-        Green_Count: 48,
-    },
-    {
-        Date: '2025-02-06',
-        Lane: 'Lane 2',
-        Vehicle_Count: 88,
-        Red_Count: 48,
-        Yellow_Count: 86,
-        Green_Count: 52,
-    },
-    {
-        Date: '2025-02-06',
-        Lane: 'Lane 3',
-        Vehicle_Count: 84,
-        Red_Count: 82,
-        Yellow_Count: 52,
-        Green_Count: 52,
-    },
-    {
-        Date: '2025-02-06',
-        Lane: 'Lane 4',
-        Vehicle_Count: 52,
-        Red_Count: 48,
-        Yellow_Count: 86,
-        Green_Count: 52,
-    },
-    {
-        Date: '2025-02-07',
-        Lane: 'Lane 1',
-        Vehicle_Count: 60,
-        Red_Count: 40,
-        Yellow_Count: 60,
-        Green_Count: 55,
-    },
-    {
-        Date: '2025-02-07',
-        Lane: 'Lane 2',
-        Vehicle_Count: 95,
-        Red_Count: 55,
-        Yellow_Count: 90,
-        Green_Count: 60,
-    },
-    {
-        Date: '2025-02-07',
-        Lane: 'Lane 3',
-        Vehicle_Count: 78,
-        Red_Count: 75,
-        Yellow_Count: 50,
-        Green_Count: 48,
-    },
-    {
-        Date: '2025-02-07',
-        Lane: 'Lane 4',
-        Vehicle_Count: 55,
-        Red_Count: 50,
-        Yellow_Count: 88,
-        Green_Count: 55,
-    },
-    {
-        Date: '2025-02-08',
-        Lane: 'Lane 1',
-        Vehicle_Count: 72,
-        Red_Count: 50,
-        Yellow_Count: 70,
-        Green_Count: 65,
-    },
-    {
-        Date: '2025-02-08',
-        Lane: 'Lane 2',
-        Vehicle_Count: 88,
-        Red_Count: 62,
-        Yellow_Count: 85,
-        Green_Count: 70,
-    },
-    {
-        Date: '2025-02-08',
-        Lane: 'Lane 3',
-        Vehicle_Count: 65,
-        Red_Count: 60,
-        Yellow_Count: 45,
-        Green_Count: 55,
-    },
-    {
-        Date: '2025-02-08',
-        Lane: 'Lane 4',
-        Vehicle_Count: 68,
-        Red_Count: 65,
-        Yellow_Count: 78,
-        Green_Count: 68,
-    },
+    { Date: '2025-02-06', Lane: 'Lane 1', Vehicle_Count: 48, Red_Count: 32, Yellow_Count: 50, Green_Count: 48 },
+    { Date: '2025-02-06', Lane: 'Lane 2', Vehicle_Count: 88, Red_Count: 48, Yellow_Count: 86, Green_Count: 52 },
+    { Date: '2025-02-06', Lane: 'Lane 3', Vehicle_Count: 84, Red_Count: 82, Yellow_Count: 52, Green_Count: 52 },
+    { Date: '2025-02-06', Lane: 'Lane 4', Vehicle_Count: 52, Red_Count: 48, Yellow_Count: 86, Green_Count: 52 },
+    { Date: '2025-02-07', Lane: 'Lane 1', Vehicle_Count: 60, Red_Count: 40, Yellow_Count: 60, Green_Count: 55 },
+    { Date: '2025-02-07', Lane: 'Lane 2', Vehicle_Count: 95, Red_Count: 55, Yellow_Count: 90, Green_Count: 60 },
+    { Date: '2025-02-07', Lane: 'Lane 3', Vehicle_Count: 78, Red_Count: 75, Yellow_Count: 50, Green_Count: 48 },
+    { Date: '2025-02-07', Lane: 'Lane 4', Vehicle_Count: 55, Red_Count: 50, Yellow_Count: 88, Green_Count: 55 },
+    { Date: '2025-02-08', Lane: 'Lane 1', Vehicle_Count: 72, Red_Count: 50, Yellow_Count: 70, Green_Count: 65 },
+    { Date: '2025-02-08', Lane: 'Lane 2', Vehicle_Count: 88, Red_Count: 62, Yellow_Count: 85, Green_Count: 70 },
+    { Date: '2025-02-08', Lane: 'Lane 3', Vehicle_Count: 65, Red_Count: 60, Yellow_Count: 45, Green_Count: 55 },
+    { Date: '2025-02-08', Lane: 'Lane 4', Vehicle_Count: 68, Red_Count: 65, Yellow_Count: 78, Green_Count: 68 },
 ];
 
 interface TrafficData {
@@ -124,13 +57,69 @@ interface TrafficData {
 const { Title } = Typography;
 
 const ProjectDashboard = () => {
-    const availableDates = Array.from(new Set(mockTrafficData.map(data => data.Date)));
-    const [selectedDate, setSelectedDate] = useState(dayjs(availableDates[0]));
+    // ✅ Move all Hook calls inside the component body
+    const [messageApi, contextHolder] = message.useMessage();
+    const [currentMode, setCurrentMode] = useState('');
+    const [modes, setModes] = useState<Mode[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // ✅ เพิ่ม hook สำหรับ message
-    const [messageApi, contextHolder] = message.useMessage();
+    const availableDates = Array.from(new Set(mockTrafficData.map(data => data.Date)));
+    const [selectedDate, setSelectedDate] = useState(dayjs(availableDates[0]));
 
+    // ✅ Move the `useCallback` here as well
+    const fetchTrafficData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const modesResponse = await apiGetTrafficModes();
+            if (modesResponse.data.modes) {
+                const apiModes = modesResponse.data.modes.map(m => {
+                    let colorClass = '';
+                    switch (m.Mode_Name) {
+                        case 'Auto':
+                            colorClass = 'bg-green-500';
+                            break;
+                        case 'Intelligence':
+                            colorClass = 'bg-blue-500';
+                            break;
+                        case 'Caution':
+                            colorClass = 'bg-yellow-500';
+                            break;
+                        case 'Stop':
+                            colorClass = 'bg-red-500';
+                            break;
+                        default:
+                            colorClass = 'bg-gray-500';
+                    }
+                    return {
+                        name: m.Mode_Name,
+                        color: colorClass,
+                    };
+                });
+                setModes(apiModes);
+            }
+            const modeStatusResponse = await apiGetModeStatus();
+            const modeFromApi = modeStatusResponse.data.currentMode;
+            if (modeFromApi) {
+                setCurrentMode(modeFromApi);
+            } else {
+                setCurrentMode('No Mode Selected');
+            }
+        } catch (error) {
+            const err = error as AxiosError<ApiErrorResponse>;
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            messageApi.error(`Failed to fetch traffic data. Error: ${errorMessage}`);
+        } finally {
+            setLoading(false);
+        }
+    }, [messageApi]);
+
+    // ✅ Add a `useEffect` to call your fetch function when the component mounts
+    useEffect(() => {
+        fetchTrafficData();
+    }, [fetchTrafficData]);
+    
+    const currentModeDetails = modes.find(m => m.name === currentMode);
+    
     const currentDayData = mockTrafficData.filter(data => data.Date === selectedDate.format('YYYY-MM-DD'));
 
     const vehicleChartData = currentDayData.map(data => ({
@@ -185,26 +174,35 @@ const ProjectDashboard = () => {
 
     const handleRefresh = () => {
         setLoading(true);
-        // Simulate an API call with a delay
         setTimeout(() => {
-            // In a real app, you would fetch new data here
             setLoading(false);
-            // ✅ แสดงข้อความสำเร็จหลังจากโหลดเสร็จ
             messageApi.success('Data refreshed successfully!');
         }, 1500);
     };
+    
+    if (loading) {
+        return <Flex justify="center" align="middle" style={{ minHeight: '100vh', padding: '20px' }}><Spin size="large" /></Flex>;
+    }
 
     return (
         <>
-            {/* ✅ เพิ่ม contextHolder ที่นี่ */}
             {contextHolder}
             <Flex vertical gap="large" className="p-6">
-                {/* Header Section */}
                 <Flex justify="space-between" align="center" className="mb-6">
                     <Title level={3} className="text-gray-800">
                         Traffic Dashboard
                     </Title>
                     <Flex align="center" gap="small">
+                        <span className="text-base font-bold">Status:</span>
+                                                <div className="flex items-center gap-2">
+                                                    <div
+                                                        className={classNames(
+                                                            'rounded-full w-4 h-4',
+                                                            currentModeDetails?.color || 'bg-gray-400'
+                                                        )}
+                                                    />
+                                                    <span className="font-bold text-lg">{currentMode || 'No mode selected'}</span>
+                                                </div>
                         <DatePicker
                             value={selectedDate}
                             onChange={date => setSelectedDate(date)}
@@ -219,7 +217,6 @@ const ProjectDashboard = () => {
                     </Flex>
                 </Flex>
 
-                {/* Overview Card */}
                 <Card className="shadow-lg rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                     <Flex justify="space-between" align="center">
                         <Title level={4} className="text-white m-0">
@@ -231,9 +228,7 @@ const ProjectDashboard = () => {
                     </Flex>
                 </Card>
 
-                {/* Charts Section */}
                 <Flex wrap="wrap" gap="large" justify="center">
-                    {/* Vehicle Count Area Chart */}
                     <Card
                         title="Daily Vehicle Trend"
                         className="shadow-lg rounded-lg"
@@ -257,7 +252,6 @@ const ProjectDashboard = () => {
                         </ResponsiveContainer>
                     </Card>
 
-                    {/* Pie Chart */}
                     <Card
                         title="Traffic Light Proportions"
                         className="shadow-lg rounded-lg"
@@ -285,7 +279,6 @@ const ProjectDashboard = () => {
                         </ResponsiveContainer>
                     </Card>
 
-                    {/* Vehicle Bar Chart */}
                     <Card
                         title="Vehicle Count by Lane"
                         className="shadow-lg rounded-lg"
@@ -303,7 +296,6 @@ const ProjectDashboard = () => {
                         </ResponsiveContainer>
                     </Card>
 
-                    {/* Traffic Light Change Chart */}
                     <Card
                         title="Traffic Light Change Count"
                         className="shadow-lg rounded-lg"
@@ -324,9 +316,7 @@ const ProjectDashboard = () => {
                     </Card>
                 </Flex>
 
-                {/* Tables Section */}
                 <Flex wrap="wrap" gap="large" justify="center">
-                    {/* Vehicle Count Table */}
                     <Card
                         title="Vehicle Count Per Lane"
                         className="shadow-lg rounded-lg"
@@ -341,7 +331,6 @@ const ProjectDashboard = () => {
                         />
                     </Card>
 
-                    {/* Traffic Light Change Table */}
                     <Card
                         title="Traffic Light Change Count"
                         className="shadow-lg rounded-lg"

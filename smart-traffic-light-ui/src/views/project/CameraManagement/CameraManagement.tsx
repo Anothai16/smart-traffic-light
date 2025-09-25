@@ -172,7 +172,7 @@ const CameraManagement: React.FC = () => {
                         icon={<EditOutlined />}
                         onClick={() => handleEdit(record)}
                     >
-                        แก้ไข
+                        Edit
                     </Button>
                     <Button
                         type="primary"
@@ -180,7 +180,7 @@ const CameraManagement: React.FC = () => {
                         icon={<DeleteOutlined />}
                         onClick={() => handleDelete(record)}
                     >
-                        ลบ
+                        Delete
                     </Button>
                 </Flex>
             ),
@@ -189,7 +189,7 @@ const CameraManagement: React.FC = () => {
 
     return (
         <div className="p-6">
-            <Title level={2}>การจัดการกล้อง</Title>
+            <Title level={2}>Camera Management</Title>
             <Flex justify="flex-end" className="mb-4">
                 <Button
                     type="primary"
@@ -197,7 +197,7 @@ const CameraManagement: React.FC = () => {
                     icon={<PlusOutlined />}
                     onClick={handleAdd}
                 >
-                    เพิ่มกล้องใหม่
+                    Add new Camera
                 </Button>
             </Flex>
             <Card className="shadow-lg rounded-lg">
@@ -210,12 +210,12 @@ const CameraManagement: React.FC = () => {
             </Card>
 
             <Modal
-                title={editingCamera ? 'แก้ไขข้อมูลกล้อง' : 'เพิ่มกล้องใหม่'}
+                title={editingCamera ? 'Edit camera detail' : 'Add new camera'}
                 visible={isModalVisible}
                 onOk={handleModalSubmit}
                 onCancel={handleCancel}
-                okText={editingCamera ? 'บันทึก' : 'เพิ่ม'}
-                cancelText="ยกเลิก"
+                okText={editingCamera ? 'Save' : 'Add'}
+                cancelText="Cacel"
             >
                 <Form
                     form={form}
@@ -224,22 +224,22 @@ const CameraManagement: React.FC = () => {
                 >
                     <Form.Item
                         name="name"
-                        label="ชื่อกล้อง"
-                        rules={[{ required: true, message: 'กรุณาใส่ชื่อกล้อง!' }]}
+                        label="Camera Name"
+                        rules={[{ required: true, message: 'Please insert camera name!' }]}
                     >
                         <Input />
                     </Form.Item>
                     <Form.Item
                         name="location"
-                        label="ตำแหน่งที่ตั้ง"
-                        rules={[{ required: true, message: 'กรุณาใส่ตำแหน่งที่ตั้ง!' }]}
+                        label="Camera Location"
+                        rules={[{ required: true, message: 'Please insert camera location!' }]}
                     >
                         <Input />
                     </Form.Item>
                     <Form.Item
                         name="ipAddress"
                         label="IP Address"
-                        rules={[{ required: true, message: 'กรุณาใส่ IP Address!' }]}
+                        rules={[{ required: true, message: 'Please insert IP Address!' }]}
                     >
                         <Input />
                     </Form.Item>

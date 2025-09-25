@@ -1,4 +1,4 @@
-// src/views/dashboard/ProjectDashboard.tsx (FINAL CONSOLIDATED VERSION)
+// src/views/dashboard/ProjectDashboard.tsx (FINAL VERSION: KPI CARD UPDATE)
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Card, Flex, Typography, DatePicker, Table, Tag, Button, Spin, Alert } from 'antd';
@@ -14,8 +14,8 @@ import {
     SyncOutlined, 
     CarOutlined, 
     AlertOutlined, 
-    ArrowUpOutlined, 
-    ArrowDownOutlined 
+    ArrowUpOutlined, // 🔴 NEW: For increase
+    ArrowDownOutlined // 🔴 NEW: For decrease
 } from '@ant-design/icons';
 import classNames from 'classnames';
 
@@ -27,6 +27,7 @@ const { Title, Text } = Typography;
 // 1. INTERFACES (Type Definitions)
 // ----------------------------------------------------
 
+// ... (Interfaces คงเดิม) ...
 interface DailyTrafficData {
     Date: string; // YYYY-MM-DD
     Lane: string;
@@ -35,7 +36,7 @@ interface DailyTrafficData {
     Yellow_Count: number;
     Green_Count: number;
 }
-
+// ... (HourlyTrafficData, PieChartData, LaneWeeklyData คงเดิม) ...
 interface HourlyTrafficData {
     Hour: string;
     'Lane 1 (PC-A)': number;
@@ -43,13 +44,11 @@ interface HourlyTrafficData {
     'Lane 3 (PC-C)': number;
     'Lane 4 (PC-D)': number;
 }
-
 interface PieChartData {
     name: string;
     value: number;
     percent: string;
 }
-
 interface LaneWeeklyData {
     DayName: string;
     'Lane 1 (PC-A)': number;
@@ -61,23 +60,23 @@ interface LaneWeeklyData {
 
 
 // ----------------------------------------------------
-// 2. MOCK DATA & CONFIG
+// 2. MOCK DATA & CONFIG (Expanded)
 // ----------------------------------------------------
 
 const mockTrafficData: DailyTrafficData[] = [
-    // ข้อมูลวันที่เลือก (2025-09-24) - Total 19,600
+    // 🔴 ข้อมูลวันที่เลือก (2025-09-24) - Total 19,600 (Lane 2 Busiest: 6,100)
     { Date: '2025-09-24', Lane: 'Lane 1 (PC-A)', Vehicle_Count: 4800, Red_Count: 320, Yellow_Count: 50, Green_Count: 480 },
     { Date: '2025-09-24', Lane: 'Lane 2 (PC-B)', Vehicle_Count: 6100, Red_Count: 400, Yellow_Count: 65, Green_Count: 550 },
     { Date: '2025-09-24', Lane: 'Lane 3 (PC-C)', Vehicle_Count: 3500, Red_Count: 250, Yellow_Count: 40, Green_Count: 300 },
     { Date: '2025-09-24', Lane: 'Lane 4 (PC-D)', Vehicle_Count: 5200, Red_Count: 350, Yellow_Count: 55, Green_Count: 420 },
     
-    // ข้อมูลวันก่อนหน้า (2025-09-23) - Total 16,000 (ใช้สำหรับเปรียบเทียบ)
+    // 🔴 ข้อมูลวันก่อนหน้า (2025-09-23) - Total 16,000
     { Date: '2025-09-23', Lane: 'Lane 1 (PC-A)', Vehicle_Count: 4000, Red_Count: 300, Yellow_Count: 50, Green_Count: 400 },
     { Date: '2025-09-23', Lane: 'Lane 2 (PC-B)', Vehicle_Count: 5000, Red_Count: 350, Yellow_Count: 60, Green_Count: 450 },
     { Date: '2025-09-23', Lane: 'Lane 3 (PC-C)', Vehicle_Count: 3000, Red_Count: 200, Yellow_Count: 35, Green_Count: 280 },
     { Date: '2025-09-23', Lane: 'Lane 4 (PC-D)', Vehicle_Count: 4000, Red_Count: 250, Yellow_Count: 45, Green_Count: 350 },
 ];
-
+// ... (mockHourlyData, mockLaneWeeklyData, PIE_COLORS, LANE_NAMES, LINE_BAR_COLORS คงเดิม) ...
 const mockHourlyData: HourlyTrafficData[] = [
     { Hour: '08:00', 'Lane 1 (PC-A)': 120, 'Lane 2 (PC-B)': 150, 'Lane 3 (PC-C)': 90, 'Lane 4 (PC-D)': 130 },
     { Hour: '09:00', 'Lane 1 (PC-A)': 150, 'Lane 2 (PC-B)': 190, 'Lane 3 (PC-C)': 110, 'Lane 4 (PC-D)': 170 },
@@ -87,7 +86,6 @@ const mockHourlyData: HourlyTrafficData[] = [
     { Hour: '13:00', 'Lane 1 (PC-A)': 230, 'Lane 2 (PC-B)': 280, 'Lane 3 (PC-C)': 160, 'Lane 4 (PC-D)': 250 },
     { Hour: '14:00', 'Lane 1 (PC-A)': 190, 'Lane 2 (PC-B)': 230, 'Lane 3 (PC-C)': 140, 'Lane 4 (PC-D)': 200 },
 ];
-
 const mockLaneWeeklyData: LaneWeeklyData[] = [
     { DayName: 'Sat', 'Lane 1 (PC-A)': 3000, 'Lane 2 (PC-B)': 3500, 'Lane 3 (PC-C)': 2500, 'Lane 4 (PC-D)': 3500, Total_Count: 12500 }, 
     { DayName: 'Sun', 'Lane 1 (PC-A)': 2500, 'Lane 2 (PC-B)': 3000, 'Lane 3 (PC-C)': 2000, 'Lane 4 (PC-D)': 3700, Total_Count: 11200 },
@@ -97,21 +95,20 @@ const mockLaneWeeklyData: LaneWeeklyData[] = [
     { DayName: 'Thu', 'Lane 1 (PC-A)': 5000, 'Lane 2 (PC-B)': 6000, 'Lane 3 (PC-C)': 4200, 'Lane 4 (PC-D)': 5800, Total_Count: 21000 },
     { DayName: 'Fri', 'Lane 1 (PC-A)': 4500, 'Lane 2 (PC-B)': 5200, 'Lane 3 (PC-C)': 3800, 'Lane 4 (PC-D)': 5000, Total_Count: 18500 },
 ];
-
 const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 const LANE_NAMES = ['Lane 1 (PC-A)', 'Lane 2 (PC-B)', 'Lane 3 (PC-C)', 'Lane 4 (PC-D)'];
 const LINE_BAR_COLORS = {
-    'Lane 1 (PC-A)': '#8884d8', // Purple
-    'Lane 2 (PC-B)': '#82ca9d', // Green
-    'Lane 3 (PC-C)': '#ffc658', // Yellow
-    'Lane 4 (PC-D)': '#ff7300', // Orange
+    'Lane 1 (PC-A)': '#8884d8', 
+    'Lane 2 (PC-B)': '#82ca9d', 
+    'Lane 3 (PC-C)': '#ffc658', 
+    'Lane 4 (PC-D)': '#ff7300', 
 };
 
 
 // ----------------------------------------------------
-// 3. Table Configurations
+// 3. Table Configurations (คงเดิม)
 // ----------------------------------------------------
-
+// ... (vehicleTableColumns, trafficTableColumns, getLaneColumns, laneWeeklyColumns คงเดิม) ...
 const vehicleTableColumns: TableProps<DailyTrafficData>['columns'] = [
     {
         title: 'Lane',
@@ -165,20 +162,9 @@ const trafficTableColumns: TableProps<DailyTrafficData>['columns'] = [
     },
 ];
 
-const getLaneColumns = (maxTraffic: number) => LANE_NAMES.map(lane => ({
-    title: lane,
-    dataIndex: lane,
-    key: lane,
-    align: 'right' as const,
-    render: (count: number) => <Text>{count.toLocaleString()}</Text>,
-    onCell: (record: LaneWeeklyData) => ({
-        className: (record[lane as keyof LaneWeeklyData] as number) === maxTraffic ? 
-            'bg-green-200 font-bold' : ''
-    }),
-}));
 
 // ----------------------------------------------------
-// 4. Main Component Logic
+// 4. Main Component Logic (Updated)
 // ----------------------------------------------------
 
 const ProjectDashboard = () => {
@@ -196,7 +182,7 @@ const ProjectDashboard = () => {
         return currentDayData.reduce((sum, item) => sum + item.Vehicle_Count, 0);
     }, [currentDayData]);
 
-    // LOGIC 1: หา Lane ที่มีปริมาณรถเยอะที่สุด
+    // 🔴 NEW LOGIC 1: หา Lane ที่มีปริมาณรถเยอะที่สุด
     const busiestLaneInfo = useMemo(() => {
         if (currentDayData.length === 0) return { lane: 'N/A', count: 0 };
         
@@ -210,9 +196,10 @@ const ProjectDashboard = () => {
         };
     }, [currentDayData]);
 
-    // LOGIC 2: คำนวณการเปลี่ยนแปลงรายวัน
+    // 🔴 NEW LOGIC 2: คำนวณการเปลี่ยนแปลงรายวัน
     const dailyChangeInfo = useMemo(() => {
         const previousDate = selectedDate.subtract(1, 'day').format('YYYY-MM-DD');
+        // ดึงข้อมูลวันก่อนหน้าจาก Mock Data
         const previousDayData = mockTrafficData.filter(d => d.Date === previousDate);
         
         const currentTotal = totalVehicleCount;
@@ -232,6 +219,7 @@ const ProjectDashboard = () => {
         };
     }, [selectedDate, totalVehicleCount]);
 
+    // ... (Logic ส่วนอื่นๆ คงเดิม) ...
     const barChartData = currentDayData.map(item => ({
         name: item.Lane.split('(')[0].trim(), 
         'Vehicle Count': item.Vehicle_Count
@@ -247,10 +235,18 @@ const ProjectDashboard = () => {
             percent: ((item.Vehicle_Count / totalVehicle) * 100).toFixed(1),
         }));
     }, [currentDayData]);
-    
-    // Weekly Comparison Logic
+
     const MAX_LANE_TRAFFIC = useMemo(() => {
-        return 6500; 
+        let max = 0;
+        mockLaneWeeklyData.forEach(day => {
+            LANE_NAMES.forEach(lane => {
+                const count = day[lane as keyof LaneWeeklyData] as number;
+                if (count > max) {
+                    max = count;
+                }
+            });
+        });
+        return max;
     }, []);
 
     const MAX_DAILY_TOTAL = useMemo(() => {
@@ -276,6 +272,18 @@ const ProjectDashboard = () => {
         return '';
     }, []);
     
+    const getLaneColumns = (maxTraffic: number) => LANE_NAMES.map(lane => ({
+        title: lane,
+        dataIndex: lane,
+        key: lane,
+        align: 'right' as const,
+        render: (count: number) => <Text>{count.toLocaleString()}</Text>,
+        onCell: (record: LaneWeeklyData) => ({
+            className: record[lane as keyof LaneWeeklyData] === maxTraffic ? 
+                'bg-green-200 font-bold' : ''
+        }),
+    }));
+
     const laneWeeklyColumns: TableProps<LaneWeeklyData>['columns'] = [
         {
             title: 'Day',
@@ -310,7 +318,6 @@ const ProjectDashboard = () => {
 
     return (
         <Flex vertical gap="large" style={{ padding: '24px', backgroundColor: '#f0f2f5' }}>
-            
             {/* Header: Title and Controls */}
             <Flex justify="space-between" align="middle">
                 <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
@@ -328,11 +335,11 @@ const ProjectDashboard = () => {
                     </Button>
                 </Flex>
             </Flex>
-            
-            {/* --- ROW 1: KPI Cards --- */}
+
+            {/* ROW 1: KPI Cards */}
             <Flex wrap="wrap" gap="large" justify="space-around">
                 
-                {/* KPI Card 1: Total Vehicles */}
+                {/* KPI Card 1: Total Vehicles (คงเดิม) */}
                 <Card 
                     title={<Text type="secondary"><CarOutlined /> Total Vehicles</Text>}
                     className="shadow-xl rounded-lg border-l-4 border-l-blue-500 hover:shadow-2xl transition-shadow"
@@ -345,19 +352,21 @@ const ProjectDashboard = () => {
                     <Text type="secondary" className="text-sm">Traffic on {selectedDate.format('DD MMMM YYYY')}</Text>
                 </Card>
 
-                {/* KPI Card 2: Busiest Lane & Daily Change */}
+                {/* 🔴 UPDATED KPI Card 2: Busiest Lane & Daily Change */}
                 <Card 
-                    title={<Text type="secondary"><AlertOutlined /> Busiest Lane & Daily Change</Text>} 
-                    className="shadow-xl rounded-lg border-l-4 border-l-orange-500 hover:shadow-2xl transition-shadow" 
+                    title={<Text type="secondary"><AlertOutlined /> Busiest Lane & Daily Change</Text>} // 🔴 Updated Title
+                    className="shadow-xl rounded-lg border-l-4 border-l-orange-500 hover:shadow-2xl transition-shadow" // 🔴 New Color
                     style={{ flex: 1, minWidth: 250 }}
                     loading={loading}
                 >
                     <Flex vertical>
+                        {/* 1. Busiest Lane Info */}
                         <Text type="secondary" className="text-sm">Busiest Lane: **{busiestLaneInfo.lane}**</Text>
                         <Title level={3} className="text-orange-600 my-0">
                             {busiestLaneInfo.count.toLocaleString()} Vehicles
                         </Title>
                         
+                        {/* 2. Daily Change Info */}
                         <Flex align="center" gap={4}>
                             {dailyChangeInfo.total === 0 ? (
                                 <Text type="secondary" className="text-sm">Not enough data to compare with Day Before</Text>
@@ -383,7 +392,7 @@ const ProjectDashboard = () => {
                     </Flex>
                 </Card>
 
-                {/* KPI Card 3: System Status */}
+                {/* KPI Card 3: System Status (คงเดิม) */}
                 <Card 
                     title={<Text type="secondary">System Status</Text>}
                     className="shadow-xl rounded-lg border-l-4 border-l-green-500 hover:shadow-2xl transition-shadow"
@@ -397,7 +406,7 @@ const ProjectDashboard = () => {
                 </Card>
             </Flex>
 
-            {/* --- ROW 2: BAR CHART (Daily Vehicle Comparison) --- */}
+            {/* ROW 2: BAR CHART (Daily Vehicle Comparison) (คงเดิม) */}
             <Card title={`Daily Vehicle Count Comparison (${selectedDate.format('DD MMMM YYYY')})`} className="shadow-xl rounded-lg p-3" loading={loading}>
                 <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={barChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -413,7 +422,7 @@ const ProjectDashboard = () => {
                 </ResponsiveContainer>
             </Card>
 
-            {/* --- ROW 3: LINE CHART (Hourly Trend) --- */}
+            {/* ROW 3: LINE CHART (Hourly Trend) (คงเดิม) */}
             <Card title="Hourly Vehicle Trend (All Lanes)" className="shadow-xl rounded-lg p-3" loading={loading}>
                 <ResponsiveContainer width="100%" height={350}>
                     <LineChart data={mockHourlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -439,79 +448,63 @@ const ProjectDashboard = () => {
                 </ResponsiveContainer>
             </Card>
 
-            {/* --- ROW 4: Donut Chart (Distribution) and Tables (Daily Summary) (FIXED ALIGNMENT & CHART DISPLAY) --- */}
-            <Flex wrap="wrap" gap="large" justify="center"> 
+            {/* ROW 4: Donut Chart (Distribution) and Tables (Daily Summary) (คงเดิม) */}
+            <Flex wrap="wrap" gap="large" justify="center" align="flex-start">
                 
-                {/* 1. Donut Chart Card - Fixed Height (stretching to fit tables) */}
+                {/* 1. Donut Chart Card */}
                 <Card
                     title="Vehicle Distribution by Lane"
                     className="shadow-xl rounded-lg"
-                    style={{ width: 400, minWidth: 350, height: '100%' }} 
-                    bodyStyle={{ padding: 24, height: '100%' }} // FIX 1: Body Height 100%
+                    style={{ width: 400, minWidth: 350, height: 450 }}
                     loading={loading}
                 >
-                    {/* FIX 2: ใช้ Flex ภายใน Card Body เพื่อควบคุมการยืดตัวของ Chart Area */}
-                    <Flex vertical style={{ height: '100%' }} align="center" justify="space-between">
-                        
-                        {/* Chart Area (takes flexible space) */}
-                        <div 
+                    <div style={{ position: 'relative', width: '100%', height: 300 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={70} 
+                                    outerRadius={120} 
+                                    paddingAngle={3}
+                                    fill="#8884d8"
+                                    labelLine={false}
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip 
+                                    formatter={(value: number, name: string, props) => [`${value.toLocaleString()} vehicles (${(props.payload as PieChartData).percent}%)`, name]} 
+                                />
+                                <Legend layout="vertical" verticalAlign="bottom" align="center" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                        <Flex 
+                            vertical 
+                            align="center" 
+                            justify="center" 
                             style={{ 
-                                position: 'relative', 
-                                width: '100%', 
-                                flex: 1, // FIX 3: กำหนดให้ div นี้ยืดตัวรับพื้นที่ว่างที่เหลือ
-                                minHeight: 250, // ความสูงขั้นต่ำ
-                                maxHeight: 400, // ความสูงสูงสุด (ป้องกันการยืดมากเกินไป)
+                                position: 'absolute', 
+                                top: '50%', 
+                                left: '50%', 
+                                transform: 'translate(-50%, -50%)', 
+                                pointerEvents: 'none', 
+                                maxWidth: '100px'
                             }}
                         >
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70} 
-                                        outerRadius={120} 
-                                        paddingAngle={3}
-                                        fill="#8884d8"
-                                        labelLine={false}
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip 
-                                        formatter={(value: number, name: string, props) => [`${value.toLocaleString()} vehicles (${(props.payload as PieChartData).percent}%)`, name]} 
-                                    />
-                                    {/* FIX 4: ปรับ Legend ให้อยู่ด้านล่างของ Chart เพื่อไม่ให้ล้น */}
-                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            {/* Center Text/KPI Overlay */}
-                            <Flex 
-                                vertical 
-                                align="center" 
-                                justify="center" 
-                                style={{ 
-                                    position: 'absolute', 
-                                    top: '50%', 
-                                    left: '50%', 
-                                    transform: 'translate(-48%, -105%)', 
-                                    pointerEvents: 'none', 
-                                    maxWidth: '100px'
-                                }}
-                            >
-                                <Text type="secondary" style={{ fontSize: 12, marginBottom: -4 }}>Total</Text>
-                                <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-                                    {totalVehicleCount.toLocaleString()}
-                                </Title>
-                            </Flex>
-                        </div>
-                    </Flex>
+                            <Text type="secondary" style={{ fontSize: 12, marginBottom: -4 }}>Total</Text>
+                            <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+                                {totalVehicleCount.toLocaleString()}
+                            </Title>
+                        </Flex>
+                    </div>
                 </Card>
 
-                {/* 2. Tables (Summary Data) - Container */}
+                {/* 2. Tables (Summary Data) */}
                 <Flex vertical gap="large" style={{ flex: 1, minWidth: 400 }}>
                     <Card
                         title="Vehicle Count Per Lane (Daily Summary)"
@@ -545,7 +538,7 @@ const ProjectDashboard = () => {
                 </Flex>
             </Flex>
             
-            {/* --- ROW 5: Weekly Lane Comparison Table --- */}
+            {/* ROW 5: Weekly Lane Comparison Table (คงเดิม) */}
             <Card title="Weekly Vehicle Count Comparison by Lane (Sat - Fri)" className="shadow-xl rounded-lg p-3 mt-6" loading={loading}>
                 <Table
                     columns={laneWeeklyColumns}
