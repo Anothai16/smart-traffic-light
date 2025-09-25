@@ -451,7 +451,7 @@ const ProjectDashboard = () => {
                     loading={loading}
                 >
                     {/* FIX 2: ใช้ Flex ภายใน Card Body เพื่อควบคุมการยืดตัวของ Chart Area */}
-                    <Flex vertical style={{ height: '100%' }} align="center" justify="space-between">
+                    <Flex vertical style={{ height: '100%' }} align="center" justify="flex-end">
                         
                         {/* Chart Area (takes flexible space) */}
                         <div 
@@ -461,6 +461,7 @@ const ProjectDashboard = () => {
                                 flex: 1, // FIX 3: กำหนดให้ div นี้ยืดตัวรับพื้นที่ว่างที่เหลือ
                                 minHeight: 250, // ความสูงขั้นต่ำ
                                 maxHeight: 400, // ความสูงสูงสุด (ป้องกันการยืดมากเกินไป)
+                                marginBottom: 100
                             }}
                         >
                             <ResponsiveContainer width="100%" height="100%">
