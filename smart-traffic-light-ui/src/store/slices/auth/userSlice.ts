@@ -8,6 +8,7 @@ export type UserState = {
     lastName?: string
     email?: string
     authority: string[]
+    Role?: string
 }
 
 const initialState: UserState = {
@@ -30,6 +31,7 @@ const userSlice = createSlice({
             state.firstName = action.payload?.firstName
             state.lastName = action.payload?.lastName
             state.authority = action.payload?.authority
+            state.Role = action.payload?.Role 
         },
     },
 })

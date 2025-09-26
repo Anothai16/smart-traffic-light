@@ -10,6 +10,7 @@ import { accountConfigRoutes } from './routes/account-config.routes';
 import { trafficRoutes } from './routes/traffic.routes';
 import { settingHistoryRoutes } from './routes/settingHistory.routes';
 import { imageLogRoutes } from './routes/image-log.routes'; 
+import { permissionRoutes } from './routes/permission.routes'; 
 
 // 🔴 1. ดึง Path จาก Environment Variable (ค่าจาก .env คือ C:\TrafficData)
 const rawRootPath = process.env.IMAGE_ROOT_PATH || 'C:\\TrafficData'; 
@@ -35,6 +36,10 @@ export const appRoutes = new Elysia()
     .use(trafficRoutes)
     .use(settingHistoryRoutes)
     .use(imageLogRoutes)
+    .use(permissionRoutes) 
+    .on('beforeHandle', ({ request }) => {
+        console.log(`[Global Router] Received Request: ${request.method} ${request.url}`);
+    })
     .use(
         staticPlugin({
             assets: IMAGE_ROOT_PATH, // 👈 ใช้ Path ที่ถูก resolve และ Normalize แล้ว (C:/TrafficData/)

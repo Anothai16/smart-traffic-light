@@ -1,11 +1,9 @@
 // src/services/account-config.services.ts
 
 import sql from 'mssql';
-import { sha256 } from 'js-sha256'; // <--- อันนี้จะไม่ได้ใช้แล้ว
-import * as bcrypt from 'bcrypt'; // <--- เพิ่มไลบรารี bcrypt
+import * as bcrypt from 'bcrypt'; 
 import { getDbPool } from '../config/dev.config';
 
-// กำหนดค่า Salt Rounds สำหรับ Bcrypt
 const saltRounds = 10;
 
 /**
@@ -14,17 +12,45 @@ const saltRounds = 10;
 export const AccountConfigService = {
 
     /**
+     * 🔑 HELPER: ฟังก์ชันค้นหา Role_ID จาก Role Name
+     */
+    async getRoleIdByRoleName(roleName: string, pool: sql.ConnectionPool) {
+        const request = new sql.Request(pool);
+        request.input('roleName', sql.NVarChar(50), roleName);
+        const result = await request.query`
+            SELECT Role_ID
+            FROM stl.Roles
+            WHERE Role_Name = @roleName;
+        `;
+        if (result.recordset.length === 0) {
+            throw new Error(`Role name '${roleName}' not found in stl.Roles.`);
+        }
+        return result.recordset[0].Role_ID;
+    },
+
+    /**
      * ดึงข้อมูลผู้ใช้ทั้งหมดจากตาราง Admin.
      */
     async getAllAccounts() {
         try {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
-            const result = await request.query`SELECT * FROM stl.Admin`;
+            
+            // ✅ FIX: ใช้ JOIN เพื่อดึง Role Name
+            const result = await request.query`
+                SELECT 
+                    A.*,            
+                    R.Role_Name AS Role -- คอลัมน์นี้จะถูกส่งออกในชื่อ 'Role'
+                FROM 
+                    stl.Admin A
+                INNER JOIN 
+                    stl.Roles R ON A.Role_ID = R.Role_ID 
+            `;
+            
             return result.recordset;
         } catch (err) {
             console.error('SQL error:', err);
-            return null;
+            return null; 
         }
     },
     
@@ -36,7 +62,20 @@ export const AccountConfigService = {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
             request.input('adminId', sql.Int, adminId);
-            const result = await request.query`SELECT * FROM stl.Admin WHERE Admin_ID = @adminId`;
+            
+            // ✅ FIX: ใช้ JOIN เพื่อดึง Role Name
+            const result = await request.query`
+                SELECT 
+                    A.*, 
+                    R.Role_Name AS Role
+                FROM 
+                    stl.Admin A
+                INNER JOIN 
+                    stl.Roles R ON A.Role_ID = R.Role_ID
+                WHERE 
+                    A.Admin_ID = @adminId
+            `;
+            
             return result.recordset[0];
         } catch (err) {
             console.error('SQL error:', err);
@@ -49,26 +88,41 @@ export const AccountConfigService = {
      */
     async createAccount(data: { username: string, password: string, First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
         try {
-            // เข้ารหัสรหัสผ่านด้วย Bcrypt
-            const hashedPassword = await bcrypt.hash(data.password, saltRounds); // <-- เปลี่ยนตรงนี้
-            
             const pool = await getDbPool();
+            
+            // 🔑 FIX 1: ค้นหา Role_ID จาก Role Name ที่รับมา
+            const roleId = await this.getRoleIdByRoleName(data.Role, pool);
+            
+            const hashedPassword = await bcrypt.hash(data.password, saltRounds);
             const request = new sql.Request(pool);
 
+            // ... inputs เดิม ...
             request.input('username', sql.NVarChar(50), data.username);
-            request.input('password', sql.NVarChar(64), hashedPassword); // <-- เปลี่ยนตรงนี้
+            request.input('password', sql.NVarChar(64), hashedPassword);
             request.input('firstName', sql.NVarChar(100), data.First_Name);
             request.input('lastName', sql.NVarChar(100), data.Last_Name);
             request.input('idCard', sql.NVarChar(13), data.ID_Card);
             request.input('email', sql.NVarChar(100), data.Email);
             request.input('phoneNumber', sql.NVarChar(10), data.Phone_Number);
-            request.input('role', sql.NVarChar(50), data.Role);
             request.input('registerDate', sql.Date, data.Register_Date);
+            
+            // 🔑 FIX 2: ใช้ Role_ID ในการ INSERT แทน Role Name
+            request.input('roleId', sql.Int, roleId); 
 
             const result = await request.query`
-                INSERT INTO stl.Admin (Username, Password, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Role , Create_Date, Update_Date)
-                VALUES (@username, @password, @firstName, @lastName, @idCard, @email, @phoneNumber, @registerDate, @role, GETDATE(), GETDATE());
-                SELECT * FROM stl.Admin WHERE Username = @username;
+                INSERT INTO stl.Admin (Username, Password, First_Name, Last_Name, ID_Card, Email, Phone_Number, Register_Date, Role_ID, Create_Date, Update_Date)
+                VALUES (@username, @password, @firstName, @lastName, @idCard, @email, @phoneNumber, @registerDate, @roleId, GETDATE(), GETDATE());
+                
+                -- SELECT เพื่อส่งข้อมูลที่อัปเดตกลับไป
+                SELECT 
+                    A.*, 
+                    R.Role_Name AS Role
+                FROM 
+                    stl.Admin A
+                INNER JOIN 
+                    stl.Roles R ON A.Role_ID = R.Role_ID
+                WHERE 
+                    A.Username = @username;
             `;
             return result.recordset[0];
         } catch (err) {
@@ -78,6 +132,7 @@ export const AccountConfigService = {
     },
 
     async deleteAccounts(accountIds: number[]) {
+        // ... (โค้ดเดิม ไม่มีการเรียกดูข้อมูล จึงไม่ต้องแก้ไข) ...
         try {
             const pool = await getDbPool();
             const transaction = new sql.Transaction(pool);
@@ -112,6 +167,10 @@ export const AccountConfigService = {
     async updateAccount(adminId: number, data: { First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
         try {
             const pool = await getDbPool();
+
+            // 🔑 FIX 1: ค้นหา Role_ID จาก Role Name ที่รับมา
+            const roleId = await this.getRoleIdByRoleName(data.Role, pool);
+
             const request = new sql.Request(pool);
             
             request.input('adminId', sql.Int, adminId);
@@ -120,8 +179,10 @@ export const AccountConfigService = {
             request.input('idCard', sql.NVarChar, data.ID_Card);
             request.input('email', sql.NVarChar, data.Email);
             request.input('phoneNumber', sql.NVarChar, data.Phone_Number);
-            request.input('role', sql.NVarChar, data.Role);
             request.input('registerDate', sql.Date, data.Register_Date);
+            
+            // 🔑 FIX 2: ใช้ Role_ID ในการ UPDATE แทน Role Name
+            request.input('roleId', sql.Int, roleId); 
             
             const updateQuery = `
                 UPDATE stl.Admin
@@ -131,7 +192,7 @@ export const AccountConfigService = {
                     ID_Card = @idCard,
                     Email = @email,
                     Phone_Number = @phoneNumber,
-                    Role = @role,
+                    Role_ID = @roleId, -- 🔑 FIX: เปลี่ยนจาก Role เป็น Role_ID
                     Register_Date = @registerDate,
                     Update_Date = GETDATE()
                 WHERE Admin_ID = @adminId;
@@ -151,7 +212,19 @@ export const AccountConfigService = {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
             request.input('idCard', sql.NVarChar(13), idCard);
-            const result = await request.query`SELECT * FROM stl.Admin WHERE ID_Card = @idCard`;
+            
+            // ✅ FIX: ใช้ JOIN เพื่อดึง Role Name
+            const result = await request.query`
+                SELECT 
+                    A.*, 
+                    R.Role_Name AS Role
+                FROM 
+                    stl.Admin A
+                INNER JOIN 
+                    stl.Roles R ON A.Role_ID = R.Role_ID
+                WHERE 
+                    A.ID_Card = @idCard
+            `;
             return result.recordset[0];
         } catch (err) {
             console.error('SQL error:', err);
@@ -167,7 +240,19 @@ export const AccountConfigService = {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
             request.input('phoneNumber', sql.NVarChar(10), phoneNumber);
-            const result = await request.query`SELECT * FROM stl.Admin WHERE Phone_Number = @phoneNumber`;
+            
+            // ✅ FIX: ใช้ JOIN เพื่อดึง Role Name
+            const result = await request.query`
+                SELECT 
+                    A.*, 
+                    R.Role_Name AS Role
+                FROM 
+                    stl.Admin A
+                INNER JOIN 
+                    stl.Roles R ON A.Role_ID = R.Role_ID
+                WHERE 
+                    A.Phone_Number = @phoneNumber
+            `;
             return result.recordset[0];
         } catch (err) {
             console.error('SQL error:', err);
@@ -175,18 +260,16 @@ export const AccountConfigService = {
         }
     },
     /**
-     * ✅ NEW: ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้
-     * @param adminId ID ของผู้ใช้ที่ต้องการเปลี่ยนรหัสผ่าน
-     * @param oldPassword รหัสผ่านเก่าที่ผู้ใช้ป้อนเข้ามา
-     * @param newPassword รหัสผ่านใหม่ที่ผู้ใช้ต้องการตั้ง
+     * ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้
      */
     async changePassword(adminId: number, oldPassword: string, newPassword: string) {
+        // ... (โค้ดเดิม) ...
         try {
             const pool = await getDbPool();
             const request = new sql.Request(pool);
             
             // 1. ค้นหาบัญชีผู้ใช้ด้วย Admin ID
-            const user = await this.getAccountById(adminId);
+            const user = await this.getAccountById(adminId); // getAccountById ถูกแก้ไขแล้ว
             if (!user) {
                 throw new Error('User not found.');
             }

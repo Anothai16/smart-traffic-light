@@ -71,7 +71,7 @@ const _UserDropdown = ({ className }: CommonProps) => {
         <div className={classNames(className, 'flex items-center gap-2')}>
             <Avatar size={32} shape="circle" icon={<HiOutlineUser />} />
             <div className="hidden md:block">
-                <div className="text-xs capitalize">{user?.authority}</div> 
+                <div className="text-xs capitalize">{user?.Role}</div> 
                 <div className="font-bold">{user?.firstName}</div> 
             </div>
         </div>

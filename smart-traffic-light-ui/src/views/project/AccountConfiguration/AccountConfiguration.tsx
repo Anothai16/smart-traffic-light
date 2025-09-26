@@ -53,9 +53,9 @@ const AccountConfiguration: React.FC = () => {
     const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
 
     const roleOptions = userAuthority.includes('SuperAdmin')
-        ? [{ value: 'admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
-        : [{ value: 'admin', label: 'Admin' }];
-
+        ? [{ value: 'Admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
+        : [{ value: 'Admin', label: 'Admin' }];
+    // console.log("User Authority:", roleOptions);
     const fetchAccounts = async () => {
         try {
             setLoading(true);
@@ -63,6 +63,7 @@ const AccountConfiguration: React.FC = () => {
             if (response.status === 200) {
                 setAccounts(response.data.accounts);
             }
+            //console.log("Fetched accounts:", response.data.accounts);
         } catch (error) {
             console.error("Failed to fetch accounts:", error);
             messageApi.error('Failed to fetch accounts.');

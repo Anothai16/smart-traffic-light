@@ -11,6 +11,7 @@ import { LuHistory } from "react-icons/lu";
 import { UserOutlined , PictureOutlined , DashboardOutlined} from '@ant-design/icons'
 import { GrPerformance } from "react-icons/gr";
 import { TbDeviceCctvFilled } from "react-icons/tb";
+import { GrDocumentConfig } from "react-icons/gr";
 import type { JSX } from 'react'
 
 export type NavigationIcons = Record<string, JSX.Element>
@@ -24,6 +25,7 @@ const navigationIcon: NavigationIcons = {
     history: <LuHistory />,
     performance: <GrPerformance />,
     camera: <TbDeviceCctvFilled />,
+    permissionconfig: <GrDocumentConfig />,
 }
 
 export default navigationIcon
