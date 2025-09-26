@@ -24,47 +24,58 @@ const getConversationId = (email1: string, email2: string) => {
 const GlobalSocketListener = () => {
     const dispatch = useAppDispatch();
     const currentUser = useAppSelector((state: RootState) => state.auth.user); 
-    const currentUserEmail = currentUser.email;
+    
+    // 🔑 currentUserEmail อาจเป็น string | undefined
+    const currentUserEmail = currentUser.email; 
 
-    // 🏆 FIX: ใช้ Hook เพื่อสร้าง Notification Context และรับ api instance
+    // 🏆 ใช้ Hook เพื่อสร้าง Notification Context และรับ api instance
     const [api, contextHolder] = notification.useNotification(); 
     
+    // 1. ดึง state และสร้าง Ref เพื่อเก็บค่าล่าสุด
     const activeChatEmail = useAppSelector((state: RootState) => state.chat.activeChatEmail);
     const activeChatEmailRef = useRef(activeChatEmail);
 
+    // 🔑 FIX 1: อัปเดต ref ทุกครั้งที่ activeChatEmail เปลี่ยน เพื่อแก้ปัญหา Stale Closure
     useEffect(() => {
         activeChatEmailRef.current = activeChatEmail;
-    }, [activeChatEmail]);
+    }, [activeChatEmail]); 
 
+    // 2. Socket Listener
     useEffect(() => {
-        if (!currentUserEmail) return; 
+        // 🔑 FIX 2: Type Guard - ตรวจสอบว่า currentUserEmail มีค่าเป็น string ก่อน
+        // ถ้าไม่มีค่า ให้ยกเลิกการตั้งค่า Listener ใน Effect นี้
+        if (!currentUserEmail) {
+            console.error("Current user email is not available. Chat listener setup skipped.");
+            return; 
+        }
+        
+        // ภายใน Block นี้ currentUserEmail จะถูก TypeScript ยอมรับว่าเป็น string แน่นอน
 
         const handlePrivateMessage = (msg: ChatMessage) => {
-            if (msg.senderEmail === currentUserEmail) {
-                return; 
-            }
-
+            // ดึงค่าล่าสุดจาก Ref
             const currentActiveChatEmail = activeChatEmailRef.current;
+            // ตรวจสอบว่ากำลังเปิดแชทกับผู้ส่งข้อความนี้อยู่หรือไม่
             const isChatActive = currentActiveChatEmail === msg.senderEmail; 
             
-            // A. บันทึกข้อความใน Redux History
+            // A. บันทึกข้อความใน Redux History (ทำทุกครั้ง)
+            // currentUserEmail ปลอดภัยที่จะใช้แล้วเนื่องจากถูก Type Guard ด้านนอก
             const conversationId = getConversationId(currentUserEmail, msg.senderEmail); 
             dispatch(storeMessage({ conversationId, message: msg })); 
             
-            // B. เพิ่ม Badge (เฉพาะเมื่อแชทไม่ได้ถูกเปิดอยู่)
+            // B. เพิ่ม Badge และ C. แจ้งเตือน Notification (เฉพาะเมื่อแชทไม่ได้ถูกเปิดอยู่)
             if (!isChatActive) {
+                // B. เพิ่ม Badge: ถ้าไม่ได้เปิดแชทกับคนนี้ ให้เพิ่มจำนวนข้อความที่ยังไม่ได้อ่าน
                 dispatch(incrementUnreadCount({ senderEmail: msg.senderEmail })); 
+                
+                // 🔑 C. แจ้งเตือน Notification: ขึ้นเฉพาะตอนไม่ได้อยู่ในแชท
+                api.info({ 
+                    key: `${msg.timestamp}-${msg.senderEmail}`, 
+                    message: `New massages from ${msg.senderFirstName}`, 
+                    description: msg.message, 
+                    duration: 3.5, // แสดง 4.5 วินาที
+                    placement: 'bottomLeft', 
+                });
             }
-            
-            // C. แจ้งเตือน Notification (ทุกครั้ง)
-            // 🏆 ใช้ api.info จาก hook ที่เสถียร
-            api.info({ 
-                key: `${msg.timestamp}-${msg.senderEmail}`, 
-                message: `ข้อความใหม่จาก ${msg.senderFirstName}`, 
-                description: msg.message, 
-                duration: 4.5, 
-                placement: 'topRight', // 🔑 ตำแหน่งมุมขวาบน
-            });
         };
 
         socket.on('private_message', handlePrivateMessage);
@@ -72,9 +83,10 @@ const GlobalSocketListener = () => {
         return () => {
             socket.off('private_message', handlePrivateMessage);
         };
+        // Dependency array: ถูกต้องแล้วเพราะเรา handle undefined ด้วย Type Guard แล้ว
     }, [dispatch, currentUserEmail, api]); 
 
-    // 🔑 FIX: ต้องแสดงผล contextHolder เพื่อให้ Notification แสดงผลบนหน้าจอ
+    // 🔑 ต้องแสดงผล contextHolder เพื่อให้ Notification แสดงผลบนหน้าจอ
     return (
         <>
             {contextHolder}

@@ -7,6 +7,9 @@ import { setPanelExpand, useAppSelector, useAppDispatch } from '@/store'
 import type { CommonProps } from '@/@types/common'
 import { socket } from '@/services/socket'
 
+// 🔑 FIX 1: นำเข้า setActiveChat
+import { setActiveChat } from '@/store/chat' 
+
 type SidePanelProps = CommonProps
 
 const _SidePanel = (props: SidePanelProps) => {
@@ -27,6 +30,10 @@ const _SidePanel = (props: SidePanelProps) => {
 
     const closePanel = () => {
         dispatch(setPanelExpand(false))
+        
+        // 🔑 FIX 2: รีเซ็ต Redux State ของ activeChatEmail เมื่อ Drawer ถูกปิดด้วยทุกวิธี
+        dispatch(setActiveChat({ email: null }))
+
         const bodyClassList = document.body.classList
         if (bodyClassList.contains('drawer-lock-scroll')) {
             bodyClassList.remove('drawer-lock-scroll', 'drawer-open')
@@ -52,8 +59,9 @@ const _SidePanel = (props: SidePanelProps) => {
                 placement={direction === 'rtl' ? 'left' : 'right'}
                 width={375}
                 onClose={closePanel}
-                onRequestClose={closePanel}
+                onRequestClose={closePanel} // ถูกเรียกเมื่อคลิกนอก, กด Esc
             >
+                {/* SidePanelContent จะเรียก closePanel ผ่าน callBackClose เมื่อกดปุ่ม 'back' */}
                 <SidePanelContent callBackClose={closePanel} />
             </Drawer>
         </>

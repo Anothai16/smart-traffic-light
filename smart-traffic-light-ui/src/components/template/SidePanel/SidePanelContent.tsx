@@ -1,3 +1,5 @@
+// SidePanelContent.tsx
+
 import React, { useEffect, useState, useRef } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store' 
 import { resetUnreadCount, storeMessage, setActiveChat } from '@/store/chat/index'; 
@@ -6,7 +8,7 @@ import { HiOutlineRefresh, HiOutlineChatAlt } from 'react-icons/hi'
 import { Tag, Space, message } from 'antd'; 
 
 export type SidePanelContentProps = {
-    callBackClose: () => void
+    callBackClose: () => void // ฟังก์ชันที่ SidePanel ส่งมาให้สั่งปิด Drawer
 }
 
 // Interface สำหรับข้อความแชท
@@ -103,7 +105,7 @@ const SidePanelContent = (props: SidePanelContentProps) => {
 
         setChatTarget(user)
         
-        // 1. ตั้งค่า Active Chat Email ใน Redux
+        // 1. ตั้งค่า Active Chat Email เป็นอีเมลของผู้ใช้ (ป้องกัน Badge/Notification)
         dispatch(setActiveChat({ email: user.email }));
 
         // 2. กำหนด ID คู่สนทนา (ใช้ sorted emails)
@@ -120,8 +122,11 @@ const SidePanelContent = (props: SidePanelContentProps) => {
     // ฟังก์ชันสำหรับปิดหน้าต่างแชท
     const handleCloseChat = () => {
         setChatTarget(null);
-        // ตั้งค่า Active Chat Email เป็น null เมื่อปิดแชท
+        // 1. ตั้งค่า Active Chat Email เป็น null เมื่อปิดแชท (สำคัญมาก!)
         dispatch(setActiveChat({ email: null }));
+        
+        // 🔑 FIX: 2. เรียกฟังก์ชัน callBackClose เพื่อสั่งปิด Drawer
+        props.callBackClose();
     }
 
 
@@ -228,7 +233,7 @@ if (chatTarget) {
 
 // ---
 
-// ส่วนแสดงรายชื่อผู้ใช้ออนไลน์ (Online Users List)
+// ส่วนแสดงผลหลัก: รายชื่อผู้ใช้ออนไลน์ (Online Users List)
 return (
     <div className="p-4">
         <div className="flex justify-between items-center mb-4">

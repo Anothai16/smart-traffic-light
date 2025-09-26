@@ -13,7 +13,7 @@ interface ChatMessage {
 export interface ChatState { 
     unreadCounts: { [email: string]: number }; 
     history: { [conversationId: string]: ChatMessage[] }; 
-    activeChatEmail: string | null; 
+    activeChatEmail: string | null; // 🔑 สถานะแชทที่กำลังเปิดอยู่
 }
 
 const initialState: ChatState = {
@@ -44,6 +44,7 @@ export const chatSlice = createSlice({
             state.history[conversationId].push(message);
         },
         
+        // 🔑 Reducer ที่ใช้ set สถานะแชทที่กำลังใช้งาน
         setActiveChat: (state, action: PayloadAction<{ email: string | null }>) => {
             state.activeChatEmail = action.payload.email;
         },
@@ -59,8 +60,8 @@ export const chatSlice = createSlice({
 export const { 
     incrementUnreadCount, 
     resetUnreadCount, 
-    storeMessage, 
-    setActiveChat, 
+    storeMessage,
+    setActiveChat, // 🔑 Export reducer นี้
     clearChatState 
 } = chatSlice.actions;
 
