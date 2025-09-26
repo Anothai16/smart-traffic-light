@@ -121,6 +121,7 @@ export const accountConfigRoutes = new Elysia({ prefix: '/account-config' })
             Phone_Number: t.String(),
             Role: t.String(),
             Register_Date: t.String(),
+            password: t.Optional(t.String()),
         }),
     })
     // ✅ เพิ่ม: Route สำหรับเปลี่ยนรหัสผ่านของผู้ใช้

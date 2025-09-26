@@ -163,16 +163,26 @@ export const AccountConfigService = {
     
     /**
      * อัปเดตข้อมูลบัญชีผู้ใช้ในฐานข้อมูล.
+     * ✅ FIX: เพิ่ม password?: string ใน data type
      */
-    async updateAccount(adminId: number, data: { First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string }) {
+    async updateAccount(adminId: number, data: { First_Name: string, Last_Name: string, ID_Card: string, Email: string, Phone_Number: string, Role: string, Register_Date: string, password?: string }) {
         try {
             const pool = await getDbPool();
-
-            // 🔑 FIX 1: ค้นหา Role_ID จาก Role Name ที่รับมา
-            const roleId = await this.getRoleIdByRoleName(data.Role, pool);
-
-            const request = new sql.Request(pool);
+            const request = new sql.Request(pool); // สร้าง request ครั้งเดียว
             
+            // 1. ค้นหา Role_ID จาก Role Name ที่รับมา
+            const roleId = await this.getRoleIdByRoleName(data.Role, pool);
+            
+            // 2. จัดการ Password Input (ถ้ามีการกรอกมา)
+            let passwordUpdateClause = '';
+            if (data.password) {
+                const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+                // ✅ FIX: เพิ่ม input 'newHashedPassword' เข้าไปใน request เดียวกัน
+                request.input('newHashedPassword', sql.NVarChar(64), hashedPassword); 
+                passwordUpdateClause = `, Password = @newHashedPassword`; 
+            }
+            
+            // 3. กำหนด Input ทั่วไปทั้งหมด
             request.input('adminId', sql.Int, adminId);
             request.input('firstName', sql.NVarChar, data.First_Name);
             request.input('lastName', sql.NVarChar, data.Last_Name);
@@ -180,10 +190,9 @@ export const AccountConfigService = {
             request.input('email', sql.NVarChar, data.Email);
             request.input('phoneNumber', sql.NVarChar, data.Phone_Number);
             request.input('registerDate', sql.Date, data.Register_Date);
-            
-            // 🔑 FIX 2: ใช้ Role_ID ในการ UPDATE แทน Role Name
             request.input('roleId', sql.Int, roleId); 
             
+            // 4. สร้าง Query หลักและรัน
             const updateQuery = `
                 UPDATE stl.Admin
                 SET
@@ -192,9 +201,10 @@ export const AccountConfigService = {
                     ID_Card = @idCard,
                     Email = @email,
                     Phone_Number = @phoneNumber,
-                    Role_ID = @roleId, -- 🔑 FIX: เปลี่ยนจาก Role เป็น Role_ID
+                    Role_ID = @roleId, 
                     Register_Date = @registerDate,
                     Update_Date = GETDATE()
+                    ${passwordUpdateClause}  -- อัปเดต Password ถ้ามี
                 WHERE Admin_ID = @adminId;
             `;
             await request.query(updateQuery);

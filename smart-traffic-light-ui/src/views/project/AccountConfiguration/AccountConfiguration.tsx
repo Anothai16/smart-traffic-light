@@ -116,10 +116,12 @@ const AccountConfiguration: React.FC = () => {
         Email: record.Email,
         ID_Card: record.ID_Card,
         Phone_Number: record.Phone_Number,
-        // ✅ แก้ไข: ลบ .toLowerCase() ออก เพื่อให้แสดงผลตามค่าจริงจาก backend
         Role: record.Role,
         Register_Date: record.Register_Date ? dayjs(record.Register_Date) : null,
         Username: record.Username,
+        // ✅ FIX: ต้องแน่ใจว่าไม่ได้กำหนดค่า (Set value) ให้ password/confirmPassword เพื่อให้ผู้ใช้กรอกใหม่ถ้าต้องการเปลี่ยนเท่านั้น
+        password: undefined, 
+        confirmPassword: undefined,
     });
 };
 
@@ -139,6 +141,11 @@ const AccountConfiguration: React.FC = () => {
         setLoading(true);
 
         if (editingAccount) {
+            // ✅ FIX: สร้าง object สำหรับ password ถ้ามีการกรอกใหม่เท่านั้น
+            const passwordFields = values.password && values.confirmPassword ? {
+                password: values.password,
+            } : {};
+            
             const payload = {
                 First_Name: values.First_Name,
                 Last_Name: values.Last_Name,
@@ -147,6 +154,7 @@ const AccountConfiguration: React.FC = () => {
                 Phone_Number: values.Phone_Number,
                 Role: values.Role,
                 Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
+                ...passwordFields, // รวม password เข้าไปใน payload ถ้ามีการกรอก
             };
             await apiUpdateAccount(editingAccount.Admin_ID, payload);
             messageApi.success('Account updated successfully!');
@@ -428,39 +436,67 @@ const AccountConfiguration: React.FC = () => {
                                     </Form.Item>
                                 </Col>
                             </Row>
-                            {!editingAccount && (
-                                <Row gutter={16}>
-                                    <Col span={12}>
-                                        <Form.Item
-                                            name="password"
-                                            label="Password"
-                                            rules={[{ required: !editingAccount, message: 'Please input your password!' }]}
-                                        >
-                                            <Input.Password />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col span={12}>
-                                        <Form.Item
-                                            name="confirmPassword"
-                                            label="Confirm Password"
-                                            dependencies={['password']}
-                                            rules={[
-                                                { required: !editingAccount, message: 'Please confirm your password!' },
-                                                ({ getFieldValue }) => ({
-                                                    validator(_, value) {
-                                                        if (!value || getFieldValue('password') === value) {
-                                                            return Promise.resolve();
-                                                        }
-                                                        return Promise.reject(new Error('The two passwords that you entered do not match!'));
-                                                    },
-                                                }),
-                                            ]}
-                                        >
-                                            <Input.Password />
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
-                            )}
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="password"
+                                        label="Password"
+                                        // ✅ FIX: เพิ่มเงื่อนไขความซับซ้อนของรหัสผ่าน
+                                        rules={[
+                                            { required: !editingAccount, message: 'Please input your password!' },
+                                            { min: 8, message: 'Password must be at least 8 characters long.' },
+                                            { 
+                                                // Regex: ต้องมี (a-z), (A-Z), (0-9), และอักขระพิเศษ (Symbols) อย่างน้อย 1 ตัว
+                                                pattern: new RegExp('(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}'),
+                                                message: 'Password must include uppercase, lowercase, number, and special character.',
+                                            },
+                                            // ✅ เพิ่ม: ห้ามมีส่วนหนึ่งของชื่อผู้ใช้ในรหัสผ่าน (ตัวอย่าง)
+                                            ({ getFieldValue }) => ({
+                                                validator(_, value) {
+                                                    const username = getFieldValue('Username');
+                                                    if (value && username && value.toLowerCase().includes(username.toLowerCase())) {
+                                                        return Promise.reject(new Error('Password cannot contain your username.'));
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            }),
+                                        ]}
+                                    >
+                                        <Input.Password placeholder={editingAccount ? "Enter new password to change" : "Enter password"} />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="confirmPassword"
+                                        label="Confirm Password"
+                                        dependencies={['password']}
+                                        rules={[
+                                            // ✅ FIX: กำหนดให้ required เฉพาะตอนสร้างใหม่
+                                            { 
+                                                required: !editingAccount, 
+                                                message: 'Please confirm your password!',
+                                            },
+                                            ({ getFieldValue }) => ({
+                                                validator(_, value) {
+                                                    const password = getFieldValue('password');
+                                                    
+                                                    // อนุญาตให้ผ่านถ้าไม่มีการกรอก password และ confirmPassword ในโหมด edit
+                                                    if (!password && !value && editingAccount) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    
+                                                    if (!value || password === value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    return Promise.reject(new Error('The two passwords that you entered do not match!'));
+                                                },
+                                            }),
+                                        ]}
+                                    >
+                                        <Input.Password placeholder={editingAccount ? "Confirm new password" : "Confirm password"} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
                         </Card>
                         <Flex justify="flex-end" style={{ marginTop: '24px' }}>
                             <Button onClick={handleCancel} style={{ marginRight: '8px' }}>
