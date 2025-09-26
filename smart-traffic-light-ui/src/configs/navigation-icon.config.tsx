@@ -12,6 +12,7 @@ import { UserOutlined , PictureOutlined , DashboardOutlined} from '@ant-design/i
 import { GrPerformance } from "react-icons/gr";
 import { TbDeviceCctvFilled } from "react-icons/tb";
 import { GrDocumentConfig } from "react-icons/gr";
+import { IoBarChart } from "react-icons/io5";
 import type { JSX } from 'react'
 
 export type NavigationIcons = Record<string, JSX.Element>
@@ -21,7 +22,7 @@ const navigationIcon: NavigationIcons = {
     traffic: <FaTrafficLight />,
     user: <UserOutlined />,
     picture: <PictureOutlined />,
-    dashboard: <BiSolidDashboard />,
+    dashboard: <IoBarChart />,
     history: <LuHistory />,
     performance: <GrPerformance />,
     camera: <TbDeviceCctvFilled />,
