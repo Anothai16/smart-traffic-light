@@ -1,3 +1,5 @@
+// src/store/index.ts
+
 import store from './storeSetup'
 
 export * from './storeSetup'
