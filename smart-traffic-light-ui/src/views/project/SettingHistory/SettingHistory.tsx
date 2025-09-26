@@ -294,10 +294,10 @@ const SettingHistory: React.FC = () => {
                                             Last Updated by: {config.Admin_Name}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            Time: {config.Time.split('T')[1].split('.')[0]}
+                                            Date: {dayjs(config.Date).format('DD/MM/YYYY')}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            Date: {dayjs(config.Date).format('DD/MM/YYYY')}
+                                            Time: {config.Time.split('T')[1].split('.')[0]}
                                         </p>
                                     </Flex>
                                 </Card>
