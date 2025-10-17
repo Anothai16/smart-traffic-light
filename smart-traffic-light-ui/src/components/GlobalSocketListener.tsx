@@ -2,11 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { socket } from '@/services/socket'; 
 import { useAppDispatch, useAppSelector } from '@/store'; 
 import { incrementUnreadCount, storeMessage } from '@/store/chat/index'; 
-// 🔑 Import notification จาก antd เพื่อใช้ hook
 import { notification } from 'antd'; 
 import type { RootState } from '@/store';
 
-// Interface ของข้อความ (เหมือนเดิม)
+// Interface และ Helper Functions (เหมือนเดิม)
 interface ChatMessage {
     senderId: string; 
     senderFirstName: string;
@@ -16,7 +15,6 @@ interface ChatMessage {
     message: string;
     timestamp: number;
 }
-
 const getConversationId = (email1: string, email2: string) => {
     return [email1, email2].sort().join('-');
 };
@@ -25,54 +23,82 @@ const GlobalSocketListener = () => {
     const dispatch = useAppDispatch();
     const currentUser = useAppSelector((state: RootState) => state.auth.user); 
     
-    // 🔑 currentUserEmail อาจเป็น string | undefined
-    const currentUserEmail = currentUser.email; 
+    // ดึงค่าทั้งหมด (อาจเป็น null, undefined, หรือ "")
+    const currentUserEmail = currentUser?.email; 
+    const currentUserFirstName = currentUser?.firstName; // ต้องดึงมาด้วย
 
-    // 🏆 ใช้ Hook เพื่อสร้าง Notification Context และรับ api instance
     const [api, contextHolder] = notification.useNotification(); 
     
-    // 1. ดึง state และสร้าง Ref เพื่อเก็บค่าล่าสุด
     const activeChatEmail = useAppSelector((state: RootState) => state.chat.activeChatEmail);
     const activeChatEmailRef = useRef(activeChatEmail);
 
-    // 🔑 FIX 1: อัปเดต ref ทุกครั้งที่ activeChatEmail เปลี่ยน เพื่อแก้ปัญหา Stale Closure
     useEffect(() => {
         activeChatEmailRef.current = activeChatEmail;
     }, [activeChatEmail]); 
 
-    // 2. Socket Listener
+    // =========================================================================
+    // 🏆 useEffect 1: จัดการการเชื่อมต่อใหม่ (Re-registration Logic)
+    // =========================================================================
     useEffect(() => {
-        // 🔑 FIX 2: Type Guard - ตรวจสอบว่า currentUserEmail มีค่าเป็น string ก่อน
-        // ถ้าไม่มีค่า ให้ยกเลิกการตั้งค่า Listener ใน Effect นี้
-        if (!currentUserEmail) {
-            console.error("Current user email is not available. Chat listener setup skipped.");
+        // 🔑 Type Guard 1: ตรวจสอบว่าข้อมูลผู้ใช้จำเป็นต้องมีค่าเป็น string ที่ไม่ว่างเปล่า
+        if (!currentUserEmail || currentUserEmail.length === 0 || !currentUserFirstName) {
+            // console.log("CLIENT LOG (Re-reg): User data is not available/valid. Skipping Re-registration setup.");
+            return;
+        }
+
+        const handleConnect = () => {
+            // console.log(`CLIENT LOG (Re-reg): Event 'connect' fired. Socket ID is ${socket.id}`);
+            
+            // ส่ง Event 'user_online' เพื่อลงทะเบียนสถานะออนไลน์ใหม่ทุกครั้ง
+            socket.emit('user_online', {
+                email: currentUserEmail,
+                firstName: currentUserFirstName,
+            });
+            // console.log(`CLIENT LOG (Re-reg): Sent 'user_online' event for ${currentUserEmail}.`);
+        };
+
+        // ดักฟัง 'connect' event (ถูกเรียกเมื่อเชื่อมต่อครั้งแรกและ reconnect)
+        socket.on('connect', handleConnect);
+        
+        // ถ้า Component Mount ขึ้นมาพร้อมกับ Socket ที่ต่ออยู่แล้ว ให้ลงทะเบียนทันที
+        if (socket.connected) {
+            //  console.log("CLIENT LOG (Re-reg): Socket already connected on mount. Attempting immediate re-register.");
+             handleConnect();
+        }
+
+        return () => {
+            socket.off('connect', handleConnect);
+            // console.log("CLIENT LOG (Re-reg): Cleaned up 'connect' listener.");
+        };
+        
+    }, [currentUserEmail, currentUserFirstName]); 
+
+    // =========================================================================
+    // 🥈 useEffect 2: จัดการข้อความส่วนตัว (Private Message Listener)
+    // =========================================================================
+    useEffect(() => {
+        // 🔑 Type Guard 2: ตรวจสอบว่า currentUserEmail มีค่าเป็น string ก่อนตั้งค่า Listener
+        if (!currentUserEmail || currentUserEmail.length === 0) {
+            // console.log("CLIENT LOG (PM Listener): Current user email is not available. Chat listener setup skipped.");
             return; 
         }
-        
-        // ภายใน Block นี้ currentUserEmail จะถูก TypeScript ยอมรับว่าเป็น string แน่นอน
 
         const handlePrivateMessage = (msg: ChatMessage) => {
-            // ดึงค่าล่าสุดจาก Ref
             const currentActiveChatEmail = activeChatEmailRef.current;
-            // ตรวจสอบว่ากำลังเปิดแชทกับผู้ส่งข้อความนี้อยู่หรือไม่
             const isChatActive = currentActiveChatEmail === msg.senderEmail; 
             
-            // A. บันทึกข้อความใน Redux History (ทำทุกครั้ง)
-            // currentUserEmail ปลอดภัยที่จะใช้แล้วเนื่องจากถูก Type Guard ด้านนอก
+            // A. บันทึกข้อความใน Redux History
             const conversationId = getConversationId(currentUserEmail, msg.senderEmail); 
             dispatch(storeMessage({ conversationId, message: msg })); 
             
-            // B. เพิ่ม Badge และ C. แจ้งเตือน Notification (เฉพาะเมื่อแชทไม่ได้ถูกเปิดอยู่)
+            // B. เพิ่ม Badge และ C. แจ้งเตือน Notification
             if (!isChatActive) {
-                // B. เพิ่ม Badge: ถ้าไม่ได้เปิดแชทกับคนนี้ ให้เพิ่มจำนวนข้อความที่ยังไม่ได้อ่าน
                 dispatch(incrementUnreadCount({ senderEmail: msg.senderEmail })); 
-                
-                // 🔑 C. แจ้งเตือน Notification: ขึ้นเฉพาะตอนไม่ได้อยู่ในแชท
                 api.info({ 
                     key: `${msg.timestamp}-${msg.senderEmail}`, 
-                    message: `New massages from ${msg.senderFirstName}`, 
+                    message: `New messages from ${msg.senderFirstName}`, 
                     description: msg.message, 
-                    duration: 3.5, // แสดง 4.5 วินาที
+                    duration: 3.5, 
                     placement: 'bottomLeft', 
                 });
             }
@@ -83,14 +109,12 @@ const GlobalSocketListener = () => {
         return () => {
             socket.off('private_message', handlePrivateMessage);
         };
-        // Dependency array: ถูกต้องแล้วเพราะเรา handle undefined ด้วย Type Guard แล้ว
     }, [dispatch, currentUserEmail, api]); 
 
-    // 🔑 ต้องแสดงผล contextHolder เพื่อให้ Notification แสดงผลบนหน้าจอ
+
     return (
         <>
             {contextHolder}
-            {/* Component นี้จะไม่แสดงผลอื่นใดนอกเหนือจาก contextHolder */}
         </>
     );
 };
