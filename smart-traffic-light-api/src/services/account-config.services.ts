@@ -132,7 +132,6 @@ export const AccountConfigService = {
     },
 
     async deleteAccounts(accountIds: number[]) {
-        // ... (โค้ดเดิม ไม่มีการเรียกดูข้อมูล จึงไม่ต้องแก้ไข) ...
         try {
             const pool = await getDbPool();
             const transaction = new sql.Transaction(pool);
