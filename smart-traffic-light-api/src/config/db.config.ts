@@ -17,7 +17,7 @@ if (!hasDbConfig(config)) {
 // MS SQL configuration object using values from the main config
 export const sqlConfig: sql.config = {
     server: config.DB_HOST || '', // Server IP address or hostname
-    port: config.DB_PORT || 1433, // Default MS SQL port
+    port: config.DB_PORT || 3306 , // Default MS SQL port
     user: config.DB_USER || '', // Database user
     password: config.DB_PASSWORD || '', // Database password
     database: config.DB_NAME || '', // Database name

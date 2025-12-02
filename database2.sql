@@ -1,8 +1,3 @@
-CREATE DATABASE Smart_Traffic_Light2;
-GO
-
-USE Smart_Traffic_Light2;
-GO
 
 CREATE SCHEMA stl;
 GO
