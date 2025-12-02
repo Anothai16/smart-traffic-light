@@ -3,12 +3,14 @@
 export interface User {
     username: string
     email: string
+    Role: string
     authority: string[]
 }
 
 export interface SignInResponse {
     user: User
     token: string
+    
 }
 
 export interface SignUpResponse {

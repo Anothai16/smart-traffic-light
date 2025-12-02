@@ -28,7 +28,7 @@ export const protectedRoutes = [
         key: 'appsProject.AccountConfiguration',
         path: `/project/AccountConfiguration`,
         component: lazy(() => import('@/views/project/AccountConfiguration')),
-        authority: [],
+        authority: ['SuperAdmin'],
     },
     {
         key: 'appsProject.Picture',
@@ -58,12 +58,6 @@ export const protectedRoutes = [
         key: 'appsProject.CameraManagement',
         path: `/project/CameraManagement`,
         component: lazy(() => import('@/views/project/CameraManagement')),
-        authority: [],
-    },
-    {
-        key: 'appsProject.PictureTest',
-        path: `/project/PictureTest`,
-        component: lazy(() => import('@/views/project/PictureTest')),
         authority: [],
     },
 ]

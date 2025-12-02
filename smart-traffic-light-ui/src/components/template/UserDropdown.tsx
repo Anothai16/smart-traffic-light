@@ -8,11 +8,15 @@ import useAuth from '@/utils/hooks/useAuth'
 import { Link } from 'react-router-dom'
 import classNames from 'classnames'
 import { HiOutlineLogout, HiOutlineKey, HiOutlineUser } from 'react-icons/hi'
+import { MdEmergency } from "react-icons/md";
 import type { CommonProps } from '@/@types/common'
 import type { JSX } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
-
+import { apiUpdateTrafficMode } from '@/services/TrafficService'; 
+// ⭐ เพิ่ม import สำหรับ Notification และ Toast
+import toast from '@/components/ui/toast'; 
+import Notification from '@/components/ui/Notification';
 // ✅ เพิ่มการ import สำหรับ Modal และ Form
 import { Modal, Form, Input, message } from 'antd';
 import { apiChangePassword } from '@/services/AccountConfigurationService';
@@ -22,6 +26,7 @@ type DropdownList = {
     path?: string // ✅ เปลี่ยนเป็น optional
     icon: JSX.Element
     onClick?: () => void // ✅ เพิ่ม onClick เข้ามา
+    style?: { color : string } // ✅ เพิ่ม style สำหรับกรณีฉุกเฉิน
 }
 
 const dropdownItemList: DropdownList[] = []
@@ -35,6 +40,40 @@ const _UserDropdown = ({ className }: CommonProps) => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [confirmLoading, setConfirmLoading] = useState(false);
     const [form] = Form.useForm();
+
+    const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, msg: string) => {
+        toast.push(
+            <Notification title={title} type={type}>
+                {msg}
+            </Notification>
+        );
+    };
+
+    // ⭐ ฟังก์ชันใหม่: จัดการ Emergency Mode
+    const handleEmergencyMode = async () => {
+        // ถามผู้ใช้เพื่อยืนยันการเปลี่ยนโหมด (เพื่อความปลอดภัย)
+        if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการเปิดใช้งาน Emergency/Caution Mode?")) {
+            return;
+        }
+
+        try {
+            // โหมดที่คุณต้องการคือ 'Caution' ตามที่ระบุใน TrafficManagement
+            const payload = { modeName: 'Caution' };
+            const response = await apiUpdateTrafficMode(payload);
+
+            if (response.data?.success) {
+                showNotification('success', 'Emergency Mode Activated', 
+                    response.data.message || 'Traffic mode successfully changed to CAUTION!');
+            } else {
+                showNotification('danger', 'Failed to Activate Emergency Mode', 
+                    response.data.message || 'Failed to change mode to Caution.');
+            }
+        } catch (error: any) {
+            console.error('Error activating emergency mode:', error);
+            showNotification('danger', 'API Error', 
+                error.response?.data?.message || 'An unexpected error occurred during mode change.');
+        }
+    };
 
     // ✅ ฟังก์ชันเปิด Modal
     const showChangePasswordModal = () => {
@@ -71,7 +110,7 @@ const _UserDropdown = ({ className }: CommonProps) => {
         <div className={classNames(className, 'flex items-center gap-2')}>
             <Avatar size={32} shape="circle" icon={<HiOutlineUser />} />
             <div className="hidden md:block">
-                <div className="text-xs capitalize">{user?.authority}</div> 
+                <div className="text-xs capitalize">{user?.Role}</div> 
                 <div className="font-bold">{user?.firstName}</div> 
             </div>
         </div>
@@ -84,6 +123,12 @@ const _UserDropdown = ({ className }: CommonProps) => {
             label: 'Change Password',
             icon: <HiOutlineKey />,
             onClick: showChangePasswordModal,
+        },
+        {
+            label: 'Emergency Mode',
+            icon: <MdEmergency />,
+            onClick: handleEmergencyMode,
+            style: { color: 'red' },
         },
     ];
 
@@ -113,6 +158,7 @@ const _UserDropdown = ({ className }: CommonProps) => {
                         className="mb-1 px-0"
                         // ✅ เพิ่ม onClick ที่ Dropdown.Item สำหรับเมนูที่ไม่มี path
                         onClick={item.onClick}
+                        style={item.style}
                     >
                         {item.path ? (
                             // ✅ แก้ไข: ใช้ Link เมื่อ item มี path เท่านั้น

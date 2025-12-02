@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Card, Tabs, Typography, Flex, Tag, message, Spin, Button, Pagination } from 'antd';
-import type { TableProps } from 'antd';
+import { Table, Card, Tabs, Typography, Flex, Tag, message, Spin, Button } from 'antd';
+import type { TableProps, TabsProps } from 'antd';
 import dayjs from 'dayjs';
 import { apiGetSettingModeHistory, apiGetModeHistory } from '@/services/SettingHistoryService';
 import type { AxiosError } from 'axios';
 import { SyncOutlined } from '@ant-design/icons';
-import classNames from 'classnames';
 
 const { Title } = Typography;
-const { TabPane } = Tabs;
 
 interface SettingModeLog {
     Log_ID: number;
@@ -51,10 +49,21 @@ const SettingHistory: React.FC = () => {
     const [latestModeConfig, setLatestModeConfig] = useState<ModeLog | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     
-    // State สำหรับ Pagination ของแต่ละตาราง
+    // Pagination states
     const [settingModePagination, setSettingModePagination] = useState({ current: 1, pageSize: 10 });
     const [modeLogPagination, setModeLogPagination] = useState({ current: 1, pageSize: 10 });
 
+    // ✅ ฟังก์ชันช่วยแปลงเวลาอย่างปลอดภัย (แก้ปัญหาจอขาว)
+    const formatTime = (timeStr: string | undefined | null) => {
+        if (!timeStr) return '-';
+        // ถ้ามี 'T' (ISO Format) ให้ตัดเอาข้างหลัง
+        if (timeStr.includes('T')) {
+            const parts = timeStr.split('T');
+            return parts.length > 1 ? parts[1].split('.')[0] : timeStr;
+        }
+        // ถ้าไม่มี 'T' (HH:mm:ss) ให้ตัดจุดทศนิยมออกถ้ามี
+        return timeStr.split('.')[0];
+    };
 
     const fetchData = useCallback(async () => {
         try {
@@ -64,8 +73,9 @@ const SettingHistory: React.FC = () => {
                 apiGetModeHistory(),
             ]);
 
-            const settingHistory: SettingModeLog[] = settingModeResponse.data.history;
+            const settingHistory: SettingModeLog[] = settingModeResponse.data.history || [];
             setSettingModeHistory(settingHistory);
+
             const latestAutoModeMap = new Map<number, SettingModeLog>();
             settingHistory.forEach(log => {
                 const intersectionId = log.Intersection_ID;
@@ -78,7 +88,7 @@ const SettingHistory: React.FC = () => {
             });
             setLatestAutoModeConfigs(Array.from(latestAutoModeMap.values()));
 
-            const modeHistoryData: ModeLog[] = modeResponse.data.history;
+            const modeHistoryData: ModeLog[] = modeResponse.data.history || [];
             setModeHistory(modeHistoryData);
             
             const latestLog = modeHistoryData.reduce((latest, current) => {
@@ -88,6 +98,7 @@ const SettingHistory: React.FC = () => {
 
             setLastUpdated(dayjs().format('DD/MM/YYYY, HH:mm:ss'));
         } catch (error) {
+            console.error(error);
             const err = error as AxiosError;
             const errorMessage = (err.response?.data as { message: string })?.message || err.message || 'An unexpected error occurred';
             messageApi.error(`Failed to fetch history data. Error: ${errorMessage}`);
@@ -105,7 +116,6 @@ const SettingHistory: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
-    // Handlers สำหรับ Pagination ของแต่ละตาราง
     const handleSettingModeTableChange = (page: number, pageSize: number) => {
         setSettingModePagination({ current: page, pageSize: pageSize });
     };
@@ -136,25 +146,22 @@ const SettingHistory: React.FC = () => {
             title: 'Change Date',
             dataIndex: 'Date',
             key: 'Date',
-            render: (date) => dayjs(date).format('DD/MM/YYYY'),
+            render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
         },
         {
             title: 'Change Time',
             dataIndex: 'Time',
             key: 'Time',
-            render: (time) => {
-                const parts = time.split('T');
-                return parts.length > 1 ? parts[1].split('.')[0] : 'Invalid Time';
-            },
+            render: (time) => formatTime(time), // ✅ ใช้ Helper function
         },
         {
             title: 'Old Duration (R-Y-G)',
             key: 'oldDuration',
             render: (_, record) => (
                 <Flex gap="small">
-                    <Tag color="red">R: {record.Old_Red_Duration || '-'}</Tag>
-                    <Tag color="yellow">Y: {record.Old_Yellow_Duration || '-'}</Tag>
-                    <Tag color="green">G: {record.Old_Green_Duration || '-'}</Tag>
+                    <Tag color="red">R: {record.Old_Red_Duration ?? '-'}</Tag>
+                    <Tag color="gold">Y: {record.Old_Yellow_Duration ?? '-'}</Tag>
+                    <Tag color="green">G: {record.Old_Green_Duration ?? '-'}</Tag>
                 </Flex>
             ),
         },
@@ -163,9 +170,9 @@ const SettingHistory: React.FC = () => {
             key: 'newDuration',
             render: (_, record) => (
                 <Flex gap="small">
-                    <Tag color="red">R: {record.New_Red_Duration || '-'}</Tag>
-                    <Tag color="yellow">Y: {record.New_Yellow_Duration || '-'}</Tag>
-                    <Tag color="green">G: {record.New_Green_Duration || '-'}</Tag>
+                    <Tag color="red">R: {record.New_Red_Duration ?? '-'}</Tag>
+                    <Tag color="gold">Y: {record.New_Yellow_Duration ?? '-'}</Tag>
+                    <Tag color="green">G: {record.New_Green_Duration ?? '-'}</Tag>
                 </Flex>
             ),
         },
@@ -182,23 +189,11 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
             render: (modeName) => {
-                let color;
-                switch (modeName) {
-                    case 'Auto':
-                        color = 'green';
-                        break;
-                    case 'Intelligence':
-                        color = 'blue';
-                        break;
-                    case 'Caution':
-                        color = 'yellow';
-                        break;
-                    case 'Stop':
-                        color = 'red';
-                        break;
-                    default:
-                        color = 'geekblue';
-                }
+                let color = 'geekblue';
+                if (modeName === 'Auto') color = 'green';
+                if (modeName === 'Intelligence') color = 'blue';
+                if (modeName === 'Caution') color = 'gold';
+                if (modeName === 'Stop') color = 'red';
                 return <Tag color={color}>{modeName || 'Unknown'}</Tag>;
             },
         },
@@ -206,43 +201,65 @@ const SettingHistory: React.FC = () => {
             title: 'Change Date',
             dataIndex: 'Date',
             key: 'Date',
-            render: (date) => dayjs(date).format('DD/MM/YYYY'),
+            render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
         },
         {
             title: 'Change Time',
             dataIndex: 'Time',
             key: 'Time',
-            render: (time) => {
-                const parts = time.split('T');
-                return parts.length > 1 ? parts[1].split('.')[0] : 'Invalid Time';
-            },
+            render: (time) => formatTime(time), // ✅ ใช้ Helper function
         },
     ];
 
     const getModeColorForTag = (modeName: string | undefined): string => {
-    switch (modeName) {
-        case 'Auto': return 'green';
-        case 'Intelligence': return 'blue';
-        case 'Caution': return 'yellow';
-        case 'Stop': return 'red';
-        default: return 'geekblue';
-    }
-};
-
-    const getModeColor = (modeName: string | undefined): string => {
         switch (modeName) {
-            case 'Auto':
-                return 'bg-green-500';
-            case 'Intelligence':
-                return 'bg-blue-500';
-            case 'Caution':
-                return 'bg-yellow-500';
-            case 'Stop':
-                return 'bg-red-500';
-            default:
-                return 'bg-gray-500';
+            case 'Auto': return 'green';
+            case 'Intelligence': return 'blue';
+            case 'Caution': return 'gold';
+            case 'Stop': return 'red';
+            default: return 'geekblue';
         }
     };
+
+    // ✅ แก้ Warning: Tabs.TabPane -> items
+    const tabItems: TabsProps['items'] = [
+        {
+            key: '1',
+            label: 'Auto Mode Configuration History',
+            children: (
+                <Table
+                    columns={settingModeColumns}
+                    dataSource={settingModeHistory}
+                    rowKey="Log_ID"
+                    pagination={{
+                        ...settingModePagination,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        onChange: handleSettingModeTableChange,
+                    }}
+                    scroll={{ x: 'max-content' }}
+                />
+            ),
+        },
+        {
+            key: '2',
+            label: 'Configuration Mode History',
+            children: (
+                <Table
+                    columns={modeLogColumns}
+                    dataSource={modeHistory}
+                    rowKey="Log_ID"
+                    pagination={{
+                        ...modeLogPagination,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        onChange: handleModeLogTableChange,
+                    }}
+                    scroll={{ x: 'max-content' }}
+                />
+            ),
+        },
+    ];
 
     return (
         <>
@@ -266,9 +283,9 @@ const SettingHistory: React.FC = () => {
 
                 <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg">
                     {loading ? (
-                        <Flex justify="center" align="middle" style={{ minHeight: '150px' }}>
-                            <Spin tip="Loading..." />
-                        </Flex>
+                        <div style={{ textAlign: 'center', padding: '50px' }}>
+                            <Spin tip="Loading..." size="large" />
+                        </div>
                     ) : (
                         <Flex gap="large" wrap="wrap" justify="space-around">
                             {latestAutoModeConfigs.map(config => (
@@ -294,10 +311,10 @@ const SettingHistory: React.FC = () => {
                                             Last Updated by: {config.Admin_Name}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            Date: {dayjs(config.Date).format('DD/MM/YYYY')}
+                                            Date: {config.Date ? dayjs(config.Date).format('DD/MM/YYYY') : '-'}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            Time: {config.Time.split('T')[1].split('.')[0]}
+                                            Time: {formatTime(config.Time)} {/* ✅ ใช้ Helper */}
                                         </p>
                                     </Flex>
                                 </Card>
@@ -306,72 +323,45 @@ const SettingHistory: React.FC = () => {
                     )}
                 </Card>
 
-                 <Card
-        title="Latest Mode Configurations"
-        className="shadow-lg rounded-lg"
-        style={{ minHeight: '150px' }}
-    >
-        {loading ? (
-            <Flex justify="center" align="middle" style={{ height: '100%' }}>
-                <Spin tip="Loading..." />
-            </Flex>
-        ) : latestModeConfig ? (
-            <Flex vertical align="center" justify="center" gap="small" className="py-4">
-                <Typography.Title level={2} style={{ margin: 0 }}>
-                    <Tag
-                        color={getModeColorForTag(latestModeConfig.Mode_Name)}
-                        style={{ padding: '8px 16px', fontSize: '24px' }}
-                    >
-                        {latestModeConfig.Mode_Name}
-                    </Tag>
-                </Typography.Title>
-                <div className="text-center mt-4">
-                    <p className="text-sm text-gray-700">
-                        Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name}</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                        Date: {dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY')}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                        Time: {latestModeConfig.Time.split('T')[1].split('.')[0]}
-                    </p>
-                </div>
-            </Flex>
-        ) : (
-            <p className="text-center text-gray-500">No mode configuration history available.</p>
-        )}
-    </Card>
+                <Card
+                    title="Latest Mode Configurations"
+                    className="shadow-lg rounded-lg"
+                    style={{ minHeight: '150px' }}
+                >
+                    {loading ? (
+                         <div style={{ textAlign: 'center', padding: '50px' }}>
+                            <Spin tip="Loading..." size="large" />
+                        </div>
+                    ) : latestModeConfig ? (
+                        <Flex vertical align="center" justify="center" gap="small" className="py-4">
+                            <Typography.Title level={2} style={{ margin: 0 }}>
+                                <Tag
+                                    color={getModeColorForTag(latestModeConfig.Mode_Name)}
+                                    style={{ padding: '8px 16px', fontSize: '24px' }}
+                                >
+                                    {latestModeConfig.Mode_Name}
+                                </Tag>
+                            </Typography.Title>
+                            <div className="text-center mt-4">
+                                <p className="text-sm text-gray-700">
+                                    Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name}</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    Time: {formatTime(latestModeConfig.Time)} {/* ✅ ใช้ Helper */}
+                                </p>
+                            </div>
+                        </Flex>
+                    ) : (
+                        <p className="text-center text-gray-500">No mode configuration history available.</p>
+                    )}
+                </Card>
+
                 <Card className="shadow-lg rounded-lg">
-                    <Tabs defaultActiveKey="1">
-                        <TabPane tab="Auto Mode Configuration History" key="1">
-                            <Table
-                                columns={settingModeColumns}
-                                dataSource={settingModeHistory}
-                                rowKey="Log_ID"
-                                pagination={{ 
-                                    ...settingModePagination,
-                                    showSizeChanger: true,
-                                    pageSizeOptions: ['10', '20', '50', '100'],
-                                    onChange: handleSettingModeTableChange,
-                                }}
-                                scroll={{ x: 'max-content' }}
-                            />
-                        </TabPane>
-                        <TabPane tab="Configuration Mode History" key="2">
-                            <Table
-                                columns={modeLogColumns}
-                                dataSource={modeHistory}
-                                rowKey="Log_ID"
-                                pagination={{ 
-                                    ...modeLogPagination,
-                                    showSizeChanger: true,
-                                    pageSizeOptions: ['10', '20', '50', '100'],
-                                    onChange: handleModeLogTableChange,
-                                }}
-                                scroll={{ x: 'max-content' }}
-                            />
-                        </TabPane>
-                    </Tabs>
+                    {/* ✅ ใช้ items prop แทน TabPane */}
+                    <Tabs defaultActiveKey="1" items={tabItems} />
                 </Card>
             </Flex>
         </>
