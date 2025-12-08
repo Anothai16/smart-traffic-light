@@ -5,7 +5,7 @@ import { config } from './config';
 import { closeDbPool } from './config/dev.config'; 
 
 import { swagger } from '@elysiajs/swagger';
-import { io } from './socket-server';
+// import { io } from './socket-server';
 import { appRoutes } from './router';
 const app = new Elysia()
     .use(cors({ origin: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }))
@@ -51,4 +51,4 @@ const cleanup = async (signal: string) => {
 process.on('SIGINT', () => cleanup('SIGINT'));
 process.on('SIGTERM', () => cleanup('SIGTERM'));
 
-export { io }; // ✅ Export io เพื่อให้ไฟล์อื่นสามารถนำไปใช้ได้ (ตัวอย่างเช่นใน traffic.routes.ts)
+// export { io }; // ✅ Export io เพื่อให้ไฟล์อื่นสามารถนำไปใช้ได้ (ตัวอย่างเช่นใน traffic.routes.ts)
