@@ -1,151 +1,222 @@
-// src/views/PictureTest.tsx (Final Combined Code)
+// src/views/PictureLog.tsx
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'; 
-import { Card, Flex, Button, Typography, DatePicker, Spin, Alert, Image, Tag, Tooltip, Select } from 'antd';
-import { FolderFilled, LeftOutlined } from '@ant-design/icons';
-import dayjs, { Dayjs } from 'dayjs';
-import 'dayjs/locale/th';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+    Card,
+    Flex,
+    Button,
+    Typography,
+    Spin,
+    Alert,
+    Image,
+    Tag,
+    Tooltip,
+    Select,
+    Form,
+} from 'antd'
+import { FolderFilled, LeftOutlined } from '@ant-design/icons'
+import dayjs, { Dayjs } from 'dayjs'
+import 'dayjs/locale/th'
 
-// *** นำเข้า Service และ Interface ที่สร้างขึ้น ***
-import { apiGetAvailableImageDates, apiGetImagesByDateAndLane, ImageObject } from '@/services/ImageService'; 
+import {
+    apiGetAvailableImageDates,
+    apiGetImagesByDateAndLane,
+    ImageObject,
+} from '@/services/ImageService'
 
-dayjs.locale('th');
-const { Title } = Typography;
+import DatePickerFormItem from '@/components/shared/DatePickerItem'
 
-// กำหนดรายการ Lane ที่สอดคล้องกับ Backend
+dayjs.locale('th')
+
+const { Title } = Typography
+
 const LANE_OPTIONS = [
     'Lane 1 (PC-A)',
     'Lane 2 (PC-B)',
     'Lane 3 (PC-C)',
     'Lane 4 (PC-D)',
-];
+]
 
 const PictureLog = () => {
-    // State สำหรับการนำทางและข้อมูล
-    const [selectedDate, setSelectedDate] = useState<string | null>(null); 
-    const [selectedLane, setSelectedLane] = useState<string>(LANE_OPTIONS[0]);
-    const [availableDates, setAvailableDates] = useState<string[]>([]);   
-    const [images, setImages] = useState<ImageObject[]>([]);
-    
-    // State สำหรับการกรองและการโหลด
-    const [filteredDate, setFilteredDate] = useState<Dayjs | null>(null); 
-    const [loading, setLoading] = useState(true); // ใช้ loading รวม
-    const [error, setError] = useState<string | null>(null);
+    const [form] = Form.useForm()
 
-    // *** 1. Logic การดึงรายการวันที่ (Folders) - ใช้ useCallback และรับ lane ***
+    const [selectedDate, setSelectedDate] = useState<string | null>(null)
+    const [selectedLane, setSelectedLane] = useState<string>(LANE_OPTIONS[0])
+    const [availableDates, setAvailableDates] = useState<string[]>([])
+    const [images, setImages] = useState<ImageObject[]>([])
+
+    // เก็บช่วงวันที่เอาไว้กรอง
+    const [startDate, setStartDate] = useState<Dayjs | null>(null)
+    const [endDate, setEndDate] = useState<Dayjs | null>(null)
+
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    // -----------------------------------------
+    // โหลดวันที่ของ Lane
+    // -----------------------------------------
     const loadAvailableDates = useCallback(async (lane: string) => {
-        setLoading(true);
-        setError(null);
-        setAvailableDates([]); // 💡 FIX: เคลียร์ State วันที่เก่าก่อนเริ่มโหลดใหม่
-        try {
-            // ✅ FIX: ส่ง lane ไปที่ API เพื่อให้ Backend กรองข้อมูล
-            const dates = await apiGetAvailableImageDates(lane); 
-            setAvailableDates(dates);
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch available dates.');
-            setAvailableDates([]); 
-        } finally {
-            setLoading(false);
-        }
-    }, []); 
+        setLoading(true)
+        setError(null)
+        setAvailableDates([])
 
-    // ✅ 2. useEffect: Logic หลักที่ทำให้ State เสถียรเมื่อ Lane เปลี่ยน
+        try {
+            const dates = await apiGetAvailableImageDates(lane)
+            setAvailableDates(dates)
+        } catch (err: any) {
+            setError(err.message || 'Failed to fetch available dates.')
+        } finally {
+            setLoading(false)
+        }
+    }, [])
+
+    // เมื่อเปลี่ยน Lane
     useEffect(() => {
-        // เมื่อ Lane เปลี่ยน:
-        setSelectedDate(null); // 1. กลับสู่หน้าเลือกวันที่
-        setImages([]);        // 2. เคลียร์รูปภาพเก่า
-        loadAvailableDates(selectedLane); // 3. โหลดวันที่ใหม่สำหรับ Lane นี้
-    }, [selectedLane, loadAvailableDates]);
+        setSelectedDate(null)
+        setImages([])
+        setStartDate(null)
+        setEndDate(null)
+        form.resetFields(['startDate', 'endDate'])
 
+        loadAvailableDates(selectedLane)
+    }, [selectedLane, loadAvailableDates, form])
 
-    // กรองวันที่ตาม DatePicker
+    // -----------------------------------------
+    // กรองวันที่ด้วยช่วง startDate - endDate
+    // -----------------------------------------
     const displayDates = useMemo(() => {
-        // เรียงวันที่ (ล่าสุดไปเก่าสุด) ก่อนกรอง
-        const sortedDates = availableDates.slice().sort((a, b) => dayjs(b).diff(dayjs(a)));
-        
-        if (!filteredDate) return sortedDates;
-        
-        const filterStr = filteredDate.format('YYYY-MM-DD');
-        return sortedDates.filter(date => date === filterStr);
-    }, [availableDates, filteredDate]);
+        const sorted = availableDates
+            .slice()
+            .sort((a, b) => dayjs(b).diff(dayjs(a)))
 
+        if (!startDate && !endDate) return sorted
 
-    // *** 3. Logic การโหลดรูปภาพเมื่อเลือกวันที่ ***
+        return sorted.filter((dateStr) => {
+            const d = dayjs(dateStr)
+            if (!d.isValid()) return false
+
+            let ok = true
+
+            if (startDate) {
+                ok =
+                    ok &&
+                    (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+            }
+
+            if (endDate) {
+                ok =
+                    ok &&
+                    (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
+            }
+
+            return ok
+        })
+    }, [availableDates, startDate, endDate])
+
+    // -----------------------------------------
+    // โหลดรูปภาพของวันที่
+    // -----------------------------------------
     const handleDateClick = async (date: string) => {
-        if (!selectedLane) {
-            alert("Please select a Lane first.");
-            return;
-        }
-        setSelectedDate(date);
-        setLoading(true); 
-        setError(null);
-        setImages([]); // เคลียร์รูปภาพเก่า
+        setSelectedDate(date)
+        setLoading(true)
+        setError(null)
+        setImages([])
 
         try {
-            // เรียก API ด้วย date และ selectedLane
-            const imageList = await apiGetImagesByDateAndLane(date, selectedLane); 
-            setImages(imageList);
+            const res = await apiGetImagesByDateAndLane(date, selectedLane)
+            setImages(res)
         } catch (err: any) {
-            setError(err.message || 'Failed to load images.');
+            setError(err.message || 'Failed to load images.')
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
-    
-    // *** 4. Logic การจัดการการเปลี่ยน Lane ***
-    const handleLaneChange = (lane: string) => {
-        // การตั้งค่า State selectedLane ใหม่จะไปกระตุ้น useEffect ด้านบนให้ทำงานทันที
-        setSelectedLane(lane);
-    };
+    }
 
-    // ----------------------------------------------------
-    // UI View 2: แสดงรูปภาพภายในวันที่และ Lane ที่เลือก
-    // ----------------------------------------------------
+    // -----------------------------------------
+    // UI: แสดงรูปภาพในวันที่เลือก
+    // -----------------------------------------
     if (selectedDate) {
         return (
-            <Flex vertical gap="large" style={{ padding: '24px' }}>
-                <Flex justify="space-between" align="middle" className="mb-6 p-4 border-b border-gray-200">
-                    <Button onClick={() => setSelectedDate(null)} icon={<LeftOutlined />}>
+            <Flex vertical gap="large" style={{ padding: 24 }}>
+                <Flex
+                    justify="space-between"
+                    align="middle"
+                    className="mb-6 p-4 border-b border-gray-200"
+                >
+                    <Button
+                        icon={<LeftOutlined />}
+                        onClick={() => setSelectedDate(null)}
+                    >
                         Back to Dates ({selectedLane})
                     </Button>
-                    <Title level={4} style={{ margin: 0 }} className="text-gray-800">
-                        Images for {dayjs(selectedDate).format('DD MMMM YYYY')} ({selectedLane})
+
+                    <Title level={4} style={{ margin: 0 }}>
+                        Images for {dayjs(selectedDate).format('DD MMMM YYYY')}{' '}
+                        ({selectedLane})
                     </Title>
-                    <div></div>
+
+                    <div />
                 </Flex>
 
                 <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
                     {loading ? (
-                        <Flex justify="center" align="middle" style={{ height: 300 }}>
+                        <Flex
+                            justify="center"
+                            align="middle"
+                            style={{ height: 300 }}
+                        >
                             <Spin size="large" tip="Loading Images..." />
                         </Flex>
                     ) : error ? (
-                        <Alert message="Error" description={error} type="error" showIcon />
+                        <Alert
+                            type="error"
+                            message="Error"
+                            description={error}
+                            showIcon
+                        />
                     ) : images.length === 0 ? (
-                        <Alert message="ไม่พบข้อมูล" description={`ไม่พบรูปภาพในวันที่ ${selectedDate} สำหรับ ${selectedLane}`} type="info" showIcon />
+                        <Alert
+                            type="info"
+                            message="ไม่พบข้อมูล"
+                            description={`ไม่พบรูปภาพในวันที่ ${selectedDate} สำหรับ ${selectedLane}`}
+                            showIcon
+                        />
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                            {images.map(img => (
+                            {images.map((img) => (
                                 <Card
                                     key={img.id}
                                     hoverable
                                     className="p-1 shadow-md rounded-lg"
                                     cover={
                                         <Image
-                                            alt={img.title}
                                             src={img.url}
-                                            style={{ height: 180, objectFit: 'cover', borderRadius: '4px 4px 0 0' }}
-                                            preview={{ maskClassName: 'rounded-t-lg' }}
+                                            alt={img.title}
+                                            style={{
+                                                height: 180,
+                                                objectFit: 'cover',
+                                                borderRadius: '4px 4px 0 0',
+                                            }}
                                         />
                                     }
                                 >
-                                    <Card.Meta 
-                                        title={<Tooltip title={img.title}><div className="truncate text-sm font-semibold">{img.title}</div></Tooltip>}
+                                    <Card.Meta
+                                        title={
+                                            <Tooltip title={img.title}>
+                                                <div className="truncate font-semibold text-sm">
+                                                    {img.title}
+                                                </div>
+                                            </Tooltip>
+                                        }
                                         description={
                                             <Flex vertical gap={4}>
-                                                <Tag color="blue" className='w-fit'>{img.lane}</Tag>
+                                                <Tag color="blue">
+                                                    {img.lane}
+                                                </Tag>
                                                 <div className="text-xs text-gray-500">
-                                                    {dayjs(img.timestamp).format('HH:mm:ss')}
+                                                    {dayjs(
+                                                        img.timestamp,
+                                                    ).format('HH:mm:ss')}
                                                 </div>
                                             </Flex>
                                         }
@@ -156,72 +227,109 @@ const PictureLog = () => {
                     )}
                 </Card>
             </Flex>
-        );
+        )
     }
 
-    // ----------------------------------------------------
-    // UI View 1: แสดงรายการวันที่ (Folders)
-    // ----------------------------------------------------
+    // -----------------------------------------
+    // UI: หน้าเลือกวันที่
+    // -----------------------------------------
     return (
-        <Flex vertical gap="large" style={{ padding: '24px' }}>
-            <Flex justify="space-between" align="middle" className="mb-6 p-4">
-                <Title level={4} style={{ margin: 0 }} className="text-gray-800">
-                    Traffic Log
-                </Title>
-                <Flex gap="middle" align="middle">
-                    {/* Selector สำหรับเลือก Lane */}
-                    <Select
-                        placeholder="Select Lane"
-                        value={selectedLane}
-                        onChange={handleLaneChange}
-                        options={LANE_OPTIONS.map(lane => ({ value: lane, label: lane }))}
-                        style={{ width: 200 }}
-                        className="shadow-sm"
-                    />
-                    <DatePicker 
-                        onChange={setFilteredDate} 
-                        placeholder="Filter by date" 
-                        className="shadow-sm" 
-                        allowClear
-                    />
+        <Flex vertical gap="large" style={{ padding: 24 }}>
+            <Form form={form} layout="inline" style={{ width: '100%' }}>
+                <Flex
+                    justify="space-between"
+                    align="middle"
+                    className="mb-6 p-4 w-full"
+                >
+                    <Title level={4} style={{ margin: 0 }}>
+                        Traffic Log
+                    </Title>
+
+                    <Flex gap="middle" align="middle">
+                        {/* เลือก Lane */}
+                        <Select
+                            style={{ width: 200 }}
+                            value={selectedLane}
+                            onChange={setSelectedLane}
+                            options={LANE_OPTIONS.map((l) => ({
+                                label: l,
+                                value: l,
+                            }))}
+                        />
+
+                        <DatePickerFormItem.From
+                            label="วันเริ่มต้น"
+                            endDateName="endDate"
+                            datePickerProps={{
+                                placeholder: 'เลือกวันเริ่มต้น',
+                                onChange: (v) => setStartDate(v),
+                            }}
+                        />
+
+                        <DatePickerFormItem.To
+                            label="วันสิ้นสุด"
+                            startDateName="startDate"
+                            datePickerProps={{
+                                placeholder: 'เลือกวันสิ้นสุด',
+                                onChange: (v) => setEndDate(v),
+                            }}
+                        />
+                    </Flex>
                 </Flex>
-            </Flex>
+            </Form>
+
             <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
-                <Title level={5} style={{ marginTop: 0 }}>Available Dates for {selectedLane}</Title>
-                
+                <Title level={5}>Available Dates for {selectedLane}</Title>
+
                 {loading ? (
-                    <Flex justify="center" align="middle" style={{ height: 300 }}>
+                    <Flex
+                        justify="center"
+                        align="middle"
+                        style={{ height: 250 }}
+                    >
                         <Spin size="large" tip="Loading Folders..." />
                     </Flex>
                 ) : error ? (
-                     <Alert message="Error" description={error} type="error" showIcon />
-                ) : displayDates.length === 0 ? ( // 💡 ตรวจสอบจาก displayDates ที่ถูกกรองแล้ว
-                    <Alert 
-                        message="ไม่พบข้อมูล" 
-                        description={filteredDate 
-                            ? `ไม่พบ Folder รูปภาพในวันที่ ${filteredDate.format('DD/MM/YYYY')} สำหรับ ${selectedLane}`
-                            : `ไม่พบ Folder รูปภาพใดๆ สำหรับ ${selectedLane}`
-                        } 
-                        type="info" 
-                        showIcon 
+                    <Alert
+                        type="error"
+                        message="Error"
+                        description={error}
+                        showIcon
+                    />
+                ) : displayDates.length === 0 ? (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="ไม่พบข้อมูล"
+                        description={
+                            startDate || endDate
+                                ? `ไม่พบ Folder รูปภาพในช่วงวันที่ที่เลือก สำหรับ ${selectedLane}`
+                                : `ไม่พบ Folder รูปภาพใดๆ สำหรับ ${selectedLane}`
+                        }
                     />
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                        {displayDates.map(date => (
+                        {displayDates.map((date) => (
                             <Card
                                 key={date}
-                                className="flex flex-col items-center justify-center p-6 text-center shadow-md rounded-lg cursor-pointer transition-transform duration-300 hover:scale-105 hover:shadow-lg"
-                                onClick={() => handleDateClick(date)} 
+                                hoverable
+                                onClick={() => handleDateClick(date)}
+                                className="flex flex-col items-center justify-center p-6 text-center rounded-lg 
+                shadow-md hover:scale-105 hover:shadow-lg transition-transform duration-300 cursor-pointer"
                             >
-                                <FolderFilled style={{ fontSize: '48px', color: '#facc15' }} />
-                                <div className="mt-4 font-bold text-lg text-gray-700">{dayjs(date).format('YYYY.MM.DD')}</div>
+                                <FolderFilled
+                                    style={{ fontSize: 48, color: '#facc15' }}
+                                />
+                                <div className="mt-4 font-bold text-lg text-gray-700">
+                                    {dayjs(date).format('YYYY.MM.DD')}
+                                </div>
                             </Card>
                         ))}
                     </div>
                 )}
             </Card>
         </Flex>
-    );
-};
+    )
+}
 
-export default PictureLog;
+export default PictureLog
