@@ -67,8 +67,8 @@ const navigationConfig: NavigationTree[] = [
                     },
                     {
                         key: 'appsProject.CameraManagement',
-                        path: `/project/CameraManagement`,
-                        title: 'Camera Management',
+                        path: `/project/IntersectionManagement`,
+                        title: 'Intersection Management',
                         translateKey: 'appsProject.CameraManagement',
                         icon: 'camera',
                         type: NAV_ITEM_TYPE_ITEM,

@@ -1,0 +1,48 @@
+services:
+  # --- Frontend (React + Vite) ---
+  frontend:
+    build: ./frontend
+    container_name: elstar-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app           # Hot Reload: แก้โค้ดหน้าเว็บแล้วเปลี่ยนเลย
+      - /app/node_modules         # ป้องกัน node_modules หาย
+    environment:
+      - VITE_API_URL=http://localhost:3000  # ชี้ไปหา Backend (เรียกจาก Browser ใช้ localhost)
+    depends_on:
+      - backend
+
+  # --- Backend (Elysia + Bun) ---
+  backend:
+    build: ./backend
+    container_name: elysia-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app            # Hot Reload Backend
+      - /app/node_modules
+    environment:
+      - DB_HOST=mariadb           # ชี้ไปหา Database (Internal Docker Network)
+      - DB_USER=localhost
+      - DB_PASSWORD=1234
+      - DB_NAME=Smart_Traffic_Light
+      - DB_PORT=3306
+    depends_on:
+      - mariadb
+
+  # --- Database (MariaDB) ---
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb-db
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: mydb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:

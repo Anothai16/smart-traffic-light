@@ -1,5 +1,5 @@
 // src/services/settingHistory.service.ts
-import { getDbPool } from '../config/dev.config';
+import { getDbPool } from '../config/db.config';
 import { RowDataPacket } from 'mysql2';
 
 export const SettingHistoryService = {

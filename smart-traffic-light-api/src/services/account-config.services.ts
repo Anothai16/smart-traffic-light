@@ -1,6 +1,6 @@
 // src/services/account-config.services.ts
 
-import { getDbPool } from '../config/dev.config';
+import { getDbPool } from '../config/db.config';
 import * as bcrypt from 'bcrypt';
 import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 
