@@ -1,5 +1,3 @@
-// vite.config.ts (Corrected)
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -23,15 +21,21 @@ export default defineConfig({
   build: {
     outDir: 'build'
   },
-  // --- Add this block ---
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8091', // <-- Make sure this is your backend's URL and port
+        // ⚠️ แก้ตรงนี้: ชี้ไปหาชื่อ Container Backend และ Port 3000
+        target: 'http://elysia-backend:3000', 
         changeOrigin: true,
+        // ตัด /api ออกก่อนส่งไป Backend (เช่น /api/auth -> /auth)
+        // ถ้า Backend คุณไม่ได้ขึ้นต้นด้วย /api ให้คงบรรทัดนี้ไว้
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
-    host: true,
+    host: true, // อนุญาตให้เข้าถึงได้จากนอก Container
+    port: 5173, // กำหนด Port ให้ชัดเจน
+    watch: {
+      usePolling: true // ช่วยเรื่อง Hot Reload ใน Docker (บางเครื่องจำเป็น)
+    }
   },
 });

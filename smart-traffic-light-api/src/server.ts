@@ -11,22 +11,25 @@ const app = new Elysia()
     .use(cors({ origin: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }))
     .use(swagger())
     .use(appRoutes)
-    .onError((ctx: any) => {
-        if ((ctx.error as any)?.code === 'VALIDATION') {
-            ctx.set.status = 400;
-            return { status: 'error', message: 'Validation Error', errors: ctx.error.message };
+    // 👇 แก้ส่วน onError ตามนี้ครับ
+    .onError(({ code, error, set }) => {
+        // 1. สั่งให้ปริ้น Error แดงๆ ออกมาดูหน่อย
+        console.error('🔥 Server Error:', error); 
+
+        if (code === 'VALIDATION') {
+            set.status = 400;
+            return { status: 'error', message: 'Validation Error', errors: (error as any).message };
         }
-        if ((ctx.error as any)?.code === 'NOT_FOUND') {
-            ctx.set.status = 404;
+        if (code === 'NOT_FOUND') {
+            set.status = 404;
             return { status: 'error', message: 'Route not found' };
         }
-        if ((ctx.error as any)?.code === 'INTERNAL_SERVER_ERROR') {
-            ctx.set.status = 500;
-            return { status: 'error', message: 'Internal Server Error' };
-        }
-        ctx.set.status = 500;
-        return { status: 'error', message: 'An unexpected error occurred' };
+        
+        // Default 500
+        set.status = 500;
+        return { status: 'error', message: 'Internal Server Error', details: (error as any).message };
     })
+    // 👆 จบส่วนแก้
     .get('/', () => ('Welcome to the Smart Traffic Light API!'))
     .listen(config.PORT);
 
