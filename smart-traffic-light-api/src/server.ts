@@ -2,7 +2,7 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { config } from './config';
-import { closeDbPool } from './config/dev.config'; 
+import { closeDbPool } from './config/db.config'; 
 
 import { swagger } from '@elysiajs/swagger';
 // import { io } from './socket-server';

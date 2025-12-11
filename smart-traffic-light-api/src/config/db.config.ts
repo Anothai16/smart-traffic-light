@@ -1,5 +1,5 @@
 // src/config/db.config.ts
-import sql from 'mssql';
+import mysql from 'mysql2/promise'; // เปลี่ยน driver เป็น mysql2
 import { config } from './index'; // Import main config loaded from .env
 
 // Type guard to check if essential DB config values are present
@@ -9,73 +9,59 @@ function hasDbConfig(cfg: typeof config): cfg is typeof config & { DB_HOST: stri
 
 // Check if required DB config is available
 if (!hasDbConfig(config)) {
-    console.warn('⚠️ Database configuration (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) is incomplete in environment variables. Database connection will not be established.');
-    // You might throw an error here if DB connection is absolutely mandatory
-    // throw new Error('Missing required database configuration.');
+    console.warn('⚠️ Database configuration (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) is incomplete. Database connection will not be established.');
 }
 
-// MS SQL configuration object using values from the main config
-export const sqlConfig: sql.config = {
-    server: config.DB_HOST || '', // Server IP address or hostname
-    port: config.DB_PORT || 3306 , // Default MS SQL port
-    user: config.DB_USER || '', // Database user
-    password: config.DB_PASSWORD || '', // Database password
-    database: config.DB_NAME || '', // Database name
-    connectionTimeout: 30000, // Connection timeout in milliseconds
-    requestTimeout: 180000, // Connection timeout in milliseconds
-    pool: {
-        max              : 10,
-        idleTimeoutMillis: 30000,
-    },
-    options: {
-        encrypt: false, // Use encryption in production (recommended)
-        trustServerCertificate: true  // Trust self-signed certs in dev (use false in production unless necessary and understood)
-       
-    }
+// MySQL/MariaDB configuration object
+const dbConfig: mysql.PoolOptions = {
+    host: config.DB_HOST || '',      // เปลี่ยนจาก server เป็น host
+    port: Number(config.DB_PORT) || 3306, // Default Port ของ MySQL/MariaDB คือ 3306
+    user: config.DB_USER || '',
+    password: config.DB_PASSWORD || '',
+    database: config.DB_NAME || '',
+    waitForConnections: true,        // ให้รอถ้า connection เต็ม (Standard ของ mysql2)
+    connectionLimit: 10,             // เทียบเท่า pool.max
+    queueLimit: 0,
+    connectTimeout: 30000,           // 30 วินาที
+    // ไม่ต้องใช้ encrypt หรือ trustServerCertificate สำหรับ MariaDB บน LAN ปกติ
 };
 
 // Variable to hold the connection pool instance (Singleton pattern)
-let pool: sql.ConnectionPool | null = null;
+let pool: mysql.Pool | null = null;
 
 /**
- * Establishes an MS SQL connection pool if not already created,
+ * Establishes a MySQL connection pool if not already created,
  * and returns the pool instance.
- * @returns {Promise<sql.ConnectionPool>} A promise that resolves with the connection pool.
- * @throws {Error} If connection fails.
  */
-export async function getDbPool(): Promise<sql.ConnectionPool> {
-    // Return existing pool if already connected
-    if (pool && pool.connected) {
-        // console.log('Returning existing DB connection pool.'); // Optional log
+export async function getDbPool(): Promise<mysql.Pool> {
+    // Return existing pool if already created
+    if (pool) {
         return pool;
     }
 
-    // Check if configuration is complete before attempting connection
-     if (!hasDbConfig(config)) {
+    // Check configuration
+    if (!hasDbConfig(config)) {
         throw new Error('Cannot establish database connection due to incomplete configuration.');
-     }
+    }
 
     try {
-        console.log(`Attempting to connect to database: ${sqlConfig.database} on ${sqlConfig.server}...`);
-        // Create a new pool instance
-        pool = new sql.ConnectionPool(sqlConfig);
-        // Establish the connection
-        await pool.connect();
-        console.log('✅ Database connection pool established successfully.');
+        console.log(`Attempting to connect to database: ${dbConfig.database} on ${dbConfig.host}...`);
 
-        // Optional: Handle pool errors after connection
-        pool.on('error', (err: Error) => {
-            console.error('Database Pool Error:', err);
-            // You might want to attempt reconnection or log specifics here
-            // Consider closing the pool if errors persist: pool?.close(); pool = null;
-        });
+        // Create the pool
+        pool = mysql.createPool(dbConfig);
+
+        // Test the connection by trying to get one connection from the pool
+        // (mysql.createPool ไม่ได้ connect ทันทีเหมือน mssql เราต้องลอง ping ดู)
+        const connection = await pool.getConnection();
+        console.log('✅ Database connection pool established successfully (MariaDB/MySQL).');
+        
+        // Release connection back to pool immediately after check
+        connection.release();
 
         return pool;
     } catch (error: any) {
         console.error('❌ Failed to establish database connection pool:', error.message);
-        // Clear the pool variable on failure to allow retries if needed
         pool = null;
-        // Re-throw the error so the calling function knows connection failed
         throw error;
     }
 }
@@ -84,15 +70,15 @@ export async function getDbPool(): Promise<sql.ConnectionPool> {
  * Closes the database connection pool gracefully.
  */
 export async function closeDbPool(): Promise<void> {
-    if (pool && pool.connected) {
+    if (pool) {
         try {
             console.log('Attempting to close database connection pool...');
-            await pool.close();
+            await pool.end(); // ใน mysql2 ใช้ .end() แทน .close()
             pool = null;
             console.log('Database connection pool closed successfully.');
         } catch (error: any) {
             console.error('Error closing database connection pool:', error.message);
-            pool = null; // Ensure pool is null even if close fails
+            pool = null;
         }
     } else {
         console.log('Database connection pool already closed or not initialized.');
