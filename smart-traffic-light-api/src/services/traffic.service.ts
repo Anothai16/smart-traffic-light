@@ -1,5 +1,5 @@
 // src/services/traffic.service.ts
-import { getDbPool } from '../config/dev.config';
+import { getDbPool } from '../config/db.config';
 import { RowDataPacket } from 'mysql2';
 
 interface TrafficMode {

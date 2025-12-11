@@ -1,5 +1,5 @@
 // src/services/auth.services.ts
-import { getDbPool } from '../config/dev.config';
+import { getDbPool } from '../config/db.config';
 import * as bcrypt from 'bcrypt';
 import { RowDataPacket } from 'mysql2';
 

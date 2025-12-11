@@ -1,0 +1,47 @@
+services:
+  # --- Frontend (React + Vite) ---
+  frontend:
+    build: ./smart-traffic-light-ui
+    container_name: elstar-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./smart-traffic-light-ui:/app           # Hot Reload
+      - /app/node_modules         # ป้องกัน node_modules หาย
+    environment:
+      # Browser ของผู้ใช้จะเรียก API ผ่าน localhost (พอร์ตที่เปิดออกมา)
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - backend
+
+  # --- Backend (Elysia + Bun) ---
+  backend:
+    build: ./smart-traffic-light-api
+    container_name: elysia-backend
+    ports:
+      - "3000:3000"  # ใช้ 3000 เป็นมาตรฐาน (ทั้งนอกและใน)
+    volumes:
+      - ./smart-traffic-light-api:/app
+      - /app/node_modules
+      # สร้างโฟลเดอร์เก็บรูปในเครื่องจริง แล้ว map เข้าไปใน path ของ linux
+      - ./traffic_data:/app/traffic_data 
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    environment:
+      # --- 1. แก้เรื่อง DATABASE ---
+      - DB_HOST=host.docker.internal
+      - DB_USER=admin
+      - DB_PASSWORD=1234
+      - DB_NAME=Smart_Traffic_Light
+      - DB_PORT=3306
+      
+      # --- 2. แก้เรื่อง PATH (สำคัญมาก) ---
+      # บังคับใช้ Path ของ Linux แทน C:/TrafficData
+      - IMAGE_ROOT_PATH=/app/traffic_data
+      
+      # --- 3. แก้เรื่อง PORT ---
+      # บังคับให้แอป Elysia รันที่ Port 3000 (เพื่อให้ตรงกับ ports: 3000:3000 ด้านบน)
+      - PORT=3000
+

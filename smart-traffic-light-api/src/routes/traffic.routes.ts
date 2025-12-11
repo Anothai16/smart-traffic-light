@@ -4,7 +4,7 @@ import { Elysia, t } from 'elysia';
 import { TrafficController } from '../controllers/traffic.controller';
 import jwt from '@elysiajs/jwt';
 import { config } from '../config';
-import { io } from '../socket-server';
+
 
 const jwtPlugin = jwt({
     name: 'jwt',

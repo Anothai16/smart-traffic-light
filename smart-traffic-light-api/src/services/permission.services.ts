@@ -1,5 +1,5 @@
 // src/services/permission.services.ts
-import { getDbPool } from '../config/dev.config'; 
+import { getDbPool } from '../config/db.config'; 
 import { RowDataPacket } from 'mysql2';
 
 // กำหนดสิทธิ์แบบ Hardcode เพราะไม่มีตาราง Permission ใน Database แล้ว

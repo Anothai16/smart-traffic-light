@@ -1,5 +1,5 @@
 // src/services/intersection.service.ts
-import { getDbPool } from '../config/dev.config';
+import { getDbPool } from '../config/db.config';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export interface Intersection {
