@@ -10,7 +10,8 @@ services:
       - /app/node_modules         # ป้องกัน node_modules หาย
     environment:
       # Browser ของผู้ใช้จะเรียก API ผ่าน localhost (พอร์ตที่เปิดออกมา)
-      - VITE_API_URL=http://localhost:3000
+      # - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=""
     depends_on:
       - backend
 
