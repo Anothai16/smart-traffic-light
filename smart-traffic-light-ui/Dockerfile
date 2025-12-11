@@ -1,4 +1,5 @@
-# frontend/Dockerfile
+# smart-traffic-light-ui/Dockerfile
+
 FROM node:20-alpine
 
 WORKDIR /app
@@ -6,14 +7,16 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install
+# --- แก้ตรงนี้ครับ ---
+# เปลี่ยนจาก RUN npm install เป็น:
+RUN npm install --legacy-peer-deps
+# ------------------
 
 # Copy source code
 COPY . .
 
-# Expose port (Vite default is 5173)
+# Expose port
 EXPOSE 5173
 
-# รันคำสั่ง start พร้อม flag --host เพื่อให้เข้าถึงได้จากนอก container
+# รันคำสั่ง start
 CMD ["npm", "run", "start", "--", "--host"]
