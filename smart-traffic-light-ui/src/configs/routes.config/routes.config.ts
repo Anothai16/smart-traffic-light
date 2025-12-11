@@ -56,8 +56,8 @@ export const protectedRoutes = [
     },
     {
         key: 'appsProject.CameraManagement',
-        path: `/project/CameraManagement`,
-        component: lazy(() => import('@/views/project/CameraManagement')),
+        path: `/project/IntersectionManagement`,
+        component: lazy(() => import('@/views/project/IntersectionManagement')),
         authority: [],
     },
 ]
