@@ -10,7 +10,8 @@ services:
       - /app/node_modules         # ป้องกัน node_modules หาย
     environment:
       # Browser ของผู้ใช้จะเรียก API ผ่าน localhost (พอร์ตที่เปิดออกมา)
-      - VITE_API_URL=http://localhost:3000
+      # - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=""
     depends_on:
       - backend
 
@@ -44,4 +45,9 @@ services:
       # --- 3. แก้เรื่อง PORT ---
       # บังคับให้แอป Elysia รันที่ Port 3000 (เพื่อให้ตรงกับ ports: 3000:3000 ด้านบน)
       - PORT=3000
-
+  tunnel-quick:
+      image: cloudflare/cloudflared:latest
+      container_name: quick-tunnel
+      network_mode: "host"  # ใช้ network เดียวกับเครื่องจริง เพื่อให้มองเห็น port 5173
+      command: tunnel --url http://localhost:5173
+      restart: always       # ถ้าดับให้เปิดใหม่เอง
