@@ -22,6 +22,7 @@ export default defineConfig({
     outDir: 'build'
   },
   server: {
+    allowedHosts: true,
     proxy: {
       '/api': {
         // ⚠️ แก้ตรงนี้: ชี้ไปหาชื่อ Container Backend และ Port 3000
