@@ -13,7 +13,6 @@ import {
 import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
-import { socket } from '@/services/socket';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { SyncOutlined, SettingOutlined } from '@ant-design/icons';
@@ -131,11 +130,6 @@ const TrafficManagement = () => {
             if (response.data?.success) {
                 setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
-                const socketData = {
-                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`,
-                    senderId: socket.id,
-                };
-                socket.emit('traffic_mode_change', socketData);
             } else {
                 showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
@@ -210,11 +204,6 @@ const TrafficManagement = () => {
             const response = await apiUpdateIntersectionTimes(payload);
             if (response.data?.success) {
                 showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
-                const socketData = {
-                    message: `Intersection times were updated by ${username || 'an admin'}.`,
-                    senderId: socket.id,
-                };
-                socket.emit('traffic_time_change', socketData);
             } else {
                 showNotification('danger', 'Update Failed', response.data.message || 'Failed to change intersection times.');
             }

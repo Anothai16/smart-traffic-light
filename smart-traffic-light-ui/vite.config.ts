@@ -23,20 +23,34 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
+    host: true, 
+    port: 5173, 
+    watch: {
+      usePolling: true 
+    },
     proxy: {
-      '/api': {
-        // ⚠️ แก้ตรงนี้: ชี้ไปหาชื่อ Container Backend และ Port 3000
+      // ✅ 1. สำหรับรูปภาพ (สำคัญที่สุด! เพื่อแก้ Mixed Content)
+      // เมื่อ Frontend เรียก /static/... ให้ส่งไป Backend
+      '/static': {
         target: 'http://elysia-backend:3000', 
         changeOrigin: true,
-        // ตัด /api ออกก่อนส่งไป Backend (เช่น /api/auth -> /auth)
-        // ถ้า Backend คุณไม่ได้ขึ้นต้นด้วย /api ให้คงบรรทัดนี้ไว้
+      },
+
+      // ✅ 2. สำหรับ Upload รูป (จำเป็นเพราะเราลบ Base URL ออกแล้ว)
+      '/upload': {
+        target: 'http://elysia-backend:3000',
+        changeOrigin: true,
+      },
+
+      // ✅ 3. สำหรับ API อื่นๆ (ถ้าคุณเรียกผ่าน /api)
+      '/api': {
+        target: 'http://elysia-backend:3000',
+        changeOrigin: true,
+        // ถ้า Backend คุณไม่ได้ขึ้นต้นด้วย /api ให้ใช้ rewrite ตัดออก
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      
+      // (ถ้ามี API Login/Auth อื่นๆ ที่ไม่ได้ขึ้นต้นด้วย /api ให้เพิ่มตรงนี้ได้ครับ)
     },
-    host: true, // อนุญาตให้เข้าถึงได้จากนอก Container
-    port: 5173, // กำหนด Port ให้ชัดเจน
-    watch: {
-      usePolling: true // ช่วยเรื่อง Hot Reload ใน Docker (บางเครื่องจำเป็น)
-    }
   },
 });
