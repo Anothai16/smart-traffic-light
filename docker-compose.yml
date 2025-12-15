@@ -11,7 +11,7 @@ services:
     environment:
       # Browser ของผู้ใช้จะเรียก API ผ่าน localhost (พอร์ตที่เปิดออกมา)
       # - VITE_API_URL=http://localhost:3000
-      - VITE_API_URL=""
+      - VITE_API_URL=/api
     depends_on:
       - backend
 
@@ -21,11 +21,15 @@ services:
     container_name: elysia-backend
     ports:
       - "3000:3000"  # ใช้ 3000 เป็นมาตรฐาน (ทั้งนอกและใน)
+
+    # env_file:
+    #   - ./smart-traffic-light-api/.env
+
     volumes:
       - ./smart-traffic-light-api:/app
       - /app/node_modules
       # สร้างโฟลเดอร์เก็บรูปในเครื่องจริง แล้ว map เข้าไปใน path ของ linux
-      - ./traffic_data:/app/traffic_data 
+      - ./traffic_data:/app/traffic_data
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -37,7 +41,7 @@ services:
       - DB_PASSWORD=1234
       - DB_NAME=Smart_Traffic_Light
       - DB_PORT=3306
-      
+      - BACKEND_BASE_URL=
       # --- 2. แก้เรื่อง PATH (สำคัญมาก) ---
       # บังคับใช้ Path ของ Linux แทน C:/TrafficData
       - IMAGE_ROOT_PATH=/app/traffic_data
@@ -45,6 +49,18 @@ services:
       # --- 3. แก้เรื่อง PORT ---
       # บังคับให้แอป Elysia รันที่ Port 3000 (เพื่อให้ตรงกับ ports: 3000:3000 ด้านบน)
       - PORT=3000
+      # Lane 1 (ทิศตะวันตก) -> Python ส่ง Lane_W
+      - LANE_1_NAME=Lane 1 (PC-A)
+      - LANE_1_FOLDER=Lane_W
+
+      - LANE_2_NAME=Lane 2 (PC-B)
+      - LANE_2_FOLDER=Lane_N
+
+      - LANE_3_NAME=Lane 3 (PC-C)
+      - LANE_3_FOLDER=Lane_E
+
+      - LANE_4_NAME=Lane 4 (PC-D)
+      - LANE_4_FOLDER=Lane_S
   tunnel-quick:
       image: cloudflare/cloudflared:latest
       container_name: quick-tunnel

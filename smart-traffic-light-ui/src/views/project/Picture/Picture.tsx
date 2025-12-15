@@ -157,8 +157,10 @@ const PictureLog = () => {
 
                     <div />
                 </Flex>
-
+                
                 <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
+                    <Title level={5} style={{ marginTop: 0 }}>Available Dates for {selectedLane}</Title>
+                    
                     {loading ? (
                         <Flex
                             justify="center"

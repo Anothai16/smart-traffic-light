@@ -6,9 +6,7 @@ import dynamicImport from 'vite-plugin-dynamic-import'
 export default defineConfig({
   plugins: [react({
     babel: {
-      plugins: [
-        'babel-plugin-macros'
-      ]
+      plugins: ['babel-plugin-macros']
     }
   }),
   dynamicImport()],
@@ -23,20 +21,33 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
+    host: true,
+    port: 5173,
+    watch: {
+      usePolling: true
+    },
     proxy: {
-      '/api': {
-        // ⚠️ แก้ตรงนี้: ชี้ไปหาชื่อ Container Backend และ Port 3000
-        target: 'http://elysia-backend:3000', 
+      // ✅ 1. ตั้งค่า Socket.io (สำคัญมาก ถ้าไม่ใส่จะต่อ Socket ไม่ได้)
+      '/socket.io': {
+        target: 'http://elysia-backend:3000',
+        ws: true, // เปิดใช้งาน WebSocket Proxy
         changeOrigin: true,
-        // ตัด /api ออกก่อนส่งไป Backend (เช่น /api/auth -> /auth)
-        // ถ้า Backend คุณไม่ได้ขึ้นต้นด้วย /api ให้คงบรรทัดนี้ไว้
-        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+
+      // ✅ 2. รูปภาพ
+      '/static': {
+        target: 'http://elysia-backend:3000',
+        changeOrigin: true,
+      },
+
+      // ✅ 3. API หลัก (ต้องสอดคล้องกับ VITE_API_URL=/api)
+      '/api': {
+        target: 'http://elysia-backend:3000',
+        changeOrigin: true,
+        // สำคัญ: ตัด /api ออกก่อนส่งให้ Backend
+        // Frontend ส่ง: /api/auth/login -> Backend รับ: /auth/login
+        rewrite: (path) => path.replace(/^\/api/, ''), 
       },
     },
-    host: true, // อนุญาตให้เข้าถึงได้จากนอก Container
-    port: 5173, // กำหนด Port ให้ชัดเจน
-    watch: {
-      usePolling: true // ช่วยเรื่อง Hot Reload ใน Docker (บางเครื่องจำเป็น)
-    }
   },
 });

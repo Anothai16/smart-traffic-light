@@ -43,21 +43,15 @@ export const protectedRoutes = [
         authority: [],
     },
     {
-        key: 'appsProject.IntersectionView',
-        path: `/project/IntersectionView`,
-        component: lazy(() => import('@/views/project/IntersectionView')),
-        authority: [],
-    },
-    {
-        key: 'appsProject.SystemPerformance',
-        path: `/project/SystemPerformance`,
-        component: lazy(() => import('@/views/project/SystemPerformance')),
-        authority: [],
-    },
-    {
         key: 'appsProject.CameraManagement',
         path: `/project/IntersectionManagement`,
         component: lazy(() => import('@/views/project/IntersectionManagement')),
+        authority: [],
+    },
+    {
+        key: 'appsProject.Picture',
+        path: `/project/PictureAlert`,
+        component: lazy(() => import('@/views/project/Picture')),
         authority: [],
     },
 ]

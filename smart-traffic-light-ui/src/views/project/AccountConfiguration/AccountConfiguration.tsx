@@ -59,7 +59,7 @@ interface DeleteAccountResponse {
 }
 
 interface ErrorResponseData {
-  message: string;
+    message: string;
 }
 
 const AccountConfiguration: React.FC = () => {

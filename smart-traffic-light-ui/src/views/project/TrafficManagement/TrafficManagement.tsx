@@ -1,4 +1,4 @@
-// src/views/traffic/TrafficManagement.tsx (Final Optimized Version for Independent Green Control)
+// src/views/traffic/TrafficManagement.tsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Flex, Button, Typography, Input, Divider, Spin, Tag, Alert } from 'antd';
@@ -13,7 +13,6 @@ import {
 import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
-import { socket } from '@/services/socket';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { SyncOutlined, SettingOutlined } from '@ant-design/icons';
@@ -56,7 +55,7 @@ const TrafficManagement = () => {
         );
     };
     
-    // --- Data Fetching Logic (UNCHANGED) ---
+    // --- Data Fetching Logic ---
     const fetchTrafficData = useCallback(async () => {
         try {
             setLoading(true);
@@ -131,11 +130,6 @@ const TrafficManagement = () => {
             if (response.data?.success) {
                 setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
-                const socketData = {
-                    message: `Traffic mode was changed to ${selectedMode} by ${username || 'an admin'}.`,
-                    senderId: socket.id,
-                };
-                socket.emit('traffic_mode_change', socketData);
             } else {
                 showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
@@ -148,7 +142,7 @@ const TrafficManagement = () => {
         }
     };
     
-    // *** START: MODIFIED LOGIC FOR INDEPENDENT GREEN / SEQUENTIAL RED ***
+    // --- Time Calculation Logic ---
     const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
         const parsedValue = parseInt(value, 10);
         
@@ -156,42 +150,28 @@ const TrafficManagement = () => {
             const newTimes = [...prev];
             const updatedTime = { ...newTimes[index] };
             
-            // 1. Update the intersection that the user is modifying (Red or Green are now editable on ALL lanes)
-            // Green is now fully independent
             if (color === 'red') {
                 updatedTime.New_Red_Duration = isNaN(parsedValue) ? 0 : parsedValue;
             } else if (color === 'green') {
                 updatedTime.New_Green_Duration = isNaN(parsedValue) ? 0 : parsedValue;
             }
-            newTimes[index] = updatedTime; // Commit the user's change
+            newTimes[index] = updatedTime; 
 
-            // 2. Recalculate the sequential Red Durations for all subsequent intersections
             if (newTimes.length >= 4) {
-                
-                // We must start the calculation from index 1 (PC-B) and use the committed new values
-                // We iterate up to the last one
                 for (let i = 1; i < newTimes.length; i++) {
                     const prevIndex = i - 1;
-                    
-                    // Use the potentially new Red/Green values of the PREVIOUS intersection
                     const prevRed = newTimes[prevIndex].New_Red_Duration || 0;
                     const prevGreen = newTimes[prevIndex].New_Green_Duration || 0;
-
-                    // Red Duration of current intersection = (Red of prev + Green of prev + Yellow)
                     const newRed = prevRed + prevGreen + YELLOW_LIGHT_DURATION;
-                    
-                    // ONLY update the Red Duration (Green must remain the user-defined value)
                     newTimes[i] = {
                         ...newTimes[i],
                         New_Red_Duration: newRed, 
                     };
                 }
             }
-            
             return newTimes;
         });
     };
-    // *** END: MODIFIED LOGIC ***
 
     const handleSave = async () => {
         if (selectedMode !== 'Auto') {
@@ -210,11 +190,6 @@ const TrafficManagement = () => {
             const response = await apiUpdateIntersectionTimes(payload);
             if (response.data?.success) {
                 showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
-                const socketData = {
-                    message: `Intersection times were updated by ${username || 'an admin'}.`,
-                    senderId: socket.id,
-                };
-                socket.emit('traffic_time_change', socketData);
             } else {
                 showNotification('danger', 'Update Failed', response.data.message || 'Failed to change intersection times.');
             }
@@ -233,59 +208,56 @@ const TrafficManagement = () => {
     }
 
     return (
-        <div className="p-6 md:p-10 bg-gray-50 min-h-screen"> 
+        // ✅ FIX: ใช้โครงสร้างเดียวกับ AccountConfiguration
+        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             
-            {/* --- HEADER / STATUS BAR --- */}
-            <div className="bg-white p-4 md:p-6 rounded-2xl shadow-xl mb-8 flex justify-between items-center flex-wrap gap-4">
-                <Title level={3} className="!text-3xl !font-extrabold text-gray-800 !my-0">
-                    Smart Traffic Light Management
-                </Title>
-                <div className="flex items-center gap-4 flex-wrap">
-                    <Text type="secondary" className="text-sm hidden md:inline">
-                        Last Updated: {lastUpdated || 'N/A'}
-                    </Text>
-                    <Flex align="center" gap="small" className="p-2 border rounded-lg bg-gray-50">
-                        <span className="text-base font-semibold text-gray-700">CURRENT MODE:</span>
-                        <div
-                            className={classNames(
-                                'rounded-full w-3 h-3',
-                                currentModeDetails?.color || 'bg-gray-400'
-                            )}
-                        />
-                        <Text strong className="text-lg" style={{ color: currentModeDetails?.color.replace('bg-', 'text-') || '#9CA3AF' }}>
-                             {currentMode || 'No mode selected'}
-                        </Text>
-                    </Flex>
-                    <Button onClick={fetchTrafficData} icon={<SyncOutlined />} loading={loading} type="default">
-                        Refresh
-                    </Button>
-                </div>
-            </div>
-
-            {/* --- MAIN CONTENT LAYOUT --- */}
+            {/* ✅ FIX: Wrap Header และ Content ด้วย Flex vertical gap="large" ตัวเดียวกัน */}
             <Flex vertical gap="large">
                 
-                {/* 1. TRAFFIC MODE SELECTION CARD */}
-                <Card 
-                    title={<Title level={4} className='!my-0 !font-bold text-blue-600'>Control Traffic Mode</Title>} 
-                    className="shadow-2xl rounded-2xl border-l-4 border-blue-500"
-                >
+                {/* --- HEADER --- */}
+                <Flex justify="space-between" align="middle" wrap="wrap" gap="small">
+                    <Title level={4} style={{ margin: 0 }} className="text-gray-800">
+                        Traffic Light Management
+                    </Title>
+                    <div className="flex items-center gap-4 flex-wrap">
+                        <Text type="secondary" className="text-sm hidden md:inline">
+                            Last Updated: {lastUpdated || 'N/A'}
+                        </Text>
+                        
+                        {/* Status: ไม่มี background */}
+                        <Flex align="center" gap="small">
+                            <span className="text-base font-semibold text-gray-700">CURRENT MODE:</span>
+                            <div
+                                className={classNames(
+                                    'rounded-full w-3 h-3',
+                                    currentModeDetails?.color || 'bg-gray-400'
+                                )}
+                            />
+                            <Text strong className="text-lg" style={{ color: currentModeDetails?.color.replace('bg-', 'text-') || '#9CA3AF' }}>
+                                 {currentMode || 'No mode selected'}
+                            </Text>
+                        </Flex>
+                        
+                        <Button onClick={fetchTrafficData} icon={<SyncOutlined />} loading={loading} type="default">
+                            Refresh
+                        </Button>
+                    </div>
+                </Flex>
+
+                {/* --- 1. TRAFFIC MODE SELECTION CARD --- */}
+                {/* จะถูกดันลงมาด้วย gap="large" จาก Flex ด้านบน (ประมาณ 24px) */}
+                <Card className="shadow-lg rounded-xl border-l-4 border-blue-500">
                     <Flex vertical gap="large" className="w-full">
-                        {/* Selected Mode Display & Apply Button (Aesthetic Fix Applied) */}
+                        {/* Selected Mode Display */}
                         <div className="mb-4 flex flex-col md:flex-row md:items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <span className="text-base font-bold text-gray-700 whitespace-nowrap">Selected Mode to Apply:</span>                    
                             <Tag 
                                 className={classNames(
                                     "!text-lg !py-1 !px-3 !font-extrabold", 
-                                    
-                                    // *** 1. Logic กำหนดสีพื้นหลังและตัวหนังสือตามโหมดที่เลือก (เข้ม/อ่อน) ***
                                     selectedMode === 'Auto' && 'bg-green-100 !text-green-700',
                                     selectedMode === 'Stop' && 'bg-red-100 !text-red-700',
                                     selectedMode === 'Intelligence' && 'bg-blue-100 !text-blue-700',
                                     selectedMode === 'Caution' && 'bg-yellow-100 !text-yellow-700',
-
-                                    // *** 2. เงื่อนไข Default หากยังไม่มีการเลือกโหมด หรือโหมดไม่ถูกต้อง ***
-                                    // ถ้าค่า selectedMode ยังเป็นค่าว่าง ('') หรือ 'No Mode Selected' ให้ใช้สีเทา
                                     (!selectedMode || selectedMode === 'No Mode Selected') && 'bg-gray-200 !text-gray-700'
                                 )}
                             >
@@ -336,11 +308,11 @@ const TrafficManagement = () => {
                     </Flex>
                 </Card>
                 
-                {/* 2. TRAFFIC LIGHT TIME MANAGEMENT CARD (CONDITIONAL) */}
+                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD (CONDITIONAL) --- */}
                 {selectedMode === 'Auto' && (
                     <Card 
                         title={<Title level={4} className='!my-0 !font-bold text-green-600 flex items-center'><SettingOutlined className='mr-2' /> Set Intersection Times (Auto Mode)</Title>} 
-                        className="shadow-2xl rounded-2xl border-l-4 border-green-500"
+                        className="shadow-lg rounded-xl border-l-4 border-green-500"
                     >
                         <Flex vertical gap="large" className="w-full">
                             <Alert
@@ -363,7 +335,7 @@ const TrafficManagement = () => {
                                     )}
                                 >
                                     <Flex align="middle" justify="space-between" wrap="wrap" gap="large">
-                                        {/* Red Input (User can set this, but it will be overwritten by calculation for i > 0) */}
+                                        {/* Red Input */}
                                         <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-red-50">
                                             <Flex align="center" justify="space-between" gap="small">
                                                 <span className="font-bold text-red-600 text-lg">Red Duration (s)</span>
@@ -375,10 +347,10 @@ const TrafficManagement = () => {
                                                 onChange={e => handleTimeChange(index, 'red', e.target.value)}
                                                 placeholder="Enter new red time"
                                                 className="rounded-lg h-12 text-lg"
-                                                disabled={index !== 0} // Red Only editable for PC-A to simplify chain
+                                                disabled={index !== 0} 
                                             />
                                         </Flex>
-                                        {/* Green Input (Now editable for all lanes) */}
+                                        {/* Green Input */}
                                         <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-green-50">
                                             <Flex align="center" justify="space-between" gap="small">
                                                 <span className="font-bold text-green-600 text-lg">Green Duration (s)</span>
@@ -390,7 +362,6 @@ const TrafficManagement = () => {
                                                 onChange={e => handleTimeChange(index, 'green', e.target.value)}
                                                 placeholder="Enter new green time"
                                                 className="rounded-lg h-12 text-lg"
-                                                // REMOVED disabled={index !== 0} -> Green is now editable everywhere
                                             />
                                         </Flex>
                                     </Flex>
@@ -399,7 +370,6 @@ const TrafficManagement = () => {
                                             * **Yellow Light Duration**: {YELLOW_LIGHT_DURATION} วินาที (คงที่).
                                         </Text>
                                     </div>
-                                    {/* Display the calculated/set values clearly */}
                                     <div className="mt-2 text-sm text-gray-600 font-medium">
                                         <span className="text-blue-600 font-bold">Current Red:</span> {intersection.New_Red_Duration.toLocaleString()} วินาที | 
                                         <span className="text-green-600 font-bold ml-4">Current Green:</span> {intersection.New_Green_Duration.toLocaleString()} วินาที
@@ -428,6 +398,7 @@ const TrafficManagement = () => {
                         </Flex>
                     </Card>
                 )}
+
             </Flex>
         </div>
     );

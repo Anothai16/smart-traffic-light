@@ -1,3 +1,5 @@
+// src/views/setting-history/SettingHistory.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Card, Tabs, Typography, Flex, Tag, message, Spin, Button } from 'antd';
 import type { TableProps, TabsProps } from 'antd';
@@ -56,13 +58,28 @@ const SettingHistory: React.FC = () => {
     // ✅ ฟังก์ชันช่วยแปลงเวลาอย่างปลอดภัย (แก้ปัญหาจอขาว)
     const formatTime = (timeStr: string | undefined | null) => {
         if (!timeStr) return '-';
-        // ถ้ามี 'T' (ISO Format) ให้ตัดเอาข้างหลัง
-        if (timeStr.includes('T')) {
-            const parts = timeStr.split('T');
-            return parts.length > 1 ? parts[1].split('.')[0] : timeStr;
-        }
-        // ถ้าไม่มี 'T' (HH:mm:ss) ให้ตัดจุดทศนิยมออกถ้ามี
-        return timeStr.split('.')[0];
+        
+        // ถ้ามี T ตัดทิ้งเอาแค่เวลา
+        const cleanTime = timeStr.includes('T') ? timeStr.split('T')[1].split('.')[0] : timeStr.split('.')[0];
+        
+        // แยก ชั่วโมง, นาที, วินาที
+        const [hours, minutes, seconds] = cleanTime.split(':').map(Number);
+        
+        if (isNaN(hours)) return cleanTime; // กัน error
+
+        // สร้างวันที่หลอกๆ ขึ้นมาเพื่อใช้จัดการเวลา
+        let date = new Date();
+        date.setUTCHours(hours);
+        date.setUTCMinutes(minutes);
+        date.setUTCSeconds(seconds);
+
+        // แปลงเป็นเวลาไทย (หรือเวลาเครื่อง User)
+        // ถ้าเครื่อง User เป็นเวลาไทย มันจะบวก 7 ให้เอง
+        const localHours = date.getHours().toString().padStart(2, '0');
+        const localMinutes = date.getMinutes().toString().padStart(2, '0');
+        const localSeconds = date.getSeconds().toString().padStart(2, '0');
+
+        return `${localHours}:${localMinutes}:${localSeconds}`;
     };
 
     const fetchData = useCallback(async () => {
@@ -129,34 +146,40 @@ const SettingHistory: React.FC = () => {
             title: 'Mode',
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
+            width: 100,
             render: (modeName) => <Tag color="green">{modeName || 'Unknown'}</Tag>,
         },
         {
             title: 'Admin Name',
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
+            width: 150,
         },
         {
             title: 'Intersection Name',
             dataIndex: 'Intersection_Name',
             key: 'Intersection_Name',
+            width: 200,
             render: (name, record) => name || `ID: ${record.Intersection_ID}`,
         },
         {
             title: 'Change Date',
             dataIndex: 'Date',
             key: 'Date',
+            width: 120,
             render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
         },
         {
             title: 'Change Time',
             dataIndex: 'Time',
             key: 'Time',
-            render: (time) => formatTime(time), // ✅ ใช้ Helper function
+            width: 120,
+            render: (time) => formatTime(time),
         },
         {
             title: 'Old Duration (R-Y-G)',
             key: 'oldDuration',
+            width: 250,
             render: (_, record) => (
                 <Flex gap="small">
                     <Tag color="red">R: {record.Old_Red_Duration ?? '-'}</Tag>
@@ -168,6 +191,7 @@ const SettingHistory: React.FC = () => {
         {
             title: 'New Duration (R-Y-G)',
             key: 'newDuration',
+            width: 250,
             render: (_, record) => (
                 <Flex gap="small">
                     <Tag color="red">R: {record.New_Red_Duration ?? '-'}</Tag>
@@ -183,11 +207,13 @@ const SettingHistory: React.FC = () => {
             title: 'Admin Name',
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
+            width: 200,
         },
         {
             title: 'Traffic Mode',
             dataIndex: 'Mode_Name',
             key: 'Mode_Name',
+            width: 150,
             render: (modeName) => {
                 let color = 'geekblue';
                 if (modeName === 'Auto') color = 'green';
@@ -201,13 +227,15 @@ const SettingHistory: React.FC = () => {
             title: 'Change Date',
             dataIndex: 'Date',
             key: 'Date',
+            width: 150,
             render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
         },
         {
             title: 'Change Time',
             dataIndex: 'Time',
             key: 'Time',
-            render: (time) => formatTime(time), // ✅ ใช้ Helper function
+            width: 150,
+            render: (time) => formatTime(time),
         },
     ];
 
@@ -221,7 +249,6 @@ const SettingHistory: React.FC = () => {
         }
     };
 
-    // ✅ แก้ Warning: Tabs.TabPane -> items
     const tabItems: TabsProps['items'] = [
         {
             key: '1',
@@ -237,7 +264,8 @@ const SettingHistory: React.FC = () => {
                         pageSizeOptions: ['10', '20', '50', '100'],
                         onChange: handleSettingModeTableChange,
                     }}
-                    scroll={{ x: 'max-content' }}
+                    // ✅ FIX: กำหนดความกว้าง Scroll เพื่อป้องกันการล้นจอ
+                    scroll={{ x: 1200 }}
                 />
             ),
         },
@@ -255,18 +283,20 @@ const SettingHistory: React.FC = () => {
                         pageSizeOptions: ['10', '20', '50', '100'],
                         onChange: handleModeLogTableChange,
                     }}
-                    scroll={{ x: 'max-content' }}
+                    // ✅ FIX: กำหนดความกว้าง Scroll เพื่อป้องกันการล้นจอ
+                    scroll={{ x: 800 }}
                 />
             ),
         },
     ];
 
     return (
-        <>
+        // ✅ FIX: ใช้ Wrapper div สีขาว เต็มจอ เพื่อล็อค Layout
+        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             {contextHolder}
-            <Flex vertical gap="large" style={{ padding: '24px' }}>
-                <Flex justify="space-between" align="center">
-                    <Title level={4} style={{ margin: 0 }}>
+            <Flex vertical gap="large">
+                <Flex justify="space-between" align="center" className="p-4 border-b border-gray-100">
+                    <Title level={4} style={{ margin: 0 }} className="text-gray-800">
                         Traffic History
                     </Title>
                     <Flex align="center" gap="small">
@@ -281,7 +311,7 @@ const SettingHistory: React.FC = () => {
                     </Flex>
                 </Flex>
 
-                <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg">
+                <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg border border-gray-200">
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '50px' }}>
                             <Spin tip="Loading..." size="large" />
@@ -293,12 +323,12 @@ const SettingHistory: React.FC = () => {
                                     key={config.Intersection_ID}
                                     className="flex-1 min-w-[250px] text-center transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg"
                                     style={{
-                                        border: '1px solid #d9d9d9',
+                                        border: '1px solid #e5e7eb', // ใช้สีเทาอ่อนให้ดู modern ขึ้น
                                         backgroundColor: '#fafafa'
                                     }}
                                 >
                                     <Flex vertical align="center" gap="small">
-                                        <h5 className="font-bold text-lg mb-2">{config.Intersection_Name || `ID: ${config.Intersection_ID}`}</h5>
+                                        <h5 className="font-bold text-lg mb-2 text-gray-800">{config.Intersection_Name || `ID: ${config.Intersection_ID}`}</h5>
                                         <div className="flex items-center gap-2 mb-1">
                                             <Tag color="red">Red</Tag>
                                             <span className="font-bold text-lg">{config.New_Red_Duration} s</span>
@@ -314,7 +344,7 @@ const SettingHistory: React.FC = () => {
                                             Date: {config.Date ? dayjs(config.Date).format('DD/MM/YYYY') : '-'}
                                         </p>
                                         <p className="text-xs text-gray-500">
-                                            Time: {formatTime(config.Time)} {/* ✅ ใช้ Helper */}
+                                            Time: {formatTime(config.Time)}
                                         </p>
                                     </Flex>
                                 </Card>
@@ -325,7 +355,7 @@ const SettingHistory: React.FC = () => {
 
                 <Card
                     title="Latest Mode Configurations"
-                    className="shadow-lg rounded-lg"
+                    className="shadow-lg rounded-lg border border-gray-200"
                     style={{ minHeight: '150px' }}
                 >
                     {loading ? (
@@ -337,7 +367,7 @@ const SettingHistory: React.FC = () => {
                             <Typography.Title level={2} style={{ margin: 0 }}>
                                 <Tag
                                     color={getModeColorForTag(latestModeConfig.Mode_Name)}
-                                    style={{ padding: '8px 16px', fontSize: '24px' }}
+                                    style={{ padding: '8px 24px', fontSize: '24px', borderRadius: '8px' }}
                                 >
                                     {latestModeConfig.Mode_Name}
                                 </Tag>
@@ -350,7 +380,7 @@ const SettingHistory: React.FC = () => {
                                     Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    Time: {formatTime(latestModeConfig.Time)} {/* ✅ ใช้ Helper */}
+                                    Time: {formatTime(latestModeConfig.Time)}
                                 </p>
                             </div>
                         </Flex>
@@ -359,12 +389,11 @@ const SettingHistory: React.FC = () => {
                     )}
                 </Card>
 
-                <Card className="shadow-lg rounded-lg">
-                    {/* ✅ ใช้ items prop แทน TabPane */}
+                <Card className="shadow-lg rounded-lg border border-gray-200">
                     <Tabs defaultActiveKey="1" items={tabItems} />
                 </Card>
             </Flex>
-        </>
+        </div>
     );
 };
 
