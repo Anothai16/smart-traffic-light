@@ -5,7 +5,7 @@ import SidePanelContent from './SidePanelContent'
 import withHeaderItem from '@/utils/hoc/withHeaderItem'
 import { setPanelExpand, useAppSelector, useAppDispatch } from '@/store'
 import type { CommonProps } from '@/@types/common'
-import { socket } from '@/services/socket'
+
 
 // 🔑 FIX 1: นำเข้า setActiveChat
 import { setActiveChat } from '@/store/chat' 
@@ -25,7 +25,7 @@ const _SidePanel = (props: SidePanelProps) => {
     const openPanel = () => {
         dispatch(setPanelExpand(true))
         // ส่ง event ไปขอข้อมูลผู้ใช้ออนไลน์ล่าสุดจาก Server
-        socket.emit('request_online_users')
+
     }
 
     const closePanel = () => {

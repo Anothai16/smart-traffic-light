@@ -3,6 +3,8 @@ import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { config } from './config';
 import { closeDbPool } from './config/db.config'; 
+import { uploadRoutes } from './routes/upload.routes';
+import { staticPlugin } from '@elysiajs/static';
 
 import { swagger } from '@elysiajs/swagger';
 // import { io } from './socket-server';
@@ -10,6 +12,18 @@ import { appRoutes } from './router';
 const app = new Elysia()
     .use(cors({ origin: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }))
     .use(swagger())
+    .use(appRoutes)
+    .use(staticPlugin({
+        // ชี้ไปที่โฟลเดอร์ที่เก็บรูปใน Docker
+        assets: process.env.IMAGE_ROOT_PATH || 'traffic_data',
+        // ชื่อนำหน้า URL (ต้องตรงกับ STATIC_PREFIX ใน .env)
+        prefix: '/static/traffic-images'
+    }))
+
+    // 4. ✅ เพิ่ม Route อัปโหลดรูปภาพ
+    .use(uploadRoutes)
+
+    // 5. Route หลักอื่นๆ ของแอป
     .use(appRoutes)
     // 👇 แก้ส่วน onError ตามนี้ครับ
     .onError(({ code, error, set }) => {
