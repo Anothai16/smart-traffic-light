@@ -1,8 +1,8 @@
-// src/views/dashboard/ProjectDashboard.tsx (FINAL CODE: Aesthetic V3 + Interactive Pie Chart)
+// src/views/dashboard/ProjectDashboard.tsx (FINAL CODE: Clean Version)
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-// Ant Design components used for functionality (DatePicker, Table, Button, Typography, Tag)
-import { DatePicker, Table, Tag, Button, Typography, Spin, Divider } from 'antd'; 
+// Ant Design components used for functionality
+import { DatePicker, Table, Tag, Button, Typography, Spin, Divider, Card, Flex, Row, Col } from 'antd'; 
 import type { TableProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -26,7 +26,7 @@ import classNames from 'classnames';
 
 dayjs.extend(isSameOrBefore);
 
-const { Text } = Typography; 
+const { Title, Text } = Typography; 
 
 // ----------------------------------------------------
 // 1. INTERFACES (Type Definitions)
@@ -163,7 +163,6 @@ const getLaneColumns = () => LANE_NAMES.map(lane => ({
 const ProjectDashboard = () => {
     const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs('2025-09-24'));
     const [loading, setLoading] = useState(false);
-    // NEW STATE: สำหรับเก็บ Index ของ Pie Slice ที่กำลัง Hover เพื่อแสดงลูกเล่น
     const [activeIndex, setActiveIndex] = useState(-1); 
 
     // --- Data Processing ---
@@ -251,31 +250,25 @@ const ProjectDashboard = () => {
     };
 
     // --- Interactive Pie Chart Logic ---
-    
-    // Custom Active Shape สำหรับ Pie Chart (ลูกเล่น: Expand และแสดง Label)
     const renderActiveShape = (props: any) => {
         const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props;
         const RADIAN = Math.PI / 180;
-        
-        // คำนวณตำแหน่งสำหรับ Label ที่อยู่กลาง Sector
         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
         const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
         return (
             <g>
-                {/* 1. Sector ที่ขยายใหญ่ขึ้น (Expand effect) */}
                 <Sector
                     cx={cx}
                     cy={cy}
                     innerRadius={innerRadius}
-                    outerRadius={outerRadius + 15} // ขยายเพิ่ม 15 units เมื่อ Hover
+                    outerRadius={outerRadius + 15} // Expand
                     startAngle={startAngle}
                     endAngle={endAngle}
                     fill={fill}
                     className="shadow-md transition-all duration-300"
                 />
-                {/* 2. Label กลาง Sector (แสดงชื่อและ % อย่างชัดเจน) */}
                 <text 
                     x={x} 
                     y={y} 
@@ -291,205 +284,171 @@ const ProjectDashboard = () => {
         );
     };
     
-    // Handlers สำหรับ Pie Chart Interactive
-    const onPieEnter = useCallback((_: unknown, index: number) => {
-        setActiveIndex(index);
-    }, []);
-
-    const onPieLeave = useCallback(() => {
-        setActiveIndex(-1);
-    }, []);
+    const onPieEnter = useCallback((_: unknown, index: number) => { setActiveIndex(index); }, []);
+    const onPieLeave = useCallback(() => { setActiveIndex(-1); }, []);
 
     // ----------------------------------------------------
-    // 5. UI Rendering (Enhanced Organization & Aesthetics)
+    // 5. UI Rendering
     // ----------------------------------------------------
 
     return (
-        <div className="p-6 md:p-10 bg-gray-50 min-h-screen"> 
+        // ✅ FIX: Wrapper สีขาว เต็มจอ เหมือนหน้าอื่นๆ
+        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}> 
             
-            {/* --- SECTION: HEADER & CONTROLS --- */}
-            <header className="bg-white p-6 rounded-2xl shadow-xl mb-10">
-                <div className="flex flex-wrap justify-between items-center gap-4">
-                    <h1 className="text-3xl font-extrabold text-gray-800 flex items-center">
-                        <CarOutlined className="mr-3 text-blue-600 text-4xl" /> Smart Traffic Operations Dashboard
-                    </h1>
-                    <div className="flex items-center gap-4">
+            {/* ✅ FIX: ใช้ Flex vertical gap="large" เพื่อคุม Layout ทั้งหน้า */}
+            <Flex vertical gap="large">
+
+                {/* --- HEADER --- */}
+                <Flex justify="space-between" align="middle" wrap="wrap" gap="small">
+                    <Title level={4} style={{ margin: 0 }} className="text-gray-800">
+                        Smart Traffic Operations Dashboard
+                    </Title>
+                    <Flex gap="middle">
                         <DatePicker 
                             onChange={(date) => { if (date) setSelectedDate(date); }}
                             value={selectedDate}
                             placeholder="Select Date" 
                             allowClear={false}
-                            size="large"
                             style={{ minWidth: 150 }}
                         />
-                        <Button icon={<SyncOutlined />} onClick={loadData} loading={loading} type="primary" size="large">
+                        <Button icon={<SyncOutlined />} onClick={loadData} loading={loading} type="primary">
                             Refresh Data
                         </Button>
-                    </div>
-                </div>
-            </header>
-            
-            {/* --- SECTION: KEY PERFORMANCE INDICATORS (KPI) --- */}
-            <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center">
-                <LineChartOutlined className="mr-2 text-blue-500" /> Executive Summary: Traffic Volume ({selectedDate.format('DD MMMM YYYY')})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    </Flex>
+                </Flex>
                 
-                {/* KPI Card 1: Total Vehicles */}
-                <div className="bg-white p-6 rounded-xl shadow-2xl transition-all duration-300 hover:shadow-blue-300/50 border-b-4 border-blue-500 flex flex-col justify-between">
-                    <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-2">Total Vehicle Count</p>
-                    <div className='flex justify-between items-center'>
-                        <h3 className="text-5xl font-extrabold text-blue-600">{totalVehicleCount.toLocaleString()}</h3>
-                        <CarOutlined className="text-6xl text-blue-300 opacity-50" />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2"><ClockCircleOutlined className="mr-1" /> Data for the selected day</p>
-                </div>
+                {/* --- SECTION: KPI GRID --- */}
+                {/* ใช้ Card ของ Ant Design ให้ดูสะอาดขึ้น */}
+                <Card className="shadow-md rounded-xl border border-gray-100" bodyStyle={{ padding: '24px' }}>
+                    <Title level={5} style={{ marginTop: 0, marginBottom: 16 }} className="text-gray-600 flex items-center">
+                        <LineChartOutlined className="mr-2 text-blue-500" /> Executive Summary ({selectedDate.format('DD MMMM YYYY')})
+                    </Title>
+                    <Row gutter={[24, 24]}>
+                        {/* KPI 1 */}
+                        <Col xs={24} md={12} lg={6}>
+                            <Card className="h-full shadow-sm hover:shadow-md transition-all border-l-4 border-blue-500">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Total Vehicle Count</p>
+                                <div className='flex justify-between items-center'>
+                                    <h3 className="text-4xl font-extrabold text-blue-600 mb-0">{totalVehicleCount.toLocaleString()}</h3>
+                                    <CarOutlined className="text-4xl text-blue-300 opacity-50" />
+                                </div>
+                            </Card>
+                        </Col>
+                        {/* KPI 2 */}
+                        <Col xs={24} md={12} lg={6}>
+                            <Card className={classNames("h-full shadow-sm hover:shadow-md transition-all border-l-4", dailyChangeInfo.change > 0 ? "border-green-500" : dailyChangeInfo.change < 0 ? "border-red-500" : "border-gray-400")}>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Daily Change (%)</p>
+                                {dailyChangeInfo.total === 0 ? (<p className="text-gray-500 text-3xl font-bold mb-0">N/A</p>) : (<ChangeDisplay change={dailyChangeInfo.change} percent={dailyChangeInfo.percent} />)}
+                            </Card>
+                        </Col>
+                        {/* KPI 3 */}
+                        <Col xs={24} md={12} lg={6}>
+                            <Card className="h-full shadow-sm hover:shadow-md transition-all border-l-4 border-amber-500">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Busiest Lane</p>
+                                <h3 className="text-2xl font-bold text-amber-600 mb-0 truncate">{busiestLaneInfo.lane}</h3>
+                                <p className="text-gray-500 text-sm">{busiestLaneInfo.count.toLocaleString()} Vehicles</p>
+                            </Card>
+                        </Col>
+                        {/* KPI 4 */}
+                        <Col xs={24} md={12} lg={6}>
+                            <Card className="h-full shadow-sm hover:shadow-md transition-all border-l-4 border-red-500">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Critical Red Light</p>
+                                <div className='flex justify-between items-center'>
+                                    <h3 className="text-4xl font-extrabold text-red-600 mb-0">{currentDayData.reduce((sum, item) => sum + item.Red_Count, 0).toLocaleString()}</h3>
+                                    <AlertOutlined className="text-4xl text-red-300 opacity-50" />
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
+                </Card>
 
-                {/* KPI Card 2: Daily Change */}
-                <div className={classNames("bg-white p-6 rounded-xl shadow-2xl transition-all duration-300 hover:shadow-green-300/50",dailyChangeInfo.change > 0 ? "border-b-4 border-green-500" : dailyChangeInfo.change < 0 ? "border-b-4 border-red-500" : "border-b-4 border-gray-400")}>
-                    <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-2">Daily Change (%)</p>
-                    {dailyChangeInfo.total === 0 ? (<p className="text-gray-500 pt-2 text-3xl font-bold">N/A</p>) : (<ChangeDisplay change={dailyChangeInfo.change} percent={dailyChangeInfo.percent} />)}
-                    <p className="text-xs text-gray-400 mt-2">vs. {selectedDate.subtract(1, 'day').format('DD MMMM')}</p>
-                </div>
+                {/* --- SECTION: CHARTS --- */}
+                <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={16}>
+                        <Card className="shadow-lg rounded-xl h-full" title={<span className="text-gray-700 font-semibold">Hourly Traffic Trend</span>}>
+                            <div style={{ height: 350 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={mockHourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
+                                        <XAxis dataKey="Hour" tickLine={false} axisLine={false} stroke="#555" />
+                                        <YAxis tickLine={false} axisLine={false} stroke="#555" />
+                                        <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #ccc' }} formatter={(value: number, name: string) => [`${value.toLocaleString()}`, name.split('(')[0].trim()]} />
+                                        <Legend iconType="circle" wrapperStyle={{ paddingTop: 10 }} />
+                                        {Object.keys(LINE_BAR_COLORS).map((lane) => (
+                                            <Area 
+                                                key={lane}
+                                                type="monotone" 
+                                                dataKey={lane} 
+                                                stroke={LINE_BAR_COLORS[lane as keyof typeof LINE_BAR_COLORS]}
+                                                fill={LINE_BAR_COLORS[lane as keyof typeof LINE_BAR_COLORS]} 
+                                                fillOpacity={0.15} 
+                                                strokeWidth={2}
+                                            />
+                                        ))}
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={8}>
+                        <Card className="shadow-lg rounded-xl h-full" title={<span className="text-gray-700 font-semibold">Vehicle Distribution</span>}>
+                            <div style={{ height: 350 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={pieData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60} // Donut style looks cleaner
+                                            outerRadius={100} 
+                                            paddingAngle={3} 
+                                            activeShape={renderActiveShape} 
+                                            onMouseEnter={onPieEnter} 
+                                            onMouseLeave={onPieLeave} 
+                                        >
+                                            {pieData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={0} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ borderRadius: 8 }} />
+                                        <Legend layout="horizontal" verticalAlign="bottom" align="center" />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </Card>
+                    </Col>
+                </Row>
 
-                 {/* KPI Card 3: Busiest Lane */}
-                 <div className="bg-white p-6 rounded-xl shadow-2xl transition-all duration-300 hover:shadow-amber-300/50 border-b-4 border-amber-500 flex flex-col justify-between">
-                    <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-2">Busiest Lane</p>
-                    <h3 className="text-3xl font-bold text-amber-600 mt-1">{busiestLaneInfo.lane}</h3>
-                    <p className="text-xl text-gray-800 font-bold mb-3">{busiestLaneInfo.count.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400">Vehicles</p>
-                </div>
-
-                {/* KPI Card 4: Critical Alert Status */}
-                <div className="bg-white p-6 rounded-xl shadow-2xl transition-all duration-300 hover:shadow-red-300/50 border-b-4 border-red-500 flex flex-col justify-between">
-                    <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-2">Critical Red Light Count</p>
-                    <div className='flex justify-between items-center'>
-                        <h3 className="text-5xl font-extrabold text-red-600">{currentDayData.reduce((sum, item) => sum + item.Red_Count, 0).toLocaleString()}</h3>
-                        <AlertOutlined className="text-6xl text-red-300 opacity-50" />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">High priority for review</p>
-                </div>
-            </div>
-
-            {/* --- SECTION: DAILY VISUALIZATION (Charts) --- */}
-            <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center">
-                <LineChartOutlined className="mr-2 text-blue-500" /> Daily Visual Analysis
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+                {/* --- SECTION: TABLES --- */}
+                <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={12}>
+                        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><CarOutlined className="text-blue-500" /> Lane Breakdown</span>}>
+                            <Table columns={vehicleTableColumns} dataSource={currentDayData} pagination={false} rowKey="Lane" size="middle" scroll={{ x: 400 }} />
+                        </Card>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><AlertOutlined className="text-red-500" /> Violations</span>}>
+                            <Table columns={trafficTableColumns} dataSource={currentDayData} pagination={false} rowKey="Lane" size="middle" scroll={{ x: 400 }} />
+                        </Card>
+                    </Col>
+                </Row>
                 
-                {/* 1. Hourly Traffic Trend (Area Chart) */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl">
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">Hourly Traffic Trend</h3>
-                    <p className="text-sm text-gray-500 mb-6">Vehicle count trend across all lanes throughout the measured hours.</p>
-                    <ResponsiveContainer width="100%" height={350}>
-                        <AreaChart data={mockHourlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
-                            <XAxis dataKey="Hour" tickLine={false} axisLine={false} stroke="#555" />
-                            <YAxis tickLine={false} axisLine={false} stroke="#555" />
-                            <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #ccc', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }} formatter={(value: number, name: string) => [`${value.toLocaleString()} vehicles`, name.split('(')[0].trim()]} />
-                            <Legend iconType="circle" wrapperStyle={{ paddingTop: 10 }} />
-                            
-                            {Object.keys(LINE_BAR_COLORS).map((lane) => (
-                                <Area 
-                                    key={lane}
-                                    type="monotone" 
-                                    dataKey={lane} 
-                                    stroke={LINE_BAR_COLORS[lane as keyof typeof LINE_BAR_COLORS]}
-                                    fill={LINE_BAR_COLORS[lane as keyof typeof LINE_BAR_COLORS]} 
-                                    fillOpacity={0.15} 
-                                    strokeWidth={2}
-                                    dot={false}
-                                    activeDot={{ r: 6, stroke: '#fff', strokeWidth: 3 }}
-                                />
-                            ))}
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-                
-                {/* 2. Lane Distribution (Interactive Pie Chart) */}
-                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl">
-                    <h3 className="text-xl font-semibold text-gray-700 mb-4">Vehicle Distribution by Lane</h3>
-                    <div className="h-80 relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={pieData}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={0} // Standard Pie Chart
-                                    outerRadius={140} 
-                                    paddingAngle={3} 
-                                    activeShape={renderActiveShape} 
-                                    onMouseEnter={onPieEnter} 
-                                    onMouseLeave={onPieLeave} 
-                                >
-                                    {pieData.map((entry, index) => (
-                                        <Cell 
-                                            key={`cell-${index}`} 
-                                            fill={PIE_COLORS[index % PIE_COLORS.length]} 
-                                            stroke="#f9fafb" 
-                                            strokeWidth={3}
-                                        />
-                                    ))}
-                                </Pie>
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: 8, border: '1px solid #ccc' }}
-                                    formatter={(value: number, name: string, props) => [`${value.toLocaleString()} (${(props.payload as any).percent}%)`, name]} 
-                                />
-                                <Legend layout="vertical" verticalAlign="middle" align="right" iconType="circle" />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
+                {/* --- SECTION: WEEKLY TABLE --- */}
+                <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><TableOutlined className="text-blue-500" /> Weekly Pattern Analysis</span>}>
+                    <Table
+                        columns={laneWeeklyColumns}
+                        dataSource={mockLaneWeeklyData}
+                        pagination={false}
+                        rowKey="DayName"
+                        size="middle" 
+                        scroll={{ x: 1000 }}
+                        rowClassName={getWeeklyRowClassName} 
+                    />
+                </Card>
 
-            {/* --- SECTION: DAILY SUMMARY TABLES --- */}
-            <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center">
-                <TableOutlined className="mr-2 text-blue-500" /> Detailed Daily Summary
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <h3 className="text-xl font-semibold text-gray-700 p-4 border-b flex items-center">
-                         <CarOutlined className="mr-2 text-blue-500" /> Lane Vehicle Count Breakdown
-                    </h3>
-                    <Table columns={vehicleTableColumns} dataSource={currentDayData} pagination={false} rowKey="Lane" size="large" />
-                </div>
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <h3 className="text-xl font-semibold text-gray-700 p-4 border-b flex items-center">
-                         <AlertOutlined className="mr-2 text-red-500" /> Signal Violation Breakdown
-                    </h3>
-                     <Table columns={trafficTableColumns} dataSource={currentDayData} pagination={false} rowKey="Lane" size="large" />
-                </div>
-            </div>
-            
-            {/* --- SECTION: WEEKLY COMPARISON --- */}
-            <h2 className="text-2xl font-bold text-gray-700 mb-6 flex items-center">
-                <TableOutlined className="mr-2 text-blue-500" /> Weekly Pattern Analysis (Sat - Fri)
-            </h2>
-            <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
-                <p className="text-sm text-gray-500 mb-6">Comparative view of traffic patterns over a week, highlighting peak days and lanes.</p>
-                <Table
-                    columns={laneWeeklyColumns}
-                    dataSource={mockLaneWeeklyData}
-                    pagination={false}
-                    rowKey="DayName"
-                    size="large" 
-                    scroll={{ x: 900 }}
-                    rowClassName={getWeeklyRowClassName} 
-                    bordered={false} 
-                />
-                <Text type="secondary" className="mt-4 block text-sm">
-                    **Legend:**
-                    <span className="inline-block w-4 h-2 bg-green-100 border border-green-300 ml-4 mr-2 align-middle"></span> 
-                    Cell ที่มีปริมาณรถ **สูงสุด** ในสัปดาห์ (Max Lane Traffic) | 
-                    <span className="inline-block w-4 h-2 bg-yellow-100/80 border border-yellow-300 ml-4 mr-2 align-middle"></span> 
-                    วันที่ปริมาณรถ **รวม** สูงสุดในสัปดาห์ |
-                    <span className="inline-block w-4 h-2 bg-blue-50 border border-blue-200 ml-4 mr-2 align-middle"></span> 
-                    วันหยุดสุดสัปดาห์ (Sat, Sun)
-                </Text>
-            </div>
+            </Flex>
         </div>
     );
 };

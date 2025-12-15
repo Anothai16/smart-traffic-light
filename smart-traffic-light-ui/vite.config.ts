@@ -6,9 +6,7 @@ import dynamicImport from 'vite-plugin-dynamic-import'
 export default defineConfig({
   plugins: [react({
     babel: {
-      plugins: [
-        'babel-plugin-macros'
-      ]
+      plugins: ['babel-plugin-macros']
     }
   }),
   dynamicImport()],
@@ -23,34 +21,33 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
-    host: true, 
-    port: 5173, 
+    host: true,
+    port: 5173,
     watch: {
-      usePolling: true 
+      usePolling: true
     },
     proxy: {
-      // ✅ 1. สำหรับรูปภาพ (สำคัญที่สุด! เพื่อแก้ Mixed Content)
-      // เมื่อ Frontend เรียก /static/... ให้ส่งไป Backend
-      '/static': {
-        target: 'http://elysia-backend:3000', 
+      // ✅ 1. ตั้งค่า Socket.io (สำคัญมาก ถ้าไม่ใส่จะต่อ Socket ไม่ได้)
+      '/socket.io': {
+        target: 'http://elysia-backend:3000',
+        ws: true, // เปิดใช้งาน WebSocket Proxy
         changeOrigin: true,
       },
 
-      // ✅ 2. สำหรับ Upload รูป (จำเป็นเพราะเราลบ Base URL ออกแล้ว)
-      '/upload': {
+      // ✅ 2. รูปภาพ
+      '/static': {
         target: 'http://elysia-backend:3000',
         changeOrigin: true,
       },
 
-      // ✅ 3. สำหรับ API อื่นๆ (ถ้าคุณเรียกผ่าน /api)
+      // ✅ 3. API หลัก (ต้องสอดคล้องกับ VITE_API_URL=/api)
       '/api': {
         target: 'http://elysia-backend:3000',
         changeOrigin: true,
-        // ถ้า Backend คุณไม่ได้ขึ้นต้นด้วย /api ให้ใช้ rewrite ตัดออก
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        // สำคัญ: ตัด /api ออกก่อนส่งให้ Backend
+        // Frontend ส่ง: /api/auth/login -> Backend รับ: /auth/login
+        rewrite: (path) => path.replace(/^\/api/, ''), 
       },
-      
-      // (ถ้ามี API Login/Auth อื่นๆ ที่ไม่ได้ขึ้นต้นด้วย /api ให้เพิ่มตรงนี้ได้ครับ)
     },
   },
 });

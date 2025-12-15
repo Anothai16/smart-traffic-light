@@ -158,7 +158,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'ชื่อแยก',
             dataIndex: 'Name',
             key: 'Name',
-            width: 250, // กำหนดความกว้างให้พอดี
+            width: 200, // กำหนดความกว้างให้พอดี
             sorter: (a, b) => a.Name.localeCompare(b.Name),
             // ใส่ style เพื่อบังคับไม่ให้ตัดบรรทัด
             render: (text) => <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</div>,
@@ -167,7 +167,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'ตำแหน่ง',
             dataIndex: 'Location',
             key: 'Location',
-            width: 300, // ให้พื้นที่เยอะหน่อยสำหรับที่อยู่ยาวๆ
+            width: 250, // ให้พื้นที่เยอะหน่อยสำหรับที่อยู่ยาวๆ
             render: (text) => <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</div>,
         },
         {
@@ -216,78 +216,84 @@ const IntersectionManagement: React.FC = () => {
     ];
 
     return (
-        <div className="p-6">
-            <Title level={2}>Intersection Management</Title>
-            <Flex justify="flex-end" className="mb-4">
-                <Button
-                    type="primary"
-                    size="large"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
+        // ✅ FIX: ใช้ Wrapper div แบบเดียวกับหน้าอื่นๆ เพื่อล็อค Layout
+        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
+            <Flex vertical gap="large">
+                <Flex justify="space-between" align="middle" className="mb-2">
+                    {/* ✅ FIX: ใช้ Title level 4 และ style เดิม */}
+                    <Title level={4} style={{ margin: 0 }} className="text-gray-800">
+                        Intersection Management
+                    </Title>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleAdd}
+                    >
+                        Add new Intersection
+                    </Button>
+                </Flex>
+
+                <Card className="shadow-lg rounded-lg border border-gray-200">
+                    <Table
+                        columns={columns}
+                        dataSource={intersections}
+                        rowKey="Intersection_ID"
+                        loading={loading}
+                        pagination={{ pageSize: 10 }}
+                        // ✅ เพิ่ม scroll fixed pixel เพื่อป้องกันการดัน Layout
+                        scroll={{ x: 1000 }} 
+                    />
+                </Card>
+
+                <Modal
+                    title={editingIntersection ? 'Edit intersection detail' : 'Add new intersection'}
+                    open={isModalVisible} // ใช้ open แทน visible ใน antd เวอร์ชั่นใหม่ (แต่ถ้าเวอร์ชั่นเก่าใช้ visible ก็แก้เป็น visible ได้ครับ)
+                    onOk={handleModalSubmit}
+                    onCancel={handleCancel}
+                    okText={editingIntersection ? 'Save' : 'Add'}
+                    cancelText="Cancel"
                 >
-                    Add new Intersection
-                </Button>
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        name="intersection_form"
+                        initialValues={{ Intersection_Number: 1 }}
+                    >
+                        <Form.Item
+                            name="Name"
+                            label="Intersection Name"
+                            rules={[{ required: true, message: 'Please insert intersection name!' }]}
+                        >
+                            <Input />
+                        </Form.Item>
+                        
+                        <Form.Item
+                            name="Intersection_Number"
+                            label="Intersection Number"
+                            rules={[{ required: true, message: 'Please insert number!' }]}
+                        >
+                            <InputNumber style={{ width: '100%' }} min={1} />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="Location"
+                            label="Location"
+                            rules={[{ required: true, message: 'Please insert location!' }]}
+                        >
+                            <Input />
+                        </Form.Item>
+                        <Form.Item
+                            name="IP_Address"
+                            label="IP Address"
+                            rules={[
+                                { required: true, message: 'Please insert IP Address!' },
+                            ]}
+                        >
+                            <Input />
+                        </Form.Item>
+                    </Form>
+                </Modal>
             </Flex>
-            <Card className="shadow-lg rounded-lg">
-                <Table
-                    columns={columns}
-                    dataSource={intersections}
-                    rowKey="Intersection_ID"
-                    loading={loading}
-                    pagination={{ pageSize: 10 }}
-                    // ✅ เพิ่ม scroll เพื่อให้ตารางเลื่อนแนวนอนได้ถ้าข้อมูลยาวเกินจอ (ช่วยเรื่องไม่ตกบรรทัด)
-                    scroll={{ x: 'max-content' }} 
-                />
-            </Card>
-
-            <Modal
-                title={editingIntersection ? 'Edit intersection detail' : 'Add new intersection'}
-                visible={isModalVisible}
-                onOk={handleModalSubmit}
-                onCancel={handleCancel}
-                okText={editingIntersection ? 'Save' : 'Add'}
-                cancelText="Cancel"
-            >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    name="intersection_form"
-                    initialValues={{ Intersection_Number: 1 }}
-                >
-                    <Form.Item
-                        name="Name"
-                        label="Intersection Name"
-                        rules={[{ required: true, message: 'Please insert intersection name!' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-                    
-                    <Form.Item
-                        name="Intersection_Number"
-                        label="Intersection Number"
-                        rules={[{ required: true, message: 'Please insert number!' }]}
-                    >
-                        <InputNumber style={{ width: '100%' }} min={1} />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="Location"
-                        label="Location"
-                        rules={[{ required: true, message: 'Please insert location!' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-                    <Form.Item
-                        name="IP_Address"
-                        label="IP Address"
-                        rules={[
-                            { required: true, message: 'Please insert IP Address!' },
-                        ]}
-                    >
-                        <Input />
-                    </Form.Item>
-                </Form>
-            </Modal>
         </div>
     );
 };

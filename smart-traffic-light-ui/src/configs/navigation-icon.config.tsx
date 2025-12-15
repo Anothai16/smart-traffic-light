@@ -8,7 +8,7 @@ import {
 import { FaTrafficLight ,FaTachometerAlt } from 'react-icons/fa'
 import { BiSolidDashboard } from "react-icons/bi";
 import { LuHistory } from "react-icons/lu";
-import { UserOutlined , PictureOutlined , DashboardOutlined} from '@ant-design/icons'
+import { UserOutlined , PictureOutlined , DashboardOutlined, AppstoreOutlined,} from '@ant-design/icons'
 import { GrPerformance } from "react-icons/gr";
 import { TbDeviceCctvFilled } from "react-icons/tb";
 import { GrDocumentConfig } from "react-icons/gr";
@@ -27,6 +27,7 @@ const navigationIcon: NavigationIcons = {
     performance: <GrPerformance />,
     camera: <TbDeviceCctvFilled />,
     permissionconfig: <GrDocumentConfig />,
+    appstore: <AppstoreOutlined />,
 }
 
 export default navigationIcon

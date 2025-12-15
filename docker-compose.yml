@@ -11,7 +11,7 @@ services:
     environment:
       # Browser ของผู้ใช้จะเรียก API ผ่าน localhost (พอร์ตที่เปิดออกมา)
       # - VITE_API_URL=http://localhost:3000
-      - VITE_API_URL=""
+      - VITE_API_URL=/api
     depends_on:
       - backend
 

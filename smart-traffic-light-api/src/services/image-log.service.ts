@@ -17,7 +17,6 @@ const LANE_CONFIG: { [laneName: string]: string } = {
     [process.env.LANE_4_NAME || 'Lane 4']: path.join(IMAGE_ROOT_PATH, process.env.LANE_4_FOLDER || 'Lane4'),
 };
 
-console.log('[ImageLog] Final Resolved Config:', LANE_CONFIG);
 
 export interface ImageObject {
     id: string;
