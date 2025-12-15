@@ -152,7 +152,6 @@ const AccountConfiguration: React.FC = () => {
         setEditingAccount(null);
         setIsModalOpen(true);
         form.resetFields();
-        // ✅ ใช้วันที่ปัจจุบันเป็น Register_Date อัตโนมัติ ตอนสร้างใหม่
         form.setFieldsValue({
             Register_Date: dayjs(),
         });
@@ -163,7 +162,6 @@ const AccountConfiguration: React.FC = () => {
         form.resetFields();
     };
 
-    // ✅ Helper ตรวจ AxiosError
     function isAxiosError(error: any): error is import('axios').AxiosError<ErrorResponseData> {
         return error?.isAxiosError === true;
     }
@@ -173,7 +171,7 @@ const AccountConfiguration: React.FC = () => {
             setLoading(true);
 
             if (editingAccount) {
-                // 🟣 Edit mode: ไม่ให้แก้ Register_Date → ไม่ต้องส่งไป
+                // 🟣 แก้ไข (Edit):
                 const passwordFields =
                     values.password && values.confirmPassword
                         ? {
@@ -188,14 +186,16 @@ const AccountConfiguration: React.FC = () => {
                     Email: values.Email,
                     Phone_Number: values.Phone_Number,
                     Role: values.Role,
-                    // ❌ ไม่ส่ง Register_Date เพื่อให้ backend เก็บของเดิม
+                    // ✅ FIX: ส่ง Register_Date กลับไป (เป็น String) เพื่อแก้ปัญหา 400 Bad Request
+                    // (Backend น่าจะต้องการฟิลด์นี้แม้จะเป็นการ Update)
+                    Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
                     ...passwordFields,
                 };
 
                 await apiUpdateAccount(editingAccount.Admin_ID, payload);
                 messageApi.success('Account updated successfully!');
             } else {
-                // 🟢 Create mode: ตั้ง Register_Date เป็นวันที่ปัจจุบันเสมอ
+                // 🟢 สร้างใหม่ (Create):
                 const payload = {
                     username: values.Username,
                     password: values.password,
@@ -230,23 +230,27 @@ const AccountConfiguration: React.FC = () => {
             dataIndex: 'First_Name',
             key: 'First_Name',
             sorter: (a, b) => a.First_Name.localeCompare(b.First_Name),
+            width: 150,
         },
         {
             title: 'Lastname',
             dataIndex: 'Last_Name',
             key: 'Last_Name',
             sorter: (a, b) => a.Last_Name.localeCompare(b.Last_Name),
+            width: 150,
         },
         {
             title: 'Email',
             dataIndex: 'Email',
             key: 'Email',
             sorter: (a, b) => a.Email.localeCompare(b.Email),
+            width: 200,
         },
         {
             title: 'ID Card',
             dataIndex: 'ID_Card',
             key: 'ID_Card',
+            width: 150,
             render: (text: string) => {
                 if (!text || text.length <= 4) {
                     return text;
@@ -260,6 +264,7 @@ const AccountConfiguration: React.FC = () => {
             title: 'Register date',
             dataIndex: 'Register_Date',
             key: 'Register_Date',
+            width: 120,
             render: (date: string) => {
                 const formattedDate = dayjs.utc(date);
                 return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
@@ -270,6 +275,7 @@ const AccountConfiguration: React.FC = () => {
             title: 'Role',
             dataIndex: 'Role',
             key: 'Role',
+            width: 100,
             render: (role: Account['Role']) => (
                 <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
                     {role ? role.toUpperCase() : '-'}
@@ -280,6 +286,8 @@ const AccountConfiguration: React.FC = () => {
         {
             title: 'Actions',
             key: 'actions',
+            width: 150,
+            fixed: 'right', // ✅ FIX: ตรึงปุ่มไว้ขวา เพื่อไม่ให้เลื่อนหายไปไหน
             render: (_, record) => (
                 <Space size="middle">
                     {userAuthority.includes('SuperAdmin') && (
@@ -308,11 +316,11 @@ const AccountConfiguration: React.FC = () => {
     ];
 
     return (
-        // ✅ ใช้ div wrapper เหมือนหน้าอื่น เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
+        // ✅ FIX: ใช้ Wrapper div แบบเดียวกับหน้าอื่นๆ เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             {contextHolder}
             <Flex vertical gap="large">
-                <Flex justify="space-between" align="middle">
+                <Flex justify="space-between" align="middle" wrap="wrap" gap="small">
                     <Title level={4} style={{ margin: 0 }}>
                         All Account
                     </Title>
@@ -331,6 +339,7 @@ const AccountConfiguration: React.FC = () => {
                         </Button>
                     </Flex>
                 </Flex>
+
                 <Card className="shadow-lg rounded-lg border border-gray-200">
                     <Table
                         columns={columns}
@@ -338,10 +347,11 @@ const AccountConfiguration: React.FC = () => {
                         rowKey="Admin_ID"
                         pagination={{ pageSize: 10 }}
                         loading={loading}
-                        // ✅ เพิ่ม scroll เพื่อป้องกันตารางดัน layout
+                        // ✅ FIX: เพิ่ม scroll เพื่อป้องกันตารางดัน layout และให้เลื่อนแนวนอนได้
                         scroll={{ x: 1000 }}
                     />
                 </Card>
+
                 <Modal
                     title={editingAccount ? 'Edit Account' : 'Create New Account'}
                     open={isModalOpen}
@@ -444,7 +454,6 @@ const AccountConfiguration: React.FC = () => {
                                         label="Register date"
                                         rules={[{ required: true, message: 'Please select register date!' }]}
                                     >
-                                        {/* ✅ ให้ดูได้ แต่แก้ไม่ได้ ทั้งตอนสร้างและตอนแก้ */}
                                         <DatePicker style={{ width: '100%' }} disabled />
                                     </Form.Item>
                                 </Col>
