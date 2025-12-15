@@ -1,13 +1,35 @@
 // src/views/account-config/AccountConfiguration.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Input, Button, Flex, Tag, Typography, Modal, Form, DatePicker, Row, Col, Popconfirm, Space, Select, message } from 'antd';
+import {
+    Card,
+    Table,
+    Input,
+    Button,
+    Flex,
+    Tag,
+    Typography,
+    Modal,
+    Form,
+    DatePicker,
+    Row,
+    Col,
+    Popconfirm,
+    Space,
+    Select,
+    message,
+} from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { apiGetAccounts, apiCreateAccount, apiDeleteAccount, apiUpdateAccount } from '@/services/AccountConfigurationService';
-import type { AxiosResponse, AxiosError } from 'axios';
+import {
+    apiGetAccounts,
+    apiCreateAccount,
+    apiDeleteAccount,
+    apiUpdateAccount,
+} from '@/services/AccountConfigurationService';
+import type { AxiosError } from 'axios';
 import { ColumnsType } from 'antd/es/table';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store';
@@ -53,7 +75,10 @@ const AccountConfiguration: React.FC = () => {
     const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
 
     const roleOptions = userAuthority.includes('SuperAdmin')
-        ? [{ value: 'Admin', label: 'Admin' }, { value: 'SuperAdmin', label: 'SuperAdmin' }]
+        ? [
+            { value: 'Admin', label: 'Admin' },
+            { value: 'SuperAdmin', label: 'SuperAdmin' },
+        ]
         : [{ value: 'Admin', label: 'Admin' }];
 
     const fetchAccounts = async () => {
@@ -64,7 +89,7 @@ const AccountConfiguration: React.FC = () => {
                 setAccounts(response.data.accounts);
             }
         } catch (error) {
-            console.error("Failed to fetch accounts:", error);
+            console.error('Failed to fetch accounts:', error);
             messageApi.error('Failed to fetch accounts.');
         } finally {
             setLoading(false);
@@ -82,10 +107,10 @@ const AccountConfiguration: React.FC = () => {
 
     const handleSearch = (value: string) => {
         setSearchText(value);
-        const filteredData = accounts.filter(account =>
-            Object.values(account).some(val =>
-                String(val).toLowerCase().includes(value.toLowerCase())
-            )
+        const filteredData = accounts.filter((account) =>
+            Object.values(account).some((val) =>
+                String(val).toLowerCase().includes(value.toLowerCase()),
+            ),
         );
         setAccounts(filteredData);
     };
@@ -101,7 +126,7 @@ const AccountConfiguration: React.FC = () => {
             }
         } catch (error) {
             const err = error as AxiosError<any>;
-            console.error("Failed to delete account:", err);
+            console.error('Failed to delete account:', err);
             messageApi.error(err.response?.data?.message || 'Failed to delete account.');
         }
     };
@@ -127,6 +152,10 @@ const AccountConfiguration: React.FC = () => {
         setEditingAccount(null);
         setIsModalOpen(true);
         form.resetFields();
+        // ✅ ใช้วันที่ปัจจุบันเป็น Register_Date อัตโนมัติ ตอนสร้างใหม่
+        form.setFieldsValue({
+            Register_Date: dayjs(),
+        });
     };
 
     const handleCancel = () => {
@@ -134,14 +163,23 @@ const AccountConfiguration: React.FC = () => {
         form.resetFields();
     };
 
+    // ✅ Helper ตรวจ AxiosError
+    function isAxiosError(error: any): error is import('axios').AxiosError<ErrorResponseData> {
+        return error?.isAxiosError === true;
+    }
+
     const onFinish = async (values: any) => {
         try {
             setLoading(true);
 
             if (editingAccount) {
-                const passwordFields = values.password && values.confirmPassword ? {
-                    password: values.password,
-                } : {};
+                // 🟣 Edit mode: ไม่ให้แก้ Register_Date → ไม่ต้องส่งไป
+                const passwordFields =
+                    values.password && values.confirmPassword
+                        ? {
+                            password: values.password,
+                        }
+                        : {};
 
                 const payload = {
                     First_Name: values.First_Name,
@@ -150,12 +188,14 @@ const AccountConfiguration: React.FC = () => {
                     Email: values.Email,
                     Phone_Number: values.Phone_Number,
                     Role: values.Role,
-                    Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
+                    // ❌ ไม่ส่ง Register_Date เพื่อให้ backend เก็บของเดิม
                     ...passwordFields,
                 };
+
                 await apiUpdateAccount(editingAccount.Admin_ID, payload);
                 messageApi.success('Account updated successfully!');
             } else {
+                // 🟢 Create mode: ตั้ง Register_Date เป็นวันที่ปัจจุบันเสมอ
                 const payload = {
                     username: values.Username,
                     password: values.password,
@@ -165,7 +205,7 @@ const AccountConfiguration: React.FC = () => {
                     Email: values.Email,
                     Phone_Number: values.Phone_Number,
                     Role: values.Role,
-                    Register_Date: values.Register_Date ? values.Register_Date.format('YYYY-MM-DD') : null,
+                    Register_Date: dayjs().format('YYYY-MM-DD'),
                 };
                 await apiCreateAccount(payload);
                 messageApi.success('Account created successfully!');
@@ -184,52 +224,42 @@ const AccountConfiguration: React.FC = () => {
         }
     };
 
-    function isAxiosError(error: any): error is import("axios").AxiosError<ErrorResponseData> {
-        return error.isAxiosError === true;
-    }
-
     const columns: ColumnsType<Account> = [
         {
             title: 'Firstname',
             dataIndex: 'First_Name',
             key: 'First_Name',
             sorter: (a, b) => a.First_Name.localeCompare(b.First_Name),
-            fixed: 'left',
-            width: 150,
         },
         {
             title: 'Lastname',
             dataIndex: 'Last_Name',
             key: 'Last_Name',
             sorter: (a, b) => a.Last_Name.localeCompare(b.Last_Name),
-            width: 150,
         },
         {
             title: 'Email',
             dataIndex: 'Email',
             key: 'Email',
             sorter: (a, b) => a.Email.localeCompare(b.Email),
-            width: 200,
         },
         {
             title: 'ID Card',
             dataIndex: 'ID_Card',
             key: 'ID_Card',
-            width: 180,
             render: (text: string) => {
                 if (!text || text.length <= 4) {
                     return text;
                 }
                 const maskedPart = '********';
-                const lastFive = text.slice(-4);
-                return `${maskedPart}${lastFive}`;
+                const lastFour = text.slice(-4);
+                return `${maskedPart}${lastFour}`;
             },
         },
         {
             title: 'Register date',
             dataIndex: 'Register_Date',
             key: 'Register_Date',
-            width: 150,
             render: (date: string) => {
                 const formattedDate = dayjs.utc(date);
                 return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
@@ -240,7 +270,6 @@ const AccountConfiguration: React.FC = () => {
             title: 'Role',
             dataIndex: 'Role',
             key: 'Role',
-            width: 120,
             render: (role: Account['Role']) => (
                 <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
                     {role ? role.toUpperCase() : '-'}
@@ -251,8 +280,6 @@ const AccountConfiguration: React.FC = () => {
         {
             title: 'Actions',
             key: 'actions',
-            fixed: 'right',
-            width: 180,
             render: (_, record) => (
                 <Space size="middle">
                     {userAuthority.includes('SuperAdmin') && (
@@ -271,7 +298,9 @@ const AccountConfiguration: React.FC = () => {
                         okText="Yes"
                         cancelText="No"
                     >
-                        <Button type="primary" danger icon={<DeleteOutlined />}>Delete</Button>
+                        <Button type="primary" danger icon={<DeleteOutlined />}>
+                            Delete
+                        </Button>
                     </Popconfirm>
                 </Space>
             ),
@@ -279,17 +308,15 @@ const AccountConfiguration: React.FC = () => {
     ];
 
     return (
-        // ✅ FIX: ใช้ div หุ้มเพื่อกำหนดพื้นหลังสีขาวและ padding แบบเดิม แต่ยังคง min-h-screen ไว้เพื่อไม่ให้ layout พัง
+        // ✅ ใช้ div wrapper เหมือนหน้าอื่น เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             {contextHolder}
-            
             <Flex vertical gap="large">
-                <Flex justify="space-between" align="middle" wrap="wrap" gap="small">
-                    {/* ✅ FIX: กลับไปใช้ Title level 4 และ style เดิม */}
+                <Flex justify="space-between" align="middle">
                     <Title level={4} style={{ margin: 0 }}>
                         All Account
                     </Title>
-                    <Flex gap="middle" wrap="wrap">
+                    <Flex gap="middle">
                         <Input.Search
                             placeholder="Search accounts"
                             onSearch={handleSearch}
@@ -304,27 +331,23 @@ const AccountConfiguration: React.FC = () => {
                         </Button>
                     </Flex>
                 </Flex>
-
-                {/* ✅ FIX: เอา border-t-4 สีฟ้าออก เพื่อให้เหมือนเดิม */}
-                <Card className="shadow-lg rounded-xl">
+                <Card className="shadow-lg rounded-lg border border-gray-200">
                     <Table
                         columns={columns}
                         dataSource={accounts}
                         rowKey="Admin_ID"
                         pagination={{ pageSize: 10 }}
                         loading={loading}
-                        // ✅ ยังคง scroll ไว้เพื่อป้องกันการล้นจอ
-                        scroll={{ x: 1200 }} 
+                        // ✅ เพิ่ม scroll เพื่อป้องกันตารางดัน layout
+                        scroll={{ x: 1000 }}
                     />
                 </Card>
-
-                {/* Modal Code remains the same */}
                 <Modal
                     title={editingAccount ? 'Edit Account' : 'Create New Account'}
                     open={isModalOpen}
                     onCancel={handleCancel}
                     footer={null}
-                    width={800}
+                    width={750}
                 >
                     <Form
                         form={form}
@@ -332,11 +355,7 @@ const AccountConfiguration: React.FC = () => {
                         onFinish={onFinish}
                         layout="vertical"
                     >
-                        {/* ... Form Content (คงเดิม) ... */}
-                        <Card
-                            title="Personal Information"
-                            style={{ marginBottom: '24px' }}
-                        >
+                        <Card title="Personal Information" style={{ marginBottom: '24px' }}>
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item
@@ -367,8 +386,14 @@ const AccountConfiguration: React.FC = () => {
                                             {
                                                 validator: (_, value) => {
                                                     const pattern = /^\d{13}$/;
-                                                    if (!value) return Promise.resolve();
-                                                    if (!pattern.test(value)) return Promise.reject(new Error('กรุณากรอกหมายเลขบัตรประชาชนเป็นตัวเลข 13 หลักเท่านั้น!'));
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(
+                                                            new Error('กรุณากรอกหมายเลขบัตรประชาชนเป็นตัวเลข 13 หลักเท่านั้น!'),
+                                                        );
+                                                    }
                                                     return Promise.resolve();
                                                 },
                                             },
@@ -397,8 +422,14 @@ const AccountConfiguration: React.FC = () => {
                                             {
                                                 validator: (_, value) => {
                                                     const pattern = /^\d{10}$/;
-                                                    if (!value) return Promise.resolve();
-                                                    if (!pattern.test(value)) return Promise.reject(new Error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลักเท่านั้น!'));
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(
+                                                            new Error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลักเท่านั้น!'),
+                                                        );
+                                                    }
                                                     return Promise.resolve();
                                                 },
                                             },
@@ -413,7 +444,8 @@ const AccountConfiguration: React.FC = () => {
                                         label="Register date"
                                         rules={[{ required: true, message: 'Please select register date!' }]}
                                     >
-                                        <DatePicker style={{ width: '100%' }} />
+                                        {/* ✅ ให้ดูได้ แต่แก้ไม่ได้ ทั้งตอนสร้างและตอนแก้ */}
+                                        <DatePicker style={{ width: '100%' }} disabled />
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -450,21 +482,34 @@ const AccountConfiguration: React.FC = () => {
                                             { required: !editingAccount, message: 'Please input your password!' },
                                             { min: 8, message: 'Password must be at least 8 characters long.' },
                                             {
-                                                pattern: new RegExp('(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}'),
-                                                message: 'Password must include uppercase, lowercase, number, and special character.',
+                                                pattern: new RegExp(
+                                                    '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}',
+                                                ),
+                                                message:
+                                                    'Password must include uppercase, lowercase, number, and special character.',
                                             },
                                             ({ getFieldValue }) => ({
                                                 validator(_, value) {
                                                     const username = getFieldValue('Username');
-                                                    if (value && username && value.toLowerCase().includes(username.toLowerCase())) {
-                                                        return Promise.reject(new Error('Password cannot contain your username.'));
+                                                    if (
+                                                        value &&
+                                                        username &&
+                                                        value.toLowerCase().includes(username.toLowerCase())
+                                                    ) {
+                                                        return Promise.reject(
+                                                            new Error('Password cannot contain your username.'),
+                                                        );
                                                     }
                                                     return Promise.resolve();
                                                 },
                                             }),
                                         ]}
                                     >
-                                        <Input.Password placeholder={editingAccount ? "Enter new password to change" : "Enter password"} />
+                                        <Input.Password
+                                            placeholder={
+                                                editingAccount ? 'Enter new password to change' : 'Enter password'
+                                            }
+                                        />
                                     </Form.Item>
                                 </Col>
                                 <Col span={12}>
@@ -473,25 +518,30 @@ const AccountConfiguration: React.FC = () => {
                                         label="Confirm Password"
                                         dependencies={['password']}
                                         rules={[
-                                            {
-                                                required: !editingAccount,
-                                                message: 'Please confirm your password!',
-                                            },
+                                            { required: !editingAccount, message: 'Please confirm your password!' },
                                             ({ getFieldValue }) => ({
                                                 validator(_, value) {
                                                     const password = getFieldValue('password');
+
                                                     if (!password && !value && editingAccount) {
                                                         return Promise.resolve();
                                                     }
+
                                                     if (!value || password === value) {
                                                         return Promise.resolve();
                                                     }
-                                                    return Promise.reject(new Error('The two passwords that you entered do not match!'));
+                                                    return Promise.reject(
+                                                        new Error('The two passwords that you entered do not match!'),
+                                                    );
                                                 },
                                             }),
                                         ]}
                                     >
-                                        <Input.Password placeholder={editingAccount ? "Confirm new password" : "Confirm password"} />
+                                        <Input.Password
+                                            placeholder={
+                                                editingAccount ? 'Confirm new password' : 'Confirm password'
+                                            }
+                                        />
                                     </Form.Item>
                                 </Col>
                             </Row>
