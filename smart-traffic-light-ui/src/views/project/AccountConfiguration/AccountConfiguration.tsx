@@ -2,32 +2,32 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card,
-  Table,
-  Input,
-  Button,
-  Flex,
-  Tag,
-  Typography,
-  Modal,
-  Form,
-  DatePicker,
-  Row,
-  Col,
-  Popconfirm,
-  Space,
-  Select,
-  message,
+    Card,
+    Table,
+    Input,
+    Button,
+    Flex,
+    Tag,
+    Typography,
+    Modal,
+    Form,
+    DatePicker,
+    Row,
+    Col,
+    Popconfirm,
+    Space,
+    Select,
+    message,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import {
-  apiGetAccounts,
-  apiCreateAccount,
-  apiDeleteAccount,
-  apiUpdateAccount,
+    apiGetAccounts,
+    apiCreateAccount,
+    apiDeleteAccount,
+    apiUpdateAccount,
 } from '@/services/AccountConfigurationService';
 import type { AxiosError } from 'axios';
 import { ColumnsType } from 'antd/es/table';
@@ -39,23 +39,23 @@ dayjs.extend(utc);
 
 // Interface สำหรับข้อมูลบัญชี
 interface Account {
-  Admin_ID: number;
-  Username: string;
-  First_Name: string;
-  Last_Name: string;
-  Email: string;
-  ID_Card: string;
-  Register_Date: string;
-  Role: string;
-  Phone_Number: string;
+    Admin_ID: number;
+    Username: string;
+    First_Name: string;
+    Last_Name: string;
+    Email: string;
+    ID_Card: string;
+    Register_Date: string;
+    Role: string;
+    Phone_Number: string;
 }
 
 interface AccountApiResponse {
-  accounts: Account[];
+    accounts: Account[];
 }
 
 interface DeleteAccountResponse {
-  message: string;
+    message: string;
 }
 
 interface ErrorResponseData {
@@ -63,499 +63,502 @@ interface ErrorResponseData {
 }
 
 const AccountConfiguration: React.FC = () => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [form] = Form.useForm();
-  const [searchText, setSearchText] = useState('');
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+    const [accounts, setAccounts] = useState<Account[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [form] = Form.useForm();
+    const [searchText, setSearchText] = useState('');
+    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
-  const [messageApi, contextHolder] = message.useMessage();
+    const [messageApi, contextHolder] = message.useMessage();
 
-  const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
+    const userAuthority = useSelector((state: RootState) => state.auth.user.authority);
 
-  const roleOptions = userAuthority.includes('SuperAdmin')
-    ? [
-        { value: 'Admin', label: 'Admin' },
-        { value: 'SuperAdmin', label: 'SuperAdmin' },
-      ]
-    : [{ value: 'Admin', label: 'Admin' }];
+    const roleOptions = userAuthority.includes('SuperAdmin')
+        ? [
+            { value: 'Admin', label: 'Admin' },
+            { value: 'SuperAdmin', label: 'SuperAdmin' },
+        ]
+        : [{ value: 'Admin', label: 'Admin' }];
 
-  const fetchAccounts = async () => {
-    try {
-      setLoading(true);
-      const response = await apiGetAccounts();
-      if (response.status === 200) {
-        setAccounts(response.data.accounts);
-      }
-    } catch (error) {
-      console.error('Failed to fetch accounts:', error);
-      messageApi.error('Failed to fetch accounts.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = useCallback(async () => {
-    await fetchAccounts();
-    messageApi.success('Data refreshed successfully!');
-  }, [fetchAccounts, messageApi]);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const handleSearch = (value: string) => {
-    setSearchText(value);
-    const filteredData = accounts.filter((account) =>
-      Object.values(account).some((val) =>
-        String(val).toLowerCase().includes(value.toLowerCase()),
-      ),
-    );
-    setAccounts(filteredData);
-  };
-
-  const handleDeleteAccount = async (adminIds: number[]) => {
-    try {
-      const response = await apiDeleteAccount(adminIds);
-      if (response.status === 200 || response.status === 204) {
-        messageApi.success('Account deleted successfully!');
-        fetchAccounts();
-      } else {
-        messageApi.error('Failed to delete account.');
-      }
-    } catch (error) {
-      const err = error as AxiosError<any>;
-      console.error('Failed to delete account:', err);
-      messageApi.error(err.response?.data?.message || 'Failed to delete account.');
-    }
-  };
-
-  const handleEdit = (record: Account) => {
-    setEditingAccount(record);
-    setIsModalOpen(true);
-    form.setFieldsValue({
-      First_Name: record.First_Name,
-      Last_Name: record.Last_Name,
-      Email: record.Email,
-      ID_Card: record.ID_Card,
-      Phone_Number: record.Phone_Number,
-      Role: record.Role,
-      Register_Date: record.Register_Date ? dayjs(record.Register_Date) : null,
-      Username: record.Username,
-      password: undefined,
-      confirmPassword: undefined,
-    });
-  };
-
-  const showModal = () => {
-    setEditingAccount(null);
-    setIsModalOpen(true);
-    form.resetFields();
-    // ✅ ใช้วันที่ปัจจุบันเป็น Register_Date อัตโนมัติ ตอนสร้างใหม่
-    form.setFieldsValue({
-      Register_Date: dayjs(),
-    });
-  };
-
-  const handleCancel = () => {
-    setIsModalOpen(false);
-    form.resetFields();
-  };
-
-  // ✅ Helper ตรวจ AxiosError
-  function isAxiosError(error: any): error is import('axios').AxiosError<ErrorResponseData> {
-    return error?.isAxiosError === true;
-  }
-
-  const onFinish = async (values: any) => {
-    try {
-      setLoading(true);
-
-      if (editingAccount) {
-        // 🟣 Edit mode: ไม่ให้แก้ Register_Date → ไม่ต้องส่งไป
-        const passwordFields =
-          values.password && values.confirmPassword
-            ? {
-                password: values.password,
-              }
-            : {};
-
-        const payload = {
-          First_Name: values.First_Name,
-          Last_Name: values.Last_Name,
-          ID_Card: values.ID_Card,
-          Email: values.Email,
-          Phone_Number: values.Phone_Number,
-          Role: values.Role,
-          // ❌ ไม่ส่ง Register_Date เพื่อให้ backend เก็บของเดิม
-          ...passwordFields,
-        };
-
-        await apiUpdateAccount(editingAccount.Admin_ID, payload);
-        messageApi.success('Account updated successfully!');
-      } else {
-        // 🟢 Create mode: ตั้ง Register_Date เป็นวันที่ปัจจุบันเสมอ
-        const payload = {
-          username: values.Username,
-          password: values.password,
-          First_Name: values.First_Name,
-          Last_Name: values.Last_Name,
-          ID_Card: values.ID_Card,
-          Email: values.Email,
-          Phone_Number: values.Phone_Number,
-          Role: values.Role,
-          Register_Date: dayjs().format('YYYY-MM-DD'),
-        };
-        await apiCreateAccount(payload);
-        messageApi.success('Account created successfully!');
-      }
-
-      fetchAccounts();
-      handleCancel();
-    } catch (error: unknown) {
-      if (isAxiosError(error) && error.response && error.response.data && error.response.data.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error('An unexpected error occurred.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const columns: ColumnsType<Account> = [
-    {
-      title: 'Firstname',
-      dataIndex: 'First_Name',
-      key: 'First_Name',
-      sorter: (a, b) => a.First_Name.localeCompare(b.First_Name),
-    },
-    {
-      title: 'Lastname',
-      dataIndex: 'Last_Name',
-      key: 'Last_Name',
-      sorter: (a, b) => a.Last_Name.localeCompare(b.Last_Name),
-    },
-    {
-      title: 'Email',
-      dataIndex: 'Email',
-      key: 'Email',
-      sorter: (a, b) => a.Email.localeCompare(b.Email),
-    },
-    {
-      title: 'ID Card',
-      dataIndex: 'ID_Card',
-      key: 'ID_Card',
-      render: (text: string) => {
-        if (!text || text.length <= 4) {
-          return text;
+    const fetchAccounts = async () => {
+        try {
+            setLoading(true);
+            const response = await apiGetAccounts();
+            if (response.status === 200) {
+                setAccounts(response.data.accounts);
+            }
+        } catch (error) {
+            console.error('Failed to fetch accounts:', error);
+            messageApi.error('Failed to fetch accounts.');
+        } finally {
+            setLoading(false);
         }
-        const maskedPart = '********';
-        const lastFour = text.slice(-4);
-        return `${maskedPart}${lastFour}`;
-      },
-    },
-    {
-      title: 'Register date',
-      dataIndex: 'Register_Date',
-      key: 'Register_Date',
-      render: (date: string) => {
-        const formattedDate = dayjs.utc(date);
-        return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
-      },
-      sorter: (a, b) => a.Register_Date.localeCompare(b.Register_Date),
-    },
-    {
-      title: 'Role',
-      dataIndex: 'Role',
-      key: 'Role',
-      render: (role: Account['Role']) => (
-        <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
-          {role ? role.toUpperCase() : '-'}
-        </Tag>
-      ),
-      sorter: (a, b) => a.Role.localeCompare(b.Role),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space size="middle">
-          {userAuthority.includes('SuperAdmin') && (
-            <Button
-              type="primary"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              Edit
-            </Button>
-          )}
-          <Popconfirm
-            title="Delete the account"
-            description="Are you sure to delete this account?"
-            onConfirm={() => handleDeleteAccount([record.Admin_ID])}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="primary" danger icon={<DeleteOutlined />}>
-              Delete
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+    };
 
-  return (
-    <>
-      {contextHolder}
-      <Flex vertical gap="large" style={{ padding: '24px' }}>
-        <Flex justify="space-between" align="middle">
-          <Title level={4} style={{ margin: 0 }}>
-            All Account
-          </Title>
-          <Flex gap="middle">
-            <Input.Search
-              placeholder="Search accounts"
-              onSearch={handleSearch}
-              style={{ width: 250 }}
-              allowClear
-            />
-            <Button type="primary" onClick={showModal} icon={<PlusOutlined />}>
-              ADD NEW ACCOUNT
-            </Button>
-            <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
-              Refresh
-            </Button>
-          </Flex>
-        </Flex>
-        <Card>
-          <Table
-            columns={columns}
-            dataSource={accounts}
-            rowKey="Admin_ID"
-            pagination={{ pageSize: 10 }}
-            loading={loading}
-          />
-        </Card>
-        <Modal
-          title={editingAccount ? 'Edit Account' : 'Create New Account'}
-          open={isModalOpen}
-          onCancel={handleCancel}
-          footer={null}
-          width={750}
-        >
-          <Form
-            form={form}
-            name="account_form"
-            onFinish={onFinish}
-            layout="vertical"
-          >
-            <Card title="Personal Information" style={{ marginBottom: '24px' }}>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="First_Name"
-                    label="Firstname"
-                    rules={[{ required: true, message: 'Please input your Firstname!' }]}
-                  >
-                    <Input />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="Last_Name"
-                    label="Lastname"
-                    rules={[{ required: true, message: 'Please input your Lastname!' }]}
-                  >
-                    <Input />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="ID_Card"
-                    label="ID card"
-                    rules={[
-                      { required: true, message: 'กรุณากรอกหมายเลขบัตรประชาชน!' },
-                      {
-                        validator: (_, value) => {
-                          const pattern = /^\d{13}$/;
-                          if (!value) {
-                            return Promise.resolve();
-                          }
-                          if (!pattern.test(value)) {
-                            return Promise.reject(
-                              new Error('กรุณากรอกหมายเลขบัตรประชาชนเป็นตัวเลข 13 หลักเท่านั้น!'),
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      },
-                    ]}
-                  >
-                    <Input maxLength={13} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="Email"
-                    label="Email"
-                    rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
-                  >
-                    <Input />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="Phone_Number"
-                    label="Phone Number"
-                    rules={[
-                      { required: true, message: 'กรุณากรอกเบอร์โทรศัพท์!' },
-                      {
-                        validator: (_, value) => {
-                          const pattern = /^\d{10}$/;
-                          if (!value) {
-                            return Promise.resolve();
-                          }
-                          if (!pattern.test(value)) {
-                            return Promise.reject(
-                              new Error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลักเท่านั้น!'),
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      },
-                    ]}
-                  >
-                    <Input maxLength={10} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="Register_Date"
-                    label="Register date"
-                    rules={[{ required: true, message: 'Please select register date!' }]}
-                  >
-                    {/* ✅ ให้ดูได้ แต่แก้ไม่ได้ ทั้งตอนสร้างและตอนแก้ */}
-                    <DatePicker style={{ width: '100%' }} disabled />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-            <Card title="Account Information">
-              <Row gutter={16}>
-                <Col span={24}>
-                  <Form.Item
-                    name="Username"
-                    label="Username"
-                    rules={[{ required: !editingAccount, message: 'Please input your username!' }]}
-                  >
-                    <Input disabled={!!editingAccount} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="Role"
-                    label="Role"
-                    rules={[{ required: true, message: 'Please select a role!' }]}
-                  >
-                    <Select options={roleOptions} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="password"
-                    label="Password"
-                    rules={[
-                      { required: !editingAccount, message: 'Please input your password!' },
-                      { min: 8, message: 'Password must be at least 8 characters long.' },
-                      {
-                        pattern: new RegExp(
-                          '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}',
-                        ),
-                        message:
-                          'Password must include uppercase, lowercase, number, and special character.',
-                      },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          const username = getFieldValue('Username');
-                          if (
-                            value &&
-                            username &&
-                            value.toLowerCase().includes(username.toLowerCase())
-                          ) {
-                            return Promise.reject(
-                              new Error('Password cannot contain your username.'),
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      }),
-                    ]}
-                  >
-                    <Input.Password
-                      placeholder={
-                        editingAccount ? 'Enter new password to change' : 'Enter password'
-                      }
+    const handleRefresh = useCallback(async () => {
+        await fetchAccounts();
+        messageApi.success('Data refreshed successfully!');
+    }, [fetchAccounts, messageApi]);
+
+    useEffect(() => {
+        fetchAccounts();
+    }, []);
+
+    const handleSearch = (value: string) => {
+        setSearchText(value);
+        const filteredData = accounts.filter((account) =>
+            Object.values(account).some((val) =>
+                String(val).toLowerCase().includes(value.toLowerCase()),
+            ),
+        );
+        setAccounts(filteredData);
+    };
+
+    const handleDeleteAccount = async (adminIds: number[]) => {
+        try {
+            const response = await apiDeleteAccount(adminIds);
+            if (response.status === 200 || response.status === 204) {
+                messageApi.success('Account deleted successfully!');
+                fetchAccounts();
+            } else {
+                messageApi.error('Failed to delete account.');
+            }
+        } catch (error) {
+            const err = error as AxiosError<any>;
+            console.error('Failed to delete account:', err);
+            messageApi.error(err.response?.data?.message || 'Failed to delete account.');
+        }
+    };
+
+    const handleEdit = (record: Account) => {
+        setEditingAccount(record);
+        setIsModalOpen(true);
+        form.setFieldsValue({
+            First_Name: record.First_Name,
+            Last_Name: record.Last_Name,
+            Email: record.Email,
+            ID_Card: record.ID_Card,
+            Phone_Number: record.Phone_Number,
+            Role: record.Role,
+            Register_Date: record.Register_Date ? dayjs(record.Register_Date) : null,
+            Username: record.Username,
+            password: undefined,
+            confirmPassword: undefined,
+        });
+    };
+
+    const showModal = () => {
+        setEditingAccount(null);
+        setIsModalOpen(true);
+        form.resetFields();
+        // ✅ ใช้วันที่ปัจจุบันเป็น Register_Date อัตโนมัติ ตอนสร้างใหม่
+        form.setFieldsValue({
+            Register_Date: dayjs(),
+        });
+    };
+
+    const handleCancel = () => {
+        setIsModalOpen(false);
+        form.resetFields();
+    };
+
+    // ✅ Helper ตรวจ AxiosError
+    function isAxiosError(error: any): error is import('axios').AxiosError<ErrorResponseData> {
+        return error?.isAxiosError === true;
+    }
+
+    const onFinish = async (values: any) => {
+        try {
+            setLoading(true);
+
+            if (editingAccount) {
+                // 🟣 Edit mode: ไม่ให้แก้ Register_Date → ไม่ต้องส่งไป
+                const passwordFields =
+                    values.password && values.confirmPassword
+                        ? {
+                            password: values.password,
+                        }
+                        : {};
+
+                const payload = {
+                    First_Name: values.First_Name,
+                    Last_Name: values.Last_Name,
+                    ID_Card: values.ID_Card,
+                    Email: values.Email,
+                    Phone_Number: values.Phone_Number,
+                    Role: values.Role,
+                    // ❌ ไม่ส่ง Register_Date เพื่อให้ backend เก็บของเดิม
+                    ...passwordFields,
+                };
+
+                await apiUpdateAccount(editingAccount.Admin_ID, payload);
+                messageApi.success('Account updated successfully!');
+            } else {
+                // 🟢 Create mode: ตั้ง Register_Date เป็นวันที่ปัจจุบันเสมอ
+                const payload = {
+                    username: values.Username,
+                    password: values.password,
+                    First_Name: values.First_Name,
+                    Last_Name: values.Last_Name,
+                    ID_Card: values.ID_Card,
+                    Email: values.Email,
+                    Phone_Number: values.Phone_Number,
+                    Role: values.Role,
+                    Register_Date: dayjs().format('YYYY-MM-DD'),
+                };
+                await apiCreateAccount(payload);
+                messageApi.success('Account created successfully!');
+            }
+
+            fetchAccounts();
+            handleCancel();
+        } catch (error: unknown) {
+            if (isAxiosError(error) && error.response && error.response.data && error.response.data.message) {
+                message.error(error.response.data.message);
+            } else {
+                message.error('An unexpected error occurred.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const columns: ColumnsType<Account> = [
+        {
+            title: 'Firstname',
+            dataIndex: 'First_Name',
+            key: 'First_Name',
+            sorter: (a, b) => a.First_Name.localeCompare(b.First_Name),
+        },
+        {
+            title: 'Lastname',
+            dataIndex: 'Last_Name',
+            key: 'Last_Name',
+            sorter: (a, b) => a.Last_Name.localeCompare(b.Last_Name),
+        },
+        {
+            title: 'Email',
+            dataIndex: 'Email',
+            key: 'Email',
+            sorter: (a, b) => a.Email.localeCompare(b.Email),
+        },
+        {
+            title: 'ID Card',
+            dataIndex: 'ID_Card',
+            key: 'ID_Card',
+            render: (text: string) => {
+                if (!text || text.length <= 4) {
+                    return text;
+                }
+                const maskedPart = '********';
+                const lastFour = text.slice(-4);
+                return `${maskedPart}${lastFour}`;
+            },
+        },
+        {
+            title: 'Register date',
+            dataIndex: 'Register_Date',
+            key: 'Register_Date',
+            render: (date: string) => {
+                const formattedDate = dayjs.utc(date);
+                return formattedDate.isValid() ? formattedDate.format('YYYY-MM-DD') : '-';
+            },
+            sorter: (a, b) => a.Register_Date.localeCompare(b.Register_Date),
+        },
+        {
+            title: 'Role',
+            dataIndex: 'Role',
+            key: 'Role',
+            render: (role: Account['Role']) => (
+                <Tag color={role === 'SuperAdmin' ? 'purple' : 'blue'}>
+                    {role ? role.toUpperCase() : '-'}
+                </Tag>
+            ),
+            sorter: (a, b) => a.Role.localeCompare(b.Role),
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            render: (_, record) => (
+                <Space size="middle">
+                    {userAuthority.includes('SuperAdmin') && (
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEdit(record)}
+                        >
+                            Edit
+                        </Button>
+                    )}
+                    <Popconfirm
+                        title="Delete the account"
+                        description="Are you sure to delete this account?"
+                        onConfirm={() => handleDeleteAccount([record.Admin_ID])}
+                        okText="Yes"
+                        cancelText="No"
+                    >
+                        <Button type="primary" danger icon={<DeleteOutlined />}>
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </Space>
+            ),
+        },
+    ];
+
+    return (
+        // ✅ ใช้ div wrapper เหมือนหน้าอื่น เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
+        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
+            {contextHolder}
+            <Flex vertical gap="large">
+                <Flex justify="space-between" align="middle">
+                    <Title level={4} style={{ margin: 0 }}>
+                        All Account
+                    </Title>
+                    <Flex gap="middle">
+                        <Input.Search
+                            placeholder="Search accounts"
+                            onSearch={handleSearch}
+                            style={{ width: 250 }}
+                            allowClear
+                        />
+                        <Button type="primary" onClick={showModal} icon={<PlusOutlined />}>
+                            ADD NEW ACCOUNT
+                        </Button>
+                        <Button onClick={handleRefresh} icon={<SyncOutlined />} loading={loading}>
+                            Refresh
+                        </Button>
+                    </Flex>
+                </Flex>
+                <Card className="shadow-lg rounded-lg border border-gray-200">
+                    <Table
+                        columns={columns}
+                        dataSource={accounts}
+                        rowKey="Admin_ID"
+                        pagination={{ pageSize: 10 }}
+                        loading={loading}
+                        // ✅ เพิ่ม scroll เพื่อป้องกันตารางดัน layout
+                        scroll={{ x: 1000 }}
                     />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="confirmPassword"
-                    label="Confirm Password"
-                    dependencies={['password']}
-                    rules={[
-                      { required: !editingAccount, message: 'Please confirm your password!' },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          const password = getFieldValue('password');
+                </Card>
+                <Modal
+                    title={editingAccount ? 'Edit Account' : 'Create New Account'}
+                    open={isModalOpen}
+                    onCancel={handleCancel}
+                    footer={null}
+                    width={750}
+                >
+                    <Form
+                        form={form}
+                        name="account_form"
+                        onFinish={onFinish}
+                        layout="vertical"
+                    >
+                        <Card title="Personal Information" style={{ marginBottom: '24px' }}>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="First_Name"
+                                        label="Firstname"
+                                        rules={[{ required: true, message: 'Please input your Firstname!' }]}
+                                    >
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Last_Name"
+                                        label="Lastname"
+                                        rules={[{ required: true, message: 'Please input your Lastname!' }]}
+                                    >
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="ID_Card"
+                                        label="ID card"
+                                        rules={[
+                                            { required: true, message: 'กรุณากรอกหมายเลขบัตรประชาชน!' },
+                                            {
+                                                validator: (_, value) => {
+                                                    const pattern = /^\d{13}$/;
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(
+                                                            new Error('กรุณากรอกหมายเลขบัตรประชาชนเป็นตัวเลข 13 หลักเท่านั้น!'),
+                                                        );
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            },
+                                        ]}
+                                    >
+                                        <Input maxLength={13} />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Email"
+                                        label="Email"
+                                        rules={[{ required: true, type: 'email', message: 'Please input a valid email!' }]}
+                                    >
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Phone_Number"
+                                        label="Phone Number"
+                                        rules={[
+                                            { required: true, message: 'กรุณากรอกเบอร์โทรศัพท์!' },
+                                            {
+                                                validator: (_, value) => {
+                                                    const pattern = /^\d{10}$/;
+                                                    if (!value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    if (!pattern.test(value)) {
+                                                        return Promise.reject(
+                                                            new Error('กรุณากรอกเบอร์โทรศัพท์เป็นตัวเลข 10 หลักเท่านั้น!'),
+                                                        );
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            },
+                                        ]}
+                                    >
+                                        <Input maxLength={10} />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Register_Date"
+                                        label="Register date"
+                                        rules={[{ required: true, message: 'Please select register date!' }]}
+                                    >
+                                        {/* ✅ ให้ดูได้ แต่แก้ไม่ได้ ทั้งตอนสร้างและตอนแก้ */}
+                                        <DatePicker style={{ width: '100%' }} disabled />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </Card>
+                        <Card title="Account Information">
+                            <Row gutter={16}>
+                                <Col span={24}>
+                                    <Form.Item
+                                        name="Username"
+                                        label="Username"
+                                        rules={[{ required: !editingAccount, message: 'Please input your username!' }]}
+                                    >
+                                        <Input disabled={!!editingAccount} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="Role"
+                                        label="Role"
+                                        rules={[{ required: true, message: 'Please select a role!' }]}
+                                    >
+                                        <Select options={roleOptions} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="password"
+                                        label="Password"
+                                        rules={[
+                                            { required: !editingAccount, message: 'Please input your password!' },
+                                            { min: 8, message: 'Password must be at least 8 characters long.' },
+                                            {
+                                                pattern: new RegExp(
+                                                    '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}',
+                                                ),
+                                                message:
+                                                    'Password must include uppercase, lowercase, number, and special character.',
+                                            },
+                                            ({ getFieldValue }) => ({
+                                                validator(_, value) {
+                                                    const username = getFieldValue('Username');
+                                                    if (
+                                                        value &&
+                                                        username &&
+                                                        value.toLowerCase().includes(username.toLowerCase())
+                                                    ) {
+                                                        return Promise.reject(
+                                                            new Error('Password cannot contain your username.'),
+                                                        );
+                                                    }
+                                                    return Promise.resolve();
+                                                },
+                                            }),
+                                        ]}
+                                    >
+                                        <Input.Password
+                                            placeholder={
+                                                editingAccount ? 'Enter new password to change' : 'Enter password'
+                                            }
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="confirmPassword"
+                                        label="Confirm Password"
+                                        dependencies={['password']}
+                                        rules={[
+                                            { required: !editingAccount, message: 'Please confirm your password!' },
+                                            ({ getFieldValue }) => ({
+                                                validator(_, value) {
+                                                    const password = getFieldValue('password');
 
-                          if (!password && !value && editingAccount) {
-                            return Promise.resolve();
-                          }
+                                                    if (!password && !value && editingAccount) {
+                                                        return Promise.resolve();
+                                                    }
 
-                          if (!value || password === value) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(
-                            new Error('The two passwords that you entered do not match!'),
-                          );
-                        },
-                      }),
-                    ]}
-                  >
-                    <Input.Password
-                      placeholder={
-                        editingAccount ? 'Confirm new password' : 'Confirm password'
-                      }
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-            <Flex justify="flex-end" style={{ marginTop: '24px' }}>
-              <Button onClick={handleCancel} style={{ marginRight: '8px' }}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingAccount ? 'Save' : 'Create'}
-              </Button>
+                                                    if (!value || password === value) {
+                                                        return Promise.resolve();
+                                                    }
+                                                    return Promise.reject(
+                                                        new Error('The two passwords that you entered do not match!'),
+                                                    );
+                                                },
+                                            }),
+                                        ]}
+                                    >
+                                        <Input.Password
+                                            placeholder={
+                                                editingAccount ? 'Confirm new password' : 'Confirm password'
+                                            }
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </Card>
+                        <Flex justify="flex-end" style={{ marginTop: '24px' }}>
+                            <Button onClick={handleCancel} style={{ marginRight: '8px' }}>
+                                Cancel
+                            </Button>
+                            <Button type="primary" htmlType="submit">
+                                {editingAccount ? 'Save' : 'Create'}
+                            </Button>
+                        </Flex>
+                    </Form>
+                </Modal>
             </Flex>
-          </Form>
-        </Modal>
-      </Flex>
-    </>
-  );
+        </div>
+    );
 };
 
 export default AccountConfiguration;
