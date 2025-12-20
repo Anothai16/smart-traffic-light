@@ -31,10 +31,10 @@ dayjs.locale('th')
 const { Title } = Typography
 
 const LANE_OPTIONS = [
-    'Lane 1 (PC-A)',
-    'Lane 2 (PC-B)',
-    'Lane 3 (PC-C)',
-    'Lane 4 (PC-D)',
+    'Lane_1',
+    'Lane_2',
+    'Lane_3',
+    'Lane_4',
 ]
 
 const PictureLog = () => {
