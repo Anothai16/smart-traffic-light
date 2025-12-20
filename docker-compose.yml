@@ -20,47 +20,41 @@ services:
     build: ./smart-traffic-light-api
     container_name: elysia-backend
     ports:
-      - "3000:3000"  # ใช้ 3000 เป็นมาตรฐาน (ทั้งนอกและใน)
-
-    # env_file:
-    #   - ./smart-traffic-light-api/.env
+      - "3000:3000"
 
     volumes:
+      # Map โค้ดโปรเจกต์เข้าไปที่ /app
       - ./smart-traffic-light-api:/app
       - /app/node_modules
-      # สร้างโฟลเดอร์เก็บรูปในเครื่องจริง แล้ว map เข้าไปใน path ของ linux
-      - ./traffic_data:/app/traffic_data
+
+      # ✅ Map โฟลเดอร์รูป (เจาะจง path นี้ให้ทะลุออกไปข้างนอก)
+      # ฝั่งซ้าย ./traffic_data = โฟลเดอร์ข้างนอก (ที่เดียวกับ docker-compose.yml)
+      # ฝั่งขวา /app/traffic_data = ที่อยู่ใน Container
+      - ./traffic_data:/traffic_data_storage
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
     environment:
-      # --- 1. แก้เรื่อง DATABASE ---
       - DB_HOST=host.docker.internal
       - DB_USER=admin
       - DB_PASSWORD=1234
       - DB_NAME=Smart_Traffic_Light
       - DB_PORT=3306
       - BACKEND_BASE_URL=
-      # --- 2. แก้เรื่อง PATH (สำคัญมาก) ---
-      # บังคับใช้ Path ของ Linux แทน C:/TrafficData
-      - IMAGE_ROOT_PATH=/app/traffic_data
       
-      # --- 3. แก้เรื่อง PORT ---
-      # บังคับให้แอป Elysia รันที่ Port 3000 (เพื่อให้ตรงกับ ports: 3000:3000 ด้านบน)
+      # ✅ บังคับให้ Code เขียนลง Path นี้ (ซึ่งจะทะลุไปข้างนอกตาม Volume ด้านบน)
+      - IMAGE_ROOT_PATH=/traffic_data_storage
+      
       - PORT=3000
-      # Lane 1 (ทิศตะวันตก) -> Python ส่ง Lane_W
-      - LANE_1_NAME=Lane 1 (PC-A)
-      - LANE_1_FOLDER=Lane_W
-
-      - LANE_2_NAME=Lane 2 (PC-B)
-      - LANE_2_FOLDER=Lane_N
-
-      - LANE_3_NAME=Lane 3 (PC-C)
-      - LANE_3_FOLDER=Lane_E
-
-      - LANE_4_NAME=Lane 4 (PC-D)
-      - LANE_4_FOLDER=Lane_S
+      - LANE_1_NAME=Lane_1
+      - LANE_1_FOLDER=Lane_1
+      - LANE_2_NAME=Lane_2
+      - LANE_2_FOLDER=Lane_2
+      - LANE_3_NAME=Lane_3
+      - LANE_3_FOLDER=Lane_3
+      - LANE_4_NAME=Lane_4
+      - LANE_4_FOLDER=Lane_4
   tunnel-quick:
       image: cloudflare/cloudflared:latest
       container_name: quick-tunnel
