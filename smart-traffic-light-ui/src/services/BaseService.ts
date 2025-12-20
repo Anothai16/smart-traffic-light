@@ -5,9 +5,7 @@ import appConfig from '@/configs/app.config'
 import { TOKEN_TYPE, REQUEST_HEADER_AUTH_KEY } from '@/constants/api.constant'
 import { PERSIST_STORE_NAME } from '@/constants/app.constant'
 import deepParseJson from '@/utils/deepParseJson'
-import store from '@/store' // ✅ Import store
-// ⚠️ ตรวจสอบ path นี้ให้ตรงกับไฟล์ sessionSlice.ts ของคุณ
-// (จากโค้ดเก่าของคุณน่าจะอยู่ที่ src/store/slices/sessionSlice.ts)
+import store from '@/store'
 import { signOutSuccess } from '@/store/slices/auth/sessionSlice' 
 
 const unauthorizedCode = [401]
@@ -53,9 +51,11 @@ BaseService.interceptors.response.use(
             // 1. สั่งเคลียร์ State ใน Redux (Logout)
             store.dispatch(signOutSuccess())
             
-            // 2. บังคับ Reload หน้าจอเพื่อให้ Redirect ทำงานทันที
-            // วิธีนี้ชัวร์ที่สุดในการดีด User ออกไปหน้า Login
-            window.location.reload()
+            // 2. บังคับเปลี่ยนหน้าไปที่ Login ทันที
+            // ใช้ window.location.href แทน reload() เพื่อความชัวร์ในการเปลี่ยน Path
+            if (window.location.pathname !== '/sign-in-simple') {
+                 window.location.href = '/sign-in-simple'
+            }
         }
 
         return Promise.reject(error)

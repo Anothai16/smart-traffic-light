@@ -1,3 +1,6 @@
+// src/App.tsx
+
+import { useEffect } from 'react'
 import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 import { PersistGate } from 'redux-persist/integration/react'
@@ -7,6 +10,7 @@ import Layout from '@/components/layouts'
 import mockServer from './mock'
 import appConfig from '@/configs/app.config'
 import './locales'
+import BaseService from '@/services/BaseService' 
 
 const environment = process.env.NODE_ENV
 
@@ -14,13 +18,27 @@ if (environment !== 'production' && appConfig.enableMock) {
     mockServer({ environment })
 }
 
+const SessionKicker = () => {
+    useEffect(() => {
+        const token = localStorage.getItem('token') || (store.getState() as any).auth?.session?.token
+
+        if (token) {
+            BaseService.get('/auth/protected-route').catch((err) => {
+            })
+        }
+    }, [])
+
+    return null
+}
+
 function App() {
     return (
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
                 <BrowserRouter>
+                    <SessionKicker />
+                    
                     <Theme>
-                        {/* ย้ายการเรียกใช้ useOnlineStatus ไปในคอมโพเนนต์ Layout */}
                         <Layout />
                     </Theme>
                 </BrowserRouter>
