@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import dynamicImport from 'vite-plugin-dynamic-import'
 
+
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+
 export default defineConfig({
   plugins: [react({
     babel: {
@@ -21,31 +24,29 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true,
-    host: true,
+    host: true, 
     port: 5173,
     watch: {
       usePolling: true
     },
     proxy: {
-      // ✅ 1. ตั้งค่า Socket.io (สำคัญมาก ถ้าไม่ใส่จะต่อ Socket ไม่ได้)
+      // ✅ 1. Socket.io (ใช้ตัวแปร backendUrl)
       '/socket.io': {
-        target: 'http://elysia-backend:3000',
-        ws: true, // เปิดใช้งาน WebSocket Proxy
+        target: backendUrl,
+        ws: true,
         changeOrigin: true,
       },
 
-      // ✅ 2. รูปภาพ
+      // ✅ 2. รูปภาพ (ใช้ตัวแปร backendUrl)
       '/static': {
-        target: 'http://elysia-backend:3000',
+        target: backendUrl,
         changeOrigin: true,
       },
 
-      // ✅ 3. API หลัก (ต้องสอดคล้องกับ VITE_API_URL=/api)
+      // ✅ 3. API หลัก (ใช้ตัวแปร backendUrl)
       '/api': {
-        target: 'http://localhost:3000',
+        target: backendUrl,
         changeOrigin: true,
-        // สำคัญ: ตัด /api ออกก่อนส่งให้ Backend
-        // Frontend ส่ง: /api/auth/login -> Backend รับ: /auth/login
         rewrite: (path) => path.replace(/^\/api/, ''), 
       },
     },
