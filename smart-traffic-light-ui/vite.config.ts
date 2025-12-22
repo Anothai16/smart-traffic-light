@@ -42,7 +42,7 @@ export default defineConfig({
 
       // ✅ 3. API หลัก (ต้องสอดคล้องกับ VITE_API_URL=/api)
       '/api': {
-        target: 'http://elysia-backend:3000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
         // สำคัญ: ตัด /api ออกก่อนส่งให้ Backend
         // Frontend ส่ง: /api/auth/login -> Backend รับ: /auth/login

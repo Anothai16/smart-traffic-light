@@ -48,16 +48,16 @@ const navigationConfig: NavigationTree[] = [
                     {
                         key: 'appsProject.Picture',
                         path: '', 
-                        title: 'Picture Evidents',
+                        title: 'Photo Evidents',
                         translateKey: 'appsProject.Picture',
                         icon: 'picture',
                         type: NAV_ITEM_TYPE_COLLAPSE, 
                         authority: [],
                         subMenu: [
                             {
-                                key: 'appsProject.Picture.Traffic',
-                                path: `/project/Picture`, 
-                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Picture Traffic Evidents',
+                                key: 'appsProject.Picture.Traffic.log',
+                                path: `/project/Picture/TrafficLog`, 
+                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Traffic Log',
                                 translateKey: 'appsProject.Picture.Traffic',
                                 icon: 'appstore',
                                 type: NAV_ITEM_TYPE_ITEM, 
@@ -65,9 +65,9 @@ const navigationConfig: NavigationTree[] = [
                                 subMenu: [],
                             },
                             {
-                                key: 'appsProject.Picture.Traffic.Alert',
-                                path: `/project/PictureAlert`, 
-                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Picture Traffic Alert',
+                                key: 'appsProject.Picture.Traffic.Violations',
+                                path: `/project/Picture/TrafficViolations`, 
+                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Traffic Violations',
                                 translateKey: 'appsProject.Picture.Traffic.Alert',
                                 icon: 'appstore',
                                 type: NAV_ITEM_TYPE_ITEM, 
