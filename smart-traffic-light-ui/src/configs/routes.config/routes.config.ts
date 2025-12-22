@@ -31,9 +31,9 @@ export const protectedRoutes = [
         authority: ['SuperAdmin'],
     },
     {
-        key: 'appsProject.Picture',
-        path: `/project/Picture`,
-        component: lazy(() => import('@/views/project/Picture')),
+        key: 'appsProject.Picture.TrafficLog',
+        path: `/project/Picture/TrafficLog`,
+        component: lazy(() => import('@/views/project/Picture/TrafficLog')),
         authority: [],
     },
     {
@@ -49,9 +49,9 @@ export const protectedRoutes = [
         authority: [],
     },
     {
-        key: 'appsProject.Picture',
-        path: `/project/PictureAlert`,
-        component: lazy(() => import('@/views/project/Picture')),
+        key: 'appsProject.Picture.TrafficViolations',
+        path: `/project/Picture/TrafficViolations`,
+        component: lazy(() => import('@/views/project/Picture/TrafficViolations')),
         authority: [],
     },
 ]
