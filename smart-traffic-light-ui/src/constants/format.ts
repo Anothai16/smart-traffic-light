@@ -1,5 +1,5 @@
 export class Format {
-  static readonly COMMON_DATE = 'DD/MM/YYYY HH:mm:ss';
+  static readonly COMMON_DATE = 'DD/MM/YYYY HH:mm';
 }
 
 
