@@ -60,17 +60,23 @@ function pickClosestImageByTime(
 
 const PictureLog = () => {
     const [form] = Form.useForm()
+    const [modeLogPagination, setModeLogPagination] = useState({
+        current: 1,
+        pageSize: 10,
+    })
     const [settingModePagination, setSettingModePagination] = useState({
         current: 1,
         pageSize: 10,
     })
 
-    // คง logic ช่วงวันที่ไว้เหมือนเดิม
+    // ช่วงวันที่
     const [startDate, setStartDate] = useState<Dayjs | null>(null)
     const [endDate, setEndDate] = useState<Dayjs | null>(null)
-    const handleSettingModeTableChange = (page: number, pageSize: number) => {
-        setSettingModePagination({ current: page, pageSize: pageSize })
+
+    const handleModeLogTableChange = (page: number, pageSize: number) => {
+        setModeLogPagination({ current: page, pageSize: pageSize })
     }
+
     // ✅ MOCK ตารางล่าง: date + time (ไม่มีวินาที)
     const mockRows: LogRow[] = useMemo(() => {
         const times = ['08:00', '12:00', '16:00', '20:00']
@@ -96,7 +102,7 @@ const PictureLog = () => {
         )
     }, [])
 
-    // filter ด้วยช่วง startDate - endDate (คงไว้)
+    // ✅ filter ด้วยช่วง startDate - endDate เท่านั้น (เอาช่วงเวลาออกแล้ว)
     const displayRows = useMemo(() => {
         if (!startDate && !endDate) return mockRows
 
@@ -119,9 +125,8 @@ const PictureLog = () => {
         })
     }, [mockRows, startDate, endDate])
 
-    // เลือก/ยกเลิกด้วย Checkbox (เลือกได้ทีละ 1 รายการ)
+    // ✅ เลือกด้วยการ “กดแถว” (ไม่มี checkbox)
     const [selectedRow, setSelectedRow] = useState<LogRow | null>(null)
-    const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
 
     const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
         null,
@@ -134,7 +139,6 @@ const PictureLog = () => {
 
     const clearPreview = useCallback(() => {
         setSelectedRow(null)
-        setSelectedKeys([])
         setLaneImages([null, null, null, null])
         setErrorImages(null)
         setLoadingImages(false)
@@ -180,25 +184,6 @@ const PictureLog = () => {
         if (!stillExists) clearPreview()
     }, [displayRows, selectedRow, clearPreview])
 
-    // ✅ ซ่อน checkbox เลือกทั้งหมดด้วย hideSelectAll
-    const rowSelection: TableProps<LogRow>['rowSelection'] = {
-        selectedRowKeys: selectedKeys,
-        hideSelectAll: true,
-        onSelect: (record, selected) => {
-            if (selected) {
-                setSelectedKeys([record.key])
-                loadImagesForRow(record)
-            } else {
-                clearPreview()
-            }
-        },
-        getCheckboxProps: (record) => ({
-            // ถ้าเลือกอยู่ 1 อันแล้ว ให้ disable อันอื่น (กันเลือกหลายอันพร้อมกัน)
-            disabled:
-                selectedKeys.length === 1 && record.key !== selectedKeys[0],
-        }),
-    }
-
     const columns: ColumnsType<LogRow> = [
         {
             title: 'Date',
@@ -215,6 +200,25 @@ const PictureLog = () => {
             width: 180,
         },
     ]
+
+    // ✅ ทำให้กดแถวเพื่อเลือก + ไฮไลท์แถวที่เลือก
+    const onRow: TableProps<LogRow>['onRow'] = (record) => ({
+        onClick: () => {
+            // กดซ้ำแถวเดิม -> ยกเลิกการเลือก
+            if (selectedRow?.key === record.key) {
+                clearPreview()
+                return
+            }
+            // กดแถวใหม่ -> แถวเก่าถูกยกเลิกอัตโนมัติ (เพราะเก็บได้แค่ 1 selectedRow)
+            loadImagesForRow(record)
+        },
+    })
+
+    const rowClassName: TableProps<LogRow>['rowClassName'] = (record) => {
+        const isSelected = record.key === selectedRow?.key
+        if (isSelected) return 'cursor-pointer bg-gray-200'
+        return 'cursor-pointer hover:bg-gray-50'
+    }
 
     return (
         <div
@@ -353,13 +357,14 @@ const PictureLog = () => {
                             rowKey="key"
                             columns={columns}
                             dataSource={displayRows}
-                            rowSelection={rowSelection}
                             pagination={{
-                                ...settingModePagination,
+                                ...modeLogPagination,
                                 showSizeChanger: true,
                                 pageSizeOptions: ['10', '20', '50', '100'],
-                                onChange: handleSettingModeTableChange,
+                                onChange: handleModeLogTableChange,
                             }}
+                            onRow={onRow}
+                            rowClassName={rowClassName}
                         />
                     )}
                 </Card>
