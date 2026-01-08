@@ -101,7 +101,7 @@ const TrafficViolations = () => {
                 <Flex style={{ width: '100%' }} justify="space-between" align="center" wrap="wrap" gap="middle">
                     
                     <Title level={4} style={{ margin: 0 }}>
-                        Red Light Incidents
+                        Red Light Violations
                     </Title>
 
                     <Flex align="center" justify="flex-end" gap="middle" style={{ marginLeft: 'auto' }}>
