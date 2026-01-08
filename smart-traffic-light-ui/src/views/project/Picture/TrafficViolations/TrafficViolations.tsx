@@ -7,7 +7,6 @@ import {
     Form,
     Row,
     Col,
-    Tag,
     Divider
 } from 'antd'
 import { ClockCircleOutlined, CarOutlined } from '@ant-design/icons'
@@ -109,7 +108,9 @@ const TrafficViolations = () => {
                             label="Start Date"
                             endDateName="endDate"
                             datePickerProps={{ 
-                                placeholder: 'Select start date', 
+                                placeholder: 'Select start date',
+                                format: 'DD/MM/YYYY',
+                                showTime: false, // ✅ เพิ่มบรรทัดนี้: ปิดการแสดงเวลา
                                 onChange: setStartDate 
                             }}
                         />
@@ -118,6 +119,8 @@ const TrafficViolations = () => {
                             startDateName="startDate"
                             datePickerProps={{ 
                                 placeholder: 'Select end date', 
+                                format: 'DD/MM/YYYY',
+                                showTime: false, // ✅ เพิ่มบรรทัดนี้: ปิดการแสดงเวลา
                                 onChange: setEndDate 
                             }}
                         />
