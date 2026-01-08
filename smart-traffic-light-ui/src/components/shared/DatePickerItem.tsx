@@ -15,6 +15,7 @@ const From = ({
         return (
           <Form.Item name="startDate" {...props}>
             <DatePicker
+              showTime
               format={Format.COMMON_DATE}
               className="w-full"
               placeholder="Start Date"
@@ -40,6 +41,7 @@ const To = ({
         return (
           <Form.Item name="endDate" {...props}>
             <DatePicker
+              showTime
               format={Format.COMMON_DATE}
               className="w-full"
               placeholder="End Date"
