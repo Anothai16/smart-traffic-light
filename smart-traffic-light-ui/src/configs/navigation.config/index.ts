@@ -48,7 +48,7 @@ const navigationConfig: NavigationTree[] = [
                     {
                         key: 'appsProject.Picture',
                         path: '', 
-                        title: 'Photo Evidents',
+                        title: 'Photo Evidence',
                         translateKey: 'appsProject.Picture',
                         icon: 'picture',
                         type: NAV_ITEM_TYPE_COLLAPSE, 
@@ -67,7 +67,7 @@ const navigationConfig: NavigationTree[] = [
                             {
                                 key: 'appsProject.Picture.Traffic.Violations',
                                 path: `/project/Picture/TrafficViolations`, 
-                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Traffic Violations',
+                                title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Red Light Violations',
                                 translateKey: 'appsProject.Picture.Traffic.Alert',
                                 icon: 'appstore',
                                 type: NAV_ITEM_TYPE_ITEM, 
