@@ -24,7 +24,7 @@ const generateMockImages = (lane) => {
         images.push({
             id: `${lane}-${i}`,
             lane: lane,
-            timestamp: dayjs().subtract(i * 15, 'minute').format('HH:mm:ss'),
+            timestamp: dayjs().subtract(i * 15, 'minute').format('HH:mm'),
             date: dayjs().format('DD/MM/YYYY'),
             url: `https://placehold.co/600x400/292929/FFF?text=Lane+${lane}+-+Img+${i}`
         });
@@ -110,7 +110,6 @@ const TrafficViolations = () => {
                             endDateName="endDate"
                             datePickerProps={{ 
                                 placeholder: 'Select start date', 
-                                format: 'DD/MM/YYYY', // ✅ เพิ่มบรรทัดนี้: จัดรูปแบบวันที่
                                 onChange: setStartDate 
                             }}
                         />
@@ -119,7 +118,6 @@ const TrafficViolations = () => {
                             startDateName="startDate"
                             datePickerProps={{ 
                                 placeholder: 'Select end date', 
-                                format: 'DD/MM/YYYY', // ✅ เพิ่มบรรทัดนี้: จัดรูปแบบวันที่
                                 onChange: setEndDate 
                             }}
                         />
