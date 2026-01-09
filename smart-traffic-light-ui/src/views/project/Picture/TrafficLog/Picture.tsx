@@ -1,338 +1,371 @@
 // src/views/PictureLog.tsx
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+    Alert,
     Card,
     Flex,
-    Button,
-    Typography,
-    Spin,
-    Alert,
-    Image,
-    Tag,
-    Tooltip,
-    Select,
     Form,
+    Image,
+    Spin,
+    Table,
+    Tag,
+    Typography,
 } from 'antd'
-import { FolderFilled, LeftOutlined } from '@ant-design/icons'
+import type { TableProps } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/th'
 
-import {
-    apiGetAvailableImageDates,
-    apiGetImagesByDateAndLane,
-    ImageObject,
-} from '@/services/ImageService'
-
+import { apiGetImagesByDateAndLane, ImageObject } from '@/services/ImageService'
 import DatePickerFormItem from '@/components/shared/DatePickerItem'
 
+dayjs.extend(customParseFormat)
 dayjs.locale('th')
 
 const { Title } = Typography
 
-const LANE_OPTIONS = [
-    'Lane_1',
-    'Lane_2',
-    'Lane_3',
-    'Lane_4',
-]
+const LANE_OPTIONS = ['Lane_1', 'Lane_2', 'Lane_3', 'Lane_4'] as const
+type Lane = (typeof LANE_OPTIONS)[number]
+
+type LogRow = {
+    key: string
+    date: string // YYYY-MM-DD
+    time: string // HH:mm
+}
+
+function pickClosestImageByTime(
+    images: ImageObject[],
+    target: Dayjs | null,
+): ImageObject | null {
+    if (!images || images.length === 0) return null
+    if (!target || !target.isValid()) return images[0] ?? null
+
+    let best: ImageObject | null = null
+    let bestDiff = Number.MAX_SAFE_INTEGER
+
+    for (const img of images) {
+        const t = dayjs(img.timestamp)
+        if (!t.isValid()) continue
+        const diff = Math.abs(t.diff(target, 'millisecond'))
+        if (diff < bestDiff) {
+            bestDiff = diff
+            best = img
+        }
+    }
+
+    return best ?? images[0] ?? null
+}
 
 const PictureLog = () => {
     const [form] = Form.useForm()
+    const [modeLogPagination, setModeLogPagination] = useState({
+        current: 1,
+        pageSize: 10,
+    })
+    const [settingModePagination, setSettingModePagination] = useState({
+        current: 1,
+        pageSize: 10,
+    })
 
-    const [selectedDate, setSelectedDate] = useState<string | null>(null)
-    const [selectedLane, setSelectedLane] = useState<string>(LANE_OPTIONS[0])
-    const [availableDates, setAvailableDates] = useState<string[]>([])
-    const [images, setImages] = useState<ImageObject[]>([])
-
-    // เก็บช่วงวันที่เอาไว้กรอง
+    // ช่วงวันที่
     const [startDate, setStartDate] = useState<Dayjs | null>(null)
     const [endDate, setEndDate] = useState<Dayjs | null>(null)
 
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const handleModeLogTableChange = (page: number, pageSize: number) => {
+        setModeLogPagination({ current: page, pageSize: pageSize })
+    }
 
-    // -----------------------------------------
-    // โหลดวันที่ของ Lane
-    // -----------------------------------------
-    const loadAvailableDates = useCallback(async (lane: string) => {
-        setLoading(true)
-        setError(null)
-        setAvailableDates([])
+    // ✅ MOCK ตารางล่าง: date + time (ไม่มีวินาที)
+    const mockRows: LogRow[] = useMemo(() => {
+        const times = ['08:00', '12:00', '16:00', '20:00']
+        const daysBack = 10
+        const base = dayjs()
 
-        try {
-            const dates = await apiGetAvailableImageDates(lane)
-            setAvailableDates(dates)
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch available dates.')
-        } finally {
-            setLoading(false)
+        const rows: LogRow[] = []
+        for (let i = 0; i <= daysBack; i++) {
+            const d = base.subtract(i, 'day').format('YYYY-MM-DD')
+            for (const t of times) {
+                rows.push({
+                    key: `${d}_${t}`,
+                    date: d,
+                    time: t,
+                })
+            }
         }
+
+        return rows.sort((a, b) =>
+            dayjs(`${b.date} ${b.time}`, 'YYYY-MM-DD HH:mm', true).diff(
+                dayjs(`${a.date} ${a.time}`, 'YYYY-MM-DD HH:mm', true),
+            ),
+        )
     }, [])
 
-    // เมื่อเปลี่ยน Lane
-    useEffect(() => {
-        setSelectedDate(null)
-        setImages([])
-        setStartDate(null)
-        setEndDate(null)
-        form.resetFields(['startDate', 'endDate'])
+    // ✅ filter ด้วยช่วง startDate - endDate เท่านั้น (เอาช่วงเวลาออกแล้ว)
+    const displayRows = useMemo(() => {
+        if (!startDate && !endDate) return mockRows
 
-        loadAvailableDates(selectedLane)
-    }, [selectedLane, loadAvailableDates, form])
-
-    // -----------------------------------------
-    // กรองวันที่ด้วยช่วง startDate - endDate
-    // -----------------------------------------
-    const displayDates = useMemo(() => {
-        const sorted = availableDates
-            .slice()
-            .sort((a, b) => dayjs(b).diff(dayjs(a)))
-
-        if (!startDate && !endDate) return sorted
-
-        return sorted.filter((dateStr) => {
-            const d = dayjs(dateStr)
+        return mockRows.filter((row) => {
+            const d = dayjs(row.date, 'YYYY-MM-DD', true)
             if (!d.isValid()) return false
 
             let ok = true
-
             if (startDate) {
                 ok =
                     ok &&
                     (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
             }
-
             if (endDate) {
                 ok =
                     ok &&
                     (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
             }
-
             return ok
         })
-    }, [availableDates, startDate, endDate])
+    }, [mockRows, startDate, endDate])
 
-    // -----------------------------------------
-    // โหลดรูปภาพของวันที่
-    // -----------------------------------------
-    const handleDateClick = async (date: string) => {
-        setSelectedDate(date)
-        setLoading(true)
-        setError(null)
-        setImages([])
+    // ✅ เลือกด้วยการ “กดแถว” (ไม่มี checkbox)
+    const [selectedRow, setSelectedRow] = useState<LogRow | null>(null)
+
+    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
+        null,
+        null,
+        null,
+        null,
+    ])
+    const [loadingImages, setLoadingImages] = useState(false)
+    const [errorImages, setErrorImages] = useState<string | null>(null)
+
+    const clearPreview = useCallback(() => {
+        setSelectedRow(null)
+        setLaneImages([null, null, null, null])
+        setErrorImages(null)
+        setLoadingImages(false)
+    }, [])
+
+    const loadImagesForRow = useCallback(async (row: LogRow) => {
+        setSelectedRow(row)
+        setLaneImages([null, null, null, null])
+        setErrorImages(null)
+        setLoadingImages(true)
 
         try {
-            const res = await apiGetImagesByDateAndLane(date, selectedLane)
-            setImages(res)
+            const target = dayjs(
+                `${row.date} ${row.time}`,
+                'YYYY-MM-DD HH:mm',
+                true,
+            )
+
+            const results = await Promise.all(
+                LANE_OPTIONS.map(async (lane) => {
+                    const res = await apiGetImagesByDateAndLane(row.date, lane)
+                    return { lane, images: res }
+                }),
+            )
+
+            const picked = LANE_OPTIONS.map((lane) => {
+                const found = results.find((x) => x.lane === lane)
+                return pickClosestImageByTime(found?.images ?? [], target)
+            })
+
+            setLaneImages(picked)
         } catch (err: any) {
-            setError(err.message || 'Failed to load images.')
+            setErrorImages(err?.message || 'Failed to load images.')
         } finally {
-            setLoading(false)
+            setLoadingImages(false)
         }
+    }, [])
+
+    // ถ้า filter แล้วรายการที่เลือกหายไปจากตาราง -> เคลียร์
+    useEffect(() => {
+        if (!selectedRow) return
+        const stillExists = displayRows.some((r) => r.key === selectedRow.key)
+        if (!stillExists) clearPreview()
+    }, [displayRows, selectedRow, clearPreview])
+
+    const columns: ColumnsType<LogRow> = [
+        {
+            title: 'Date',
+            dataIndex: 'date',
+            key: 'date',
+            width: 260,
+            render: (d: string) =>
+                dayjs(d, 'YYYY-MM-DD', true).format('DD MMMM YYYY'),
+        },
+        {
+            title: 'Time',
+            dataIndex: 'time',
+            key: 'time',
+            width: 180,
+        },
+    ]
+
+    // ✅ ทำให้กดแถวเพื่อเลือก + ไฮไลท์แถวที่เลือก
+    const onRow: TableProps<LogRow>['onRow'] = (record) => ({
+        onClick: () => {
+            // กดซ้ำแถวเดิม -> ยกเลิกการเลือก
+            if (selectedRow?.key === record.key) {
+                clearPreview()
+                return
+            }
+            // กดแถวใหม่ -> แถวเก่าถูกยกเลิกอัตโนมัติ (เพราะเก็บได้แค่ 1 selectedRow)
+            loadImagesForRow(record)
+        },
+    })
+
+    const rowClassName: TableProps<LogRow>['rowClassName'] = (record) => {
+        const isSelected = record.key === selectedRow?.key
+        if (isSelected) return 'cursor-pointer bg-gray-200'
+        return 'cursor-pointer hover:bg-gray-50'
     }
 
-    // -----------------------------------------
-    // UI: แสดงรูปภาพในวันที่เลือก
-    // -----------------------------------------
-    if (selectedDate) {
-        return (
-            // ✅ ใช้ div wrapper เหมือนหน้าอื่น เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
-            <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
-                <Flex vertical gap="large">
-                    <Flex
-                        justify="space-between"
-                        align="middle"
-                        className="mb-6 p-4 border-b border-gray-200"
-                    >
-                        <Button
-                            icon={<LeftOutlined />}
-                            onClick={() => setSelectedDate(null)}
-                        >
-                            Back to Dates ({selectedLane})
-                        </Button>
-
-                        <Title level={4} style={{ margin: 0 }}>
-                            Images for {dayjs(selectedDate).format('DD MMMM YYYY')}{' '}
-                            ({selectedLane})
-                        </Title>
-
-                        <div />
-                    </Flex>
-                    
-                    <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
-                        <Title level={5} style={{ marginTop: 0 }}>Available Dates for {selectedLane}</Title>
-                        
-                        {loading ? (
-                            <Flex
-                                justify="center"
-                                align="middle"
-                                style={{ height: 300 }}
-                            >
-                                <Spin size="large" tip="Loading Images..." />
-                            </Flex>
-                        ) : error ? (
-                            <Alert
-                                type="error"
-                                message="Error"
-                                description={error}
-                                showIcon
-                            />
-                        ) : images.length === 0 ? (
-                            <Alert
-                                type="info"
-                                message="ไม่พบข้อมูล"
-                                description={`ไม่พบรูปภาพในวันที่ ${selectedDate} สำหรับ ${selectedLane}`}
-                                showIcon
-                            />
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                                {images.map((img) => (
-                                    <Card
-                                        key={img.id}
-                                        hoverable
-                                        className="p-1 shadow-md rounded-lg"
-                                        cover={
-                                            <Image
-                                                src={img.url}
-                                                alt={img.title}
-                                                style={{
-                                                    height: 180,
-                                                    objectFit: 'cover',
-                                                    borderRadius: '4px 4px 0 0',
-                                                }}
-                                            />
-                                        }
-                                    >
-                                        <Card.Meta
-                                            title={
-                                                <Tooltip title={img.title}>
-                                                    <div className="truncate font-semibold text-sm">
-                                                        {img.title}
-                                                    </div>
-                                                </Tooltip>
-                                            }
-                                            description={
-                                                <Flex vertical gap={4}>
-                                                    <Tag color="blue">
-                                                        {img.lane}
-                                                    </Tag>
-                                                    <div className="text-xs text-gray-500">
-                                                        {dayjs(
-                                                            img.timestamp,
-                                                        ).format('HH:mm:ss')}
-                                                    </div>
-                                                </Flex>
-                                            }
-                                        />
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </Card>
-                </Flex>
-            </div>
-        )
-    }
-
-    // -----------------------------------------
-    // UI: หน้าเลือกวันที่
-    // -----------------------------------------
     return (
-        // ✅ ใช้ div wrapper เหมือนหน้าอื่น เพื่อล็อค Layout ไม่ให้ sidebar ขยับ
-        <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
+        <div
+            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
+        >
             <Flex vertical gap="large">
+                {/* Header + Date Range Filter */}
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
                     <Flex
                         justify="space-between"
                         align="middle"
-                        className="mb-6 p-4 w-full"
+                        className="mb-2 p-4 w-full border-b border-gray-200"
                     >
                         <Title level={4} style={{ margin: 0 }}>
                             Traffic Log
                         </Title>
 
-                        <Flex gap="middle" align="middle">
-                            {/* เลือก Lane */}
-                            <Select
-                                style={{ width: 200 }}
-                                value={selectedLane}
-                                onChange={setSelectedLane}
-                                options={LANE_OPTIONS.map((l) => ({
-                                    label: l,
-                                    value: l,
-                                }))}
-                            />
-
+                        <Flex gap="middle" align="middle" wrap>
                             <DatePickerFormItem.From
-                                label="วันเริ่มต้น"
+                                label="Start Date"
                                 endDateName="endDate"
                                 datePickerProps={{
-                                    placeholder: 'เลือกวันเริ่มต้น',
-                                    onChange: (v) => setStartDate(v),
+                                    placeholder: 'Select start date',
+                                    onChange: (v) => setStartDate(v ?? null),
                                 }}
                             />
 
                             <DatePickerFormItem.To
-                                label="วันสิ้นสุด"
+                                label="End Date"
                                 startDateName="startDate"
                                 datePickerProps={{
-                                    placeholder: 'เลือกวันสิ้นสุด',
-                                    onChange: (v) => setEndDate(v),
+                                    placeholder: 'Select end date',
+                                    onChange: (v) => setEndDate(v ?? null),
                                 }}
                             />
                         </Flex>
                     </Flex>
                 </Form>
 
-                <Card className="shadow-xl rounded-lg p-6 border border-gray-200">
-                    <Title level={5}>Available Dates for {selectedLane}</Title>
+                {/* 4 ช่องด้านบน */}
+                <Card className="shadow-xl rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <Title level={5} style={{ margin: 0 }}>
+                            Selected Images Preview (Lane 1–4)
+                        </Title>
 
-                    {loading ? (
-                        <Flex
-                            justify="center"
-                            align="middle"
-                            style={{ height: 250 }}
-                        >
-                            <Spin size="large" tip="Loading Folders..." />
-                        </Flex>
-                    ) : error ? (
+                        <div className="text-sm text-gray-600">
+                            {selectedRow ? (
+                                <>
+                                    {dayjs(
+                                        selectedRow.date,
+                                        'YYYY-MM-DD',
+                                        true,
+                                    ).format('DD MMMM YYYY')}{' '}
+                                    {selectedRow.time}
+                                </>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    {errorImages && (
                         <Alert
+                            className="mb-4"
                             type="error"
                             message="Error"
-                            description={error}
+                            description={errorImages}
                             showIcon
                         />
-                    ) : displayDates.length === 0 ? (
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {LANE_OPTIONS.map((lane: Lane, idx: number) => {
+                            const img = laneImages[idx]
+                            return (
+                                <div key={lane} className="relative">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Tag color="blue">{lane}</Tag>
+                                    </div>
+
+                                    <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                        {loadingImages ? (
+                                            <Spin />
+                                        ) : img ? (
+                                            <Image
+                                                src={img.url}
+                                                alt={img.title}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                }}
+                                                preview
+                                            />
+                                        ) : (
+                                            <div className="text-sm text-gray-400">
+                                                No image
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {img && (
+                                        <div className="mt-2">
+                                            <div className="text-xs text-gray-700 truncate">
+                                                {img.title}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {dayjs(img.timestamp).format(
+                                                    'HH:mm',
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </Card>
+
+                {/* ตารางล่าง */}
+                <Card className="shadow-xl rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <Title level={5} style={{ margin: 0 }}>
+                            Log Records
+                        </Title>
+                    </div>
+
+                    {displayRows.length === 0 ? (
                         <Alert
                             type="info"
                             showIcon
                             message="ไม่พบข้อมูล"
-                            description={
-                                startDate || endDate
-                                    ? `ไม่พบ Folder รูปภาพในช่วงวันที่ที่เลือก สำหรับ ${selectedLane}`
-                                    : `ไม่พบ Folder รูปภาพใดๆ สำหรับ ${selectedLane}`
-                            }
+                            description="ไม่พบรายการในช่วงวันที่ที่เลือก"
                         />
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                            {displayDates.map((date) => (
-                                <Card
-                                    key={date}
-                                    hoverable
-                                    onClick={() => handleDateClick(date)}
-                                    className="flex flex-col items-center justify-center p-6 text-center rounded-lg 
-            shadow-md hover:scale-105 hover:shadow-lg transition-transform duration-300 cursor-pointer"
-                                >
-                                    <FolderFilled
-                                        style={{ fontSize: 48, color: '#facc15' }}
-                                    />
-                                    <div className="mt-4 font-bold text-lg text-gray-700">
-                                        {dayjs(date).format('YYYY.MM.DD')}
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
+                        <Table<LogRow>
+                            rowKey="key"
+                            columns={columns}
+                            dataSource={displayRows}
+                            pagination={{
+                                ...modeLogPagination,
+                                showSizeChanger: true,
+                                pageSizeOptions: ['10', '20', '50', '100'],
+                                onChange: handleModeLogTableChange,
+                            }}
+                            onRow={onRow}
+                            rowClassName={rowClassName}
+                        />
                     )}
                 </Card>
             </Flex>
