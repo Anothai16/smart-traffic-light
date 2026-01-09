@@ -81,4 +81,28 @@ export const imageLogRoutes = new Elysia({ prefix: '/image-log' })
             date: t.String(),
             lane: t.String(), // 🔴 เพิ่ม Lane ใน Schema
         }),
+    })
+    .get('/records', async ({ set, jwt, headers, query }) => {
+        // --- JWT Check (Copy logic เดิมมาใส่) ---
+        const authHeader = headers['authorization'];
+        if (!authHeader) { set.status = 401; return { message: 'No Auth' }; }
+        const token = authHeader.split(' ')[1];
+        if (!await jwt.verify(token)) { set.status = 401; return { message: 'Invalid Token' }; }
+        // ---------------------------------------
+
+        const { lane } = query;
+        // บังคับว่าถ้าไม่ส่งมา ให้ Default เป็น 'Lane_1' (ตามโจทย์ที่อยากยึด Lane 1 เป็นหลัก)
+        const targetLane = (lane as string) || 'Lane_1';
+
+        try {
+            const logs = await ImageLogController.getLogRecords(targetLane);
+            return logs;
+        } catch (error: any) {
+            set.status = 500;
+            return { message: error.message };
+        }
+    }, {
+        query: t.Object({
+            lane: t.Optional(t.String())
+        })
     });
