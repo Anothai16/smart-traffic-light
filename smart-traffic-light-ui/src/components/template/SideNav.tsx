@@ -1,4 +1,5 @@
 import classNames from 'classnames'
+import { useLocation } from 'react-router-dom' // 👈 เพิ่มสิ่งนี้
 import ScrollBar from '@/components/ui/ScrollBar'
 import {
     SIDE_NAV_WIDTH,
@@ -25,6 +26,7 @@ const sideNavCollapseStyle = {
 }
 
 const SideNav = () => {
+    const location = useLocation() // 👈 เรียกใช้งาน Hook เพื่อดู Path ปัจจุบัน
     const themeColor = useAppSelector((state) => state.theme.themeColor)
     const primaryColorLevel = useAppSelector(
         (state) => state.theme.primaryColorLevel,
@@ -32,9 +34,8 @@ const SideNav = () => {
     const navMode = useAppSelector((state) => state.theme.navMode)
     const mode = useAppSelector((state) => state.theme.mode)
     const direction = useAppSelector((state) => state.theme.direction)
-    const currentRouteKey = useAppSelector(
-        (state) => state.base.common.currentRouteKey,
-    )
+    
+    // เราจะไม่ใช้ currentRouteKey ในการระบายสีเมนูแล้ว
     const sideNavCollapse = useAppSelector(
         (state) => state.theme.layout.sideNavCollapse,
     )
@@ -53,11 +54,9 @@ const SideNav = () => {
         if (navMode === NAV_MODE_THEMED) {
             return NAV_MODE_DARK
         }
-
         if (navMode === NAV_MODE_TRANSPARENT) {
             return mode
         }
-
         return navMode
     }
 
@@ -66,7 +65,8 @@ const SideNav = () => {
             navMode={navMode}
             collapsed={sideNavCollapse}
             navigationTree={navigationConfig}
-            routeKey={currentRouteKey}
+            // 🟢 แก้ไขจุดนี้: ใช้ location.pathname แทน currentRouteKey
+            routeKey={location.pathname} 
             userAuthority={userAuthority as string[]}
             direction={direction}
         />
@@ -91,7 +91,7 @@ const SideNav = () => {
                             type={sideNavCollapse ? 'streamline' : 'full'}
                             className={
                                 sideNavCollapse
-                                    ? 'py-2' // Adjust padding for collapsed state
+                                    ? 'py-2'
                                     : LOGO_X_GUTTER
                             }
                         />
