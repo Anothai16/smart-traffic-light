@@ -206,6 +206,7 @@ const PictureLog = () => {
                     </Flex>
                 </Form>
 
+            <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
                 <Card className="shadow-lg rounded-lg border border-gray-200">
                      <div className="flex items-center justify-between mb-4">
                         <Title level={5} style={{ margin: 0, color: '#666' }}>Selected Event Preview</Title>
@@ -252,7 +253,7 @@ const PictureLog = () => {
                         })}
                     </div>
                 </Card>
-
+            </div>              
                 <Card className="shadow-lg rounded-lg border border-gray-200">
                     <Title level={5} style={{ marginBottom: 16, color: '#666' }}>Log Records</Title>
                     

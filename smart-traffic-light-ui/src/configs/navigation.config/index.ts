@@ -16,7 +16,7 @@ const navigationConfig: NavigationTree[] = [
         authority: [],
         subMenu: [
             {
-                        key: 'appsProject.dashboard',
+                        key: `/project/dashboard`,
                         path: `/project/dashboard`,
                         title: 'Dashboard',
                         translateKey: 'appsProject.dashboard',
@@ -26,7 +26,7 @@ const navigationConfig: NavigationTree[] = [
                         subMenu: [],
                     },
                     {
-                        key: 'appsProject.trafficManagement',
+                        key: `/project/trafficManagement`,
                         path: `/project/trafficManagement`,
                         title: 'Traffic Management',
                         translateKey: 'appsProject.trafficManagement',
@@ -36,7 +36,7 @@ const navigationConfig: NavigationTree[] = [
                         subMenu: [],
                     },
                     {
-                        key: 'appsProject.AccountConfiguration',
+                        key: `/project/AccountConfiguration`,
                         path: `/project/AccountConfiguration`,
                         title: 'Account Configuration',
                         translateKey: 'appsProject.AccountConfiguration',
@@ -55,7 +55,7 @@ const navigationConfig: NavigationTree[] = [
                         authority: [],
                         subMenu: [
                             {
-                                key: 'appsProject.Picture.Traffic.log',
+                                key: '/project/Picture/TrafficLog',
                                 path: `/project/Picture/TrafficLog`, 
                                 title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Traffic Log',
                                 translateKey: 'appsProject.Picture.Traffic',
@@ -65,7 +65,7 @@ const navigationConfig: NavigationTree[] = [
                                 subMenu: [],
                             },
                             {
-                                key: 'appsProject.Picture.Traffic.Violations',
+                                key: '/project/Picture/TrafficViolations',
                                 path: `/project/Picture/TrafficViolations`, 
                                 title: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Red Light Violations',
                                 translateKey: 'appsProject.Picture.Traffic.Alert',
@@ -77,7 +77,7 @@ const navigationConfig: NavigationTree[] = [
                         ],
                     },
                     {
-                        key: 'appsProject.SettingHistory',
+                        key: `/project/SettingHistory`,
                         path: `/project/SettingHistory`,
                         title: 'Setting History',
                         translateKey: 'appsProject.SettingHistory',
@@ -87,7 +87,7 @@ const navigationConfig: NavigationTree[] = [
                         subMenu: [],
                     },
                     {
-                        key: 'appsProject.CameraManagement',
+                        key: `/project/IntersectionManagement`,
                         path: `/project/IntersectionManagement`,
                         title: 'Intersection Management',
                         translateKey: 'appsProject.CameraManagement',

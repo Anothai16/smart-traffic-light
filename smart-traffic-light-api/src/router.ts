@@ -12,6 +12,7 @@ import { settingHistoryRoutes } from './routes/settingHistory.routes';
 import { imageLogRoutes } from './routes/image-log.routes'; 
 import { permissionRoutes } from './routes/permission.routes'; 
 import { intersectionRoutes } from './routes/intersection.routes';
+import { dashboardRoutes } from './routes/dashboard.routes';
 // 🔴 1. ดึง Path จาก Environment Variable (ค่าจาก .env คือ C:\TrafficData)
 const rawRootPath = process.env.IMAGE_ROOT_PATH || 'C:\\TrafficData'; 
 
@@ -38,6 +39,7 @@ export const appRoutes = new Elysia()
     .use(imageLogRoutes)
     .use(permissionRoutes) 
     .use(intersectionRoutes)
+    .use(dashboardRoutes)
     .on('beforeHandle', ({ request }) => {
         console.log(`[Global Router] Received Request: ${request.method} ${request.url}`);
     })

@@ -18,19 +18,18 @@ export const SettingHistoryService = {
                     sml.New_Red_Duration,
                     sml.New_Yellow_Duration,
                     sml.New_Green_Duration,
-                    
-                    -- ✅ FIX: Force convert Time/Date to String for Frontend
                     CAST(sml.Time as CHAR) as Time,
                     DATE_FORMAT(sml.Date, '%Y-%m-%d') as Date,
                     DATE_FORMAT(sml.Create_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Create_Date,
                     DATE_FORMAT(sml.Update_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Update_Date,
-
-                    CONCAT(a.First_Name, ' ', a.Last_Name) AS Admin_Name,
+                    -- ✅ ใช้ IFNULL เพื่อจัดการชื่อกรณีไม่มี Admin
+                    IFNULL(CONCAT(a.First_Name, ' ', a.Last_Name), NULL) AS Admin_Name,
                     tm.Mode_Name,
                     mi.Name AS Intersection_Name
                 FROM
                     Setting_Mode_Log sml
-                JOIN
+                -- ✅ เปลี่ยนเป็น LEFT JOIN เพื่อให้ข้อมูล Hardware (NULL) แสดงผล
+                LEFT JOIN
                     Admin a ON sml.Admin_ID = a.Admin_ID
                 JOIN
                     Traffic_Mode tm ON sml.Mode_ID = tm.Mode_ID
@@ -54,18 +53,17 @@ export const SettingHistoryService = {
                     ml.Log_ID,
                     ml.Admin_ID,
                     ml.Mode_ID,
-                    
-                    -- ✅ FIX: Force convert Time/Date to String
                     CAST(ml.Time as CHAR) as Time,
                     DATE_FORMAT(ml.Date, '%Y-%m-%d') as Date,
                     DATE_FORMAT(ml.Create_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Create_Date,
                     DATE_FORMAT(ml.Update_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Update_Date,
-
-                    CONCAT(a.First_Name, ' ', a.Last_Name) AS Admin_Name,
+                    -- ✅ ใช้ IFNULL เพื่อจัดการชื่อกรณีไม่มี Admin
+                    IFNULL(CONCAT(a.First_Name, ' ', a.Last_Name), NULL) AS Admin_Name,
                     tm.Mode_Name
                 FROM
                     Mode_Log ml
-                JOIN
+                -- ✅ เปลี่ยนเป็น LEFT JOIN เพื่อให้ข้อมูล Hardware (NULL) แสดงผล
+                LEFT JOIN
                     Admin a ON ml.Admin_ID = a.Admin_ID
                 JOIN
                     Traffic_Mode tm ON ml.Mode_ID = tm.Mode_ID

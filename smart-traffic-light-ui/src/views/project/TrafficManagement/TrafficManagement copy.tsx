@@ -38,9 +38,6 @@ interface ApiErrorResponse {
 
 const YELLOW_LIGHT_DURATION = 3;
 
-// ลำดับโหมดที่ต้องการให้แสดงบนหน้าจอ
-const MODE_ORDER = ['Auto', 'Intelligence', 'Caution', 'Stop'];
-
 const TrafficManagement = () => {
     const [currentMode, setCurrentMode] = useState('');
     const [selectedMode, setSelectedMode] = useState('');
@@ -116,16 +113,9 @@ const TrafficManagement = () => {
         fetchTrafficData();
     }, [fetchTrafficData]);
 
-    // ✅ เรียงลำดับโหมดก่อนการ Render
-    const sortedModes = useMemo(() => {
-        return [...modes].sort((a, b) => {
-            return MODE_ORDER.indexOf(a.name) - MODE_ORDER.indexOf(b.name);
-        });
-    }, [modes]);
-
     const currentModeDetails = modes.find(m => m.name === currentMode);
+    const selectedModeDetails = useMemo(() => modes.find(m => m.name === selectedMode), [modes, selectedMode]);
 
-    // ✅ ฟังก์ชัน handleUpdateMode ที่แก้ไขแล้วให้เรียกดึงข้อมูลใหม่หลังอัปเดตสำเร็จ
     const handleUpdateMode = async () => {
         if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
             showNotification('info', 'Change Mode', 'Please select a different mode.');
@@ -138,12 +128,8 @@ const TrafficManagement = () => {
             const response = await apiUpdateTrafficMode(payload);
 
             if (response.data?.success) {
+                setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
-                
-                // 🔥 จุดสำคัญ: หลังจาก POST สำเร็จ ให้เรียก fetch ข้อมูลใหม่ทันที
-                // เพื่อดึงค่าล่าสุดจากฐานข้อมูล (Sync ข้อมูล Hardware/Software)
-                await fetchTrafficData(); 
-                
             } else {
                 showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
@@ -156,6 +142,7 @@ const TrafficManagement = () => {
         }
     };
     
+    // --- Time Calculation Logic ---
     const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
         const parsedValue = parseInt(value, 10);
         
@@ -188,7 +175,7 @@ const TrafficManagement = () => {
 
     const handleSave = async () => {
         if (selectedMode !== 'Auto') {
-            showNotification('warning', 'Action Restricted', 'กรุณาเลือกโหมด Auto เพื่อบันทึกการตั้งค่าเวลาสี่แยก');
+            showNotification('warning', 'Save Failed', 'Please select Auto mode to change intersection times.');
             return;
         }
         try {
@@ -216,12 +203,15 @@ const TrafficManagement = () => {
     };
 
 
-    if (loading && modes.length === 0) {
+    if (loading) {
         return <Flex justify="center" align="middle" style={{ minHeight: '100vh', padding: '20px' }}><Spin size="large" /></Flex>;
     }
 
     return (
+        // ✅ FIX: ใช้โครงสร้างเดียวกับ AccountConfiguration
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
+            
+            {/* ✅ FIX: Wrap Header และ Content ด้วย Flex vertical gap="large" ตัวเดียวกัน */}
             <Flex vertical gap="large">
                 
                 {/* --- HEADER --- */}
@@ -234,6 +224,7 @@ const TrafficManagement = () => {
                             Last Updated: {lastUpdated || 'N/A'}
                         </Text>
                         
+                        {/* Status: ไม่มี background */}
                         <Flex align="center" gap="small">
                             <span className="text-base font-semibold text-gray-700">CURRENT MODE:</span>
                             <div
@@ -254,8 +245,10 @@ const TrafficManagement = () => {
                 </Flex>
 
                 {/* --- 1. TRAFFIC MODE SELECTION CARD --- */}
+                {/* จะถูกดันลงมาด้วย gap="large" จาก Flex ด้านบน (ประมาณ 24px) */}
                 <Card className="shadow-lg rounded-xl border-l-4 border-blue-500">
                     <Flex vertical gap="large" className="w-full">
+                        {/* Selected Mode Display */}
                         <div className="mb-4 flex flex-col md:flex-row md:items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <span className="text-base font-bold text-gray-700 whitespace-nowrap">Selected Mode to Apply:</span>                    
                             <Tag 
@@ -285,17 +278,15 @@ const TrafficManagement = () => {
 
                         {/* Mode Selection Grid */}
                         <Flex justify="space-between" gap="large" wrap="wrap">
-                            {sortedModes.map(mode => (
+                            {modes.map(mode => (
                                 <div
                                     key={mode.name}
                                     className={classNames(
                                         "flex-1 basis-[calc(25%-1rem)] min-w-[150px] text-center p-4 cursor-pointer transition-all duration-300 rounded-xl",
                                         "hover:scale-[1.02] hover:shadow-xl",
-                                        selectedMode === mode.name 
-                                            ? mode.name === 'Stop'
-                                                ? 'border-4 border-red-500 bg-red-50 shadow-red-200 shadow-lg' 
-                                                : 'border-4 border-blue-500 bg-blue-50 shadow-lg'              
-                                            : 'border border-gray-200 bg-white shadow-sm'                    
+                                        selectedMode === mode.name ? 
+                                            'border-4 border-blue-500 bg-blue-50 shadow-lg' : 
+                                            'border border-gray-200 bg-white shadow-sm'
                                     )}
                                     onClick={() => setSelectedMode(mode.name)}
                                 >
@@ -317,69 +308,96 @@ const TrafficManagement = () => {
                     </Flex>
                 </Card>
                 
-                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD --- */}
-                <Card 
-                    title={<Title level={4} className='!my-0 !font-bold text-green-600 flex items-center'><SettingOutlined className='mr-2' /> Set Intersection Times (Auto Mode)</Title>} 
-                    className="shadow-lg rounded-xl border-l-4 border-green-500"
-                >
-                    <Flex vertical gap="large" className="w-full">
-                        <Alert
-                            message="Independent Green / Sequential Red Calculation"
-                            description="คุณสามารถกำหนด Green Duration ได้อย่างอิสระสำหรับทุกสี่แยก แต่ระบบจะคำนวณ Red Duration ของสี่แยกถัดไปโดยอัตโนมัติ"
-                            type="info"
-                            showIcon
-                            className="mb-4"
-                        />
-                        {intersectionTimes.map((intersection, index) => (
-                            <Card
-                                key={intersection.Intersection_ID}
-                                title={<Title level={4} className="!my-0 text-blue-800 font-extrabold flex items-center">
-                                    {intersection.Name} 
-                                </Title>}
-                                className={classNames(
-                                    "w-full border-2 border-gray-100 shadow-md transition-shadow hover:shadow-lg",
-                                    index === 0 ? 'bg-blue-50/50' : 'bg-white' 
-                                )}
-                            >
-                                <Flex align="middle" justify="space-between" wrap="wrap" gap="large">
-                                    <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-red-50">
-                                        <span className="font-bold text-red-600 text-lg">Red Duration (s)</span>
-                                        <Input
-                                            type="number"
-                                            value={intersection.New_Red_Duration.toString()}
-                                            onChange={e => handleTimeChange(index, 'red', e.target.value)}
-                                            className="rounded-lg h-12 text-lg"
-                                            disabled={index !== 0} 
-                                        />
+                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD (CONDITIONAL) --- */}
+                {selectedMode === 'Auto' && (
+                    <Card 
+                        title={<Title level={4} className='!my-0 !font-bold text-green-600 flex items-center'><SettingOutlined className='mr-2' /> Set Intersection Times (Auto Mode)</Title>} 
+                        className="shadow-lg rounded-xl border-l-4 border-green-500"
+                    >
+                        <Flex vertical gap="large" className="w-full">
+                            <Alert
+                                message="Independent Green / Sequential Red Calculation"
+                                description="คุณสามารถกำหนด **Green Duration** ได้อย่างอิสระสำหรับ **ทุกสี่แยก** แต่ระบบจะคำนวณ **Red Duration** ของสี่แยกถัดไปโดยอัตโนมัติจากผลรวมของ (Red + Green + Yellow) ของสี่แยกก่อนหน้า"
+                                type="info"
+                                showIcon
+                                className="mb-4"
+                            />
+                            {intersectionTimes.map((intersection, index) => (
+                                <Card
+                                    key={intersection.Intersection_ID}
+                                    title={<Title level={4} className="!my-0 text-blue-800 font-extrabold flex items-center">
+                                        {intersection.Name} 
+                                        {index === 0 ? <Tag color="blue" className='ml-3 text-sm font-bold'>BASE</Tag> : <Tag color="volcano" className='ml-3 text-sm font-bold'>CHAINED</Tag>}
+                                    </Title>}
+                                    className={classNames(
+                                        "w-full border-2 border-gray-100 shadow-md transition-shadow hover:shadow-lg",
+                                        index === 0 ? 'bg-blue-50/50' : 'bg-white' 
+                                    )}
+                                >
+                                    <Flex align="middle" justify="space-between" wrap="wrap" gap="large">
+                                        {/* Red Input */}
+                                        <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-red-50">
+                                            <Flex align="center" justify="space-between" gap="small">
+                                                <span className="font-bold text-red-600 text-lg">Red Duration (s)</span>
+                                                <span className="text-xs text-gray-500">Duration</span>
+                                            </Flex>
+                                            <Input
+                                                type="number"
+                                                value={intersection.New_Red_Duration.toString()}
+                                                onChange={e => handleTimeChange(index, 'red', e.target.value)}
+                                                placeholder="Enter new red time"
+                                                className="rounded-lg h-12 text-lg"
+                                                disabled={index !== 0} 
+                                            />
+                                        </Flex>
+                                        {/* Green Input */}
+                                        <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-green-50">
+                                            <Flex align="center" justify="space-between" gap="small">
+                                                <span className="font-bold text-green-600 text-lg">Green Duration (s)</span>
+                                                <span className="text-xs text-gray-500">Duration</span>
+                                            </Flex>
+                                            <Input
+                                                type="number"
+                                                value={intersection.New_Green_Duration.toString()}
+                                                onChange={e => handleTimeChange(index, 'green', e.target.value)}
+                                                placeholder="Enter new green time"
+                                                className="rounded-lg h-12 text-lg"
+                                            />
+                                        </Flex>
                                     </Flex>
-                                    <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-green-50">
-                                        <span className="font-bold text-green-600 text-lg">Green Duration (s)</span>
-                                        <Input
-                                            type="number"
-                                            value={intersection.New_Green_Duration.toString()}
-                                            onChange={e => handleTimeChange(index, 'green', e.target.value)}
-                                            className="rounded-lg h-12 text-lg"
-                                        />
-                                    </Flex>
-                                </Flex>
-                                {(index > 0 && intersectionTimes.length >= 4) && (
-                                    <div className="mt-2 text-sm text-gray-600 font-medium p-2 bg-gray-100 rounded">
-                                        <span className="font-bold text-red-800">Note:</span> Red Duration ถูกคำนวณจาก {intersectionTimes[index-1].Name}
+                                    <div className="mt-4 pt-4 border-t border-gray-200">
+                                        <Text type="secondary" className="text-sm">
+                                            * **Yellow Light Duration**: {YELLOW_LIGHT_DURATION} วินาที (คงที่).
+                                        </Text>
                                     </div>
-                                )}
-                            </Card>
-                        ))}
-                        <Flex justify="flex-end" className="mt-4">
-                            <Button 
-                                type="primary" 
-                                onClick={handleSave} 
-                                className="font-bold py-3 h-auto px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 bg-green-500 hover:!bg-green-600"
-                            >
-                                Save Changes and Update Times
-                            </Button>
+                                    <div className="mt-2 text-sm text-gray-600 font-medium">
+                                        <span className="text-blue-600 font-bold">Current Red:</span> {intersection.New_Red_Duration.toLocaleString()} วินาที | 
+                                        <span className="text-green-600 font-bold ml-4">Current Green:</span> {intersection.New_Green_Duration.toLocaleString()} วินาที
+                                    </div>
+                                    {(index > 0 && intersectionTimes.length >= 4) && (
+                                        <div className="mt-2 text-sm text-gray-600 font-medium p-2 bg-gray-100 rounded">
+                                            <span className="font-bold text-red-800">Note:</span> Red Duration for {intersection.Name} ถูกคำนวณจาก {intersectionTimes[index-1].Name} (Red: {intersectionTimes[index-1].New_Red_Duration} + Green: {intersectionTimes[index-1].New_Green_Duration} + Yellow: {YELLOW_LIGHT_DURATION})
+                                        </div>
+                                    )}
+                                </Card>
+                            ))}
+                            <Flex justify="flex-end" className="mt-4">
+                                <Button 
+                                    type="primary" 
+                                    onClick={handleSave} 
+                                    className="font-bold py-3 h-auto px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 bg-green-500 hover:!bg-green-600"
+                                >
+                                    <Flex align="center" gap="small">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Save Changes and Update Times
+                                    </Flex>
+                                </Button>
+                            </Flex>
                         </Flex>
-                    </Flex>
-                </Card>
+                    </Card>
+                )}
 
             </Flex>
         </div>

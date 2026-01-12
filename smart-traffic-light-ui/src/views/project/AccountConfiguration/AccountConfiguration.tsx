@@ -322,7 +322,7 @@ const AccountConfiguration: React.FC = () => {
             <Flex vertical gap="large">
                 <Flex justify="space-between" align="middle" wrap="wrap" gap="small">
                     <Title level={4} style={{ margin: 0 }}>
-                        All Account
+                        Account Configuration
                     </Title>
                     <Flex gap="middle">
                         <Input.Search

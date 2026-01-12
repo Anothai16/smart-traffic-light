@@ -113,13 +113,23 @@ export const TrafficService = {
             }
             const modeID = modeRows[0].Mode_ID;
 
+            // ✅ แก้ไขส่วนนี้: สร้างเวลาปัจจุบันให้ตรงกับเวลาไทย (GMT+7)
+            // เพื่อให้เวลาจากการกดหน้าเว็บ เท่ากับเวลาที่กดจากปุ่ม Hardware
+            const now = new Date();
+            const offset = 7 * 60 * 60 * 1000; // GMT+7
+            const localNow = new Date(now.getTime() + offset);
+            
+            const dateStr = localNow.toISOString().split('T')[0]; 
+            const timeStr = localNow.toISOString().split('T')[1].split('.')[0];
+            const fullDateTime = localNow.toISOString().slice(0, 19).replace('T', ' ');
+
             await pool.execute(`
                 INSERT INTO Mode_Log (Mode_ID, Admin_ID, Time, Date, Create_Date, Update_Date)
-                VALUES (?, ?, CURTIME(), CURDATE(), NOW(), NOW())
-            `, [modeID, adminId]);
+                VALUES (?, ?, ?, ?, ?, ?)
+            `, [modeID, adminId, timeStr, dateStr, fullDateTime, fullDateTime]);
             
         } catch (err) {
-            console.error('SQL error:', err);
+            console.error('SQL error in updateTrafficMode:', err);
             throw new Error('Failed to update traffic mode.');
         }
     },
@@ -127,12 +137,13 @@ export const TrafficService = {
     async getCurrentModeStatus(): Promise<string | null> {
         try {
             const pool = await getDbPool();
-            // MySQL: LIMIT 1
+            // ✅ ใช้การเรียงลำดับที่ละเอียดขึ้นเพื่อให้ได้ข้อมูลล่าสุดจริงๆ
             const [rows] = await pool.query<RowDataPacket[]>(`
                 SELECT tm.Mode_Name
-                FROM Mode_Log sml
-                JOIN Traffic_Mode tm ON sml.Mode_ID = tm.Mode_ID
-                ORDER BY sml.Update_Date DESC LIMIT 1
+                FROM Mode_Log ml
+                JOIN Traffic_Mode tm ON ml.Mode_ID = tm.Mode_ID
+                ORDER BY ml.Create_Date DESC, ml.Log_ID DESC 
+                LIMIT 1
             `);
 
             if (rows.length > 0) {
@@ -140,7 +151,7 @@ export const TrafficService = {
             }
             return null; 
         } catch (err) {
-            console.error('SQL error:', err);
+            console.error('SQL error in getCurrentModeStatus:', err);
             return null;
         }
     },
