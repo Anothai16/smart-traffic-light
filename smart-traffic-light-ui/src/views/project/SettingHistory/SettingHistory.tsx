@@ -26,7 +26,7 @@ interface SettingModeLog {
     New_Green_Duration: number | null;
     Create_Date: string;
     Update_Date: string;
-    Admin_Name: string;
+    Admin_Name: string | null; // อนุญาตให้เป็น null
     Mode_Name: string;
 }
 
@@ -38,7 +38,7 @@ interface ModeLog {
     Time: string;
     Create_Date: string;
     Update_Date: string;
-    Admin_Name: string;
+    Admin_Name: string | null; // อนุญาตให้เป็น null
     Mode_Name: string;
 }
 
@@ -55,31 +55,14 @@ const SettingHistory: React.FC = () => {
     const [settingModePagination, setSettingModePagination] = useState({ current: 1, pageSize: 10 });
     const [modeLogPagination, setModeLogPagination] = useState({ current: 1, pageSize: 10 });
 
-    // ✅ ฟังก์ชันช่วยแปลงเวลาอย่างปลอดภัย (แก้ปัญหาจอขาว)
+    // ✅ แก้ไข: ดึงเวลามาแสดงตรงๆ (เพราะ Backend แก้เป็นเวลาไทยแล้ว)
     const formatTime = (timeStr: string | undefined | null) => {
         if (!timeStr) return '-';
         
-        // ถ้ามี T ตัดทิ้งเอาแค่เวลา
+        // ตัดเอาเฉพาะส่วน HH:mm:ss กรณีที่มีเศษวินาทีหรือตัวอักษร T ปนมา
         const cleanTime = timeStr.includes('T') ? timeStr.split('T')[1].split('.')[0] : timeStr.split('.')[0];
         
-        // แยก ชั่วโมง, นาที, วินาที
-        const [hours, minutes, seconds] = cleanTime.split(':').map(Number);
-        
-        if (isNaN(hours)) return cleanTime; // กัน error
-
-        // สร้างวันที่หลอกๆ ขึ้นมาเพื่อใช้จัดการเวลา
-        let date = new Date();
-        date.setUTCHours(hours);
-        date.setUTCMinutes(minutes);
-        date.setUTCSeconds(seconds);
-
-        // แปลงเป็นเวลาไทย (หรือเวลาเครื่อง User)
-        // ถ้าเครื่อง User เป็นเวลาไทย มันจะบวก 7 ให้เอง
-        const localHours = date.getHours().toString().padStart(2, '0');
-        const localMinutes = date.getMinutes().toString().padStart(2, '0');
-        const localSeconds = date.getSeconds().toString().padStart(2, '0');
-
-        return `${localHours}:${localMinutes}:${localSeconds}`;
+        return cleanTime;
     };
 
     const fetchData = useCallback(async () => {
@@ -154,6 +137,8 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
             width: 150,
+            // ✅ แก้ไข: แสดง Hardware หากเป็น Null
+            render: (name) => name || <Tag color="orange">Hardware</Tag>,
         },
         {
             title: 'Intersection Name',
@@ -208,6 +193,8 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
             width: 200,
+            // ✅ แก้ไข: แสดง Hardware หากเป็น Null
+            render: (name) => name || <Tag color="orange">Hardware</Tag>,
         },
         {
             title: 'Traffic Mode',
@@ -264,7 +251,6 @@ const SettingHistory: React.FC = () => {
                         pageSizeOptions: ['10', '20', '50', '100'],
                         onChange: handleSettingModeTableChange,
                     }}
-                    // ✅ FIX: กำหนดความกว้าง Scroll เพื่อป้องกันการล้นจอ
                     scroll={{ x: 1200 }}
                 />
             ),
@@ -283,7 +269,6 @@ const SettingHistory: React.FC = () => {
                         pageSizeOptions: ['10', '20', '50', '100'],
                         onChange: handleModeLogTableChange,
                     }}
-                    // ✅ FIX: กำหนดความกว้าง Scroll เพื่อป้องกันการล้นจอ
                     scroll={{ x: 800 }}
                 />
             ),
@@ -291,7 +276,6 @@ const SettingHistory: React.FC = () => {
     ];
 
     return (
-        // ✅ FIX: ใช้ Wrapper div สีขาว เต็มจอ เพื่อล็อค Layout
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             {contextHolder}
             <Flex vertical gap="large">
@@ -323,7 +307,7 @@ const SettingHistory: React.FC = () => {
                                     key={config.Intersection_ID}
                                     className="flex-1 min-w-[250px] text-center transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg"
                                     style={{
-                                        border: '1px solid #e5e7eb', // ใช้สีเทาอ่อนให้ดู modern ขึ้น
+                                        border: '1px solid #e5e7eb',
                                         backgroundColor: '#fafafa'
                                     }}
                                 >
@@ -338,7 +322,8 @@ const SettingHistory: React.FC = () => {
                                             <span className="font-bold text-lg">{config.New_Green_Duration} s</span>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-2">
-                                            Last Updated by: {config.Admin_Name}
+                                            {/* ✅ แก้ไข: แสดง Hardware หากเป็น Null */}
+                                            Last Updated by: {config.Admin_Name || "Hardware"}
                                         </p>
                                         <p className="text-xs text-gray-500">
                                             Date: {config.Date ? dayjs(config.Date).format('DD/MM/YYYY') : '-'}
@@ -374,7 +359,8 @@ const SettingHistory: React.FC = () => {
                             </Typography.Title>
                             <div className="text-center mt-4">
                                 <p className="text-sm text-gray-700">
-                                    Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name}</span>
+                                    {/* ✅ แก้ไข: แสดง Hardware หากเป็น Null */}
+                                    Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name || "Hardware"}</span>
                                 </p>
                                 <p className="text-xs text-gray-500">
                                     Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'}

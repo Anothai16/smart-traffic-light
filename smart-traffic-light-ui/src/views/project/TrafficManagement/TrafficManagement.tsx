@@ -125,6 +125,7 @@ const TrafficManagement = () => {
 
     const currentModeDetails = modes.find(m => m.name === currentMode);
 
+    // ✅ ฟังก์ชัน handleUpdateMode ที่แก้ไขแล้วให้เรียกดึงข้อมูลใหม่หลังอัปเดตสำเร็จ
     const handleUpdateMode = async () => {
         if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
             showNotification('info', 'Change Mode', 'Please select a different mode.');
@@ -137,8 +138,12 @@ const TrafficManagement = () => {
             const response = await apiUpdateTrafficMode(payload);
 
             if (response.data?.success) {
-                setCurrentMode(selectedMode);
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
+                
+                // 🔥 จุดสำคัญ: หลังจาก POST สำเร็จ ให้เรียก fetch ข้อมูลใหม่ทันที
+                // เพื่อดึงค่าล่าสุดจากฐานข้อมูล (Sync ข้อมูล Hardware/Software)
+                await fetchTrafficData(); 
+                
             } else {
                 showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
@@ -182,7 +187,6 @@ const TrafficManagement = () => {
     };
 
     const handleSave = async () => {
-        // เพิ่ม Alert เช็คว่าถ้าไม่ใช่ Auto ให้แจ้งเตือนก่อนบันทึก
         if (selectedMode !== 'Auto') {
             showNotification('warning', 'Action Restricted', 'กรุณาเลือกโหมด Auto เพื่อบันทึกการตั้งค่าเวลาสี่แยก');
             return;
@@ -313,7 +317,7 @@ const TrafficManagement = () => {
                     </Flex>
                 </Card>
                 
-                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD (นำเงื่อนไข Auto ออกเพื่อให้แสดงผลตลอด) --- */}
+                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD --- */}
                 <Card 
                     title={<Title level={4} className='!my-0 !font-bold text-green-600 flex items-center'><SettingOutlined className='mr-2' /> Set Intersection Times (Auto Mode)</Title>} 
                     className="shadow-lg rounded-xl border-l-4 border-green-500"
