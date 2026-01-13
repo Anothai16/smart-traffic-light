@@ -9,7 +9,7 @@ USE Smart_Traffic_Light;
 -- ==========================================
 DROP TABLE IF EXISTS Picture_Log;
 DROP TABLE IF EXISTS Mode_Log;
-DROP TABLE IF EXISTS Setting_Mode_Log;
+DROP TABLE IF EXISTS Auto_Config_Log;
 DROP TABLE IF EXISTS Traffic_Log;
 DROP TABLE IF EXISTS Admin;
 DROP TABLE IF EXISTS Traffic_Mode;
@@ -78,8 +78,8 @@ CREATE TABLE Traffic_Log (
     FOREIGN KEY (Intersection_ID) REFERENCES Master_Intersection(Intersection_ID)
 ) ENGINE=InnoDB;
 
--- ตาราง Setting_Mode_Log
-CREATE TABLE Setting_Mode_Log (
+-- ตาราง Auto_Config_Log
+CREATE TABLE Auto_Config_Log(
     Log_ID INT AUTO_INCREMENT PRIMARY KEY,
     Mode_ID INT,
     Admin_ID INT,

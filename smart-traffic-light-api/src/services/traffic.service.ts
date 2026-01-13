@@ -37,11 +37,11 @@ export const TrafficService = {
             const pool = await getDbPool();
             const [rows] = await pool.query(`
                 SELECT T1.Intersection_ID, T2.Name, T1.New_Red_Duration, T1.New_Green_Duration
-                FROM Setting_Mode_Log AS T1
+                FROM Auto_Config_Log AS T1
                 JOIN Master_Intersection AS T2 ON T1.Intersection_ID = T2.Intersection_ID
                 WHERE T1.Create_Date IN (
                     SELECT MAX(Create_Date)
-                    FROM Setting_Mode_Log
+                    FROM Auto_Config_Log
                     GROUP BY Intersection_ID
                 )
             `);
@@ -67,7 +67,7 @@ export const TrafficService = {
                 // MySQL: ใช้ LIMIT 1 แทน TOP 1
                 const [oldValRows] = await connection.execute<RowDataPacket[]>(`
                     SELECT New_Red_Duration, New_Yellow_Duration, New_Green_Duration
-                    FROM Setting_Mode_Log
+                    FROM Auto_Config_Log
                     WHERE Intersection_ID = ?
                     ORDER BY Create_Date DESC LIMIT 1
                 `, [item.Intersection_ID]);
@@ -79,7 +79,7 @@ export const TrafficService = {
                 };
 
                 await connection.execute(`
-                    INSERT INTO Setting_Mode_Log 
+                    INSERT INTO Auto_Config_Log 
                     (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Yellow_Duration, Old_Green_Duration, New_Red_Duration, New_Yellow_Duration, New_Green_Duration, Create_Date, Update_Date)
                     VALUES
                     (?, ?, ?, CURTIME(), CURDATE(), ?, ?, ?, ?, 3, ?, NOW(), NOW())

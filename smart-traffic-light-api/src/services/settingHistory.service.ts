@@ -1,12 +1,12 @@
 // src/services/settingHistory.service.ts
-import { getDbPool } from '../config/db.config';
-import { RowDataPacket } from 'mysql2';
+import { getDbPool } from "../config/db.config";
+import { RowDataPacket } from "mysql2";
 
 export const SettingHistoryService = {
-    async getSettingModeHistory() {
-        try {
-            const pool = await getDbPool();
-            const [rows] = await pool.query<RowDataPacket[]>(`
+  async getSettingModeHistory() {
+    try {
+      const pool = await getDbPool();
+      const [rows] = await pool.query<RowDataPacket[]>(`
                 SELECT
                     sml.Log_ID,
                     sml.Mode_ID,
@@ -27,7 +27,7 @@ export const SettingHistoryService = {
                     tm.Mode_Name,
                     mi.Name AS Intersection_Name
                 FROM
-                    Setting_Mode_Log sml
+                   Auto_Config_Log sml
                 -- ✅ เปลี่ยนเป็น LEFT JOIN เพื่อให้ข้อมูล Hardware (NULL) แสดงผล
                 LEFT JOIN
                     Admin a ON sml.Admin_ID = a.Admin_ID
@@ -38,17 +38,17 @@ export const SettingHistoryService = {
                 ORDER BY
                     sml.Create_Date DESC;
             `);
-            return rows;
-        } catch (err) {
-            console.error('SQL error in getSettingModeHistory:', err);
-            throw new Error('Failed to retrieve setting mode history.');
-        }
-    },
+      return rows;
+    } catch (err) {
+      console.error("SQL error in getSettingModeHistory:", err);
+      throw new Error("Failed to retrieve setting mode history.");
+    }
+  },
 
-    async getModeHistory() {
-        try {
-            const pool = await getDbPool();
-            const [rows] = await pool.query<RowDataPacket[]>(`
+  async getModeHistory() {
+    try {
+      const pool = await getDbPool();
+      const [rows] = await pool.query<RowDataPacket[]>(`
                 SELECT
                     ml.Log_ID,
                     ml.Admin_ID,
@@ -70,10 +70,10 @@ export const SettingHistoryService = {
                 ORDER BY
                     ml.Create_Date DESC;
             `);
-            return rows;
-        } catch (err) {
-            console.error('SQL error in getModeHistory:', err);
-            throw new Error('Failed to retrieve traffic mode history.');
-        }
-    },
+      return rows;
+    } catch (err) {
+      console.error("SQL error in getModeHistory:", err);
+      throw new Error("Failed to retrieve traffic mode history.");
+    }
+  },
 };
