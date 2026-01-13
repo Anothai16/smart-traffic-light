@@ -14,8 +14,8 @@ INSERT INTO stl.Master_Intersection (Name, Intersection_Number, IP_Address, Loca
 ('Victory Monument', 4, '192.168.1.104', 'อนุสาวรีย์ชัยสมรภูมิ', GETDATE(), GETDATE());
 GO
 
--- Mock Data for Setting_Mode_Log table
-INSERT INTO stl.Setting_Mode_Log (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Yellow_Duration, Old_Green_Duration, New_Red_Duration, New_Yellow_Duration, New_Green_Duration, Create_Date, Update_Date)
+-- Mock Data for Auto_Config_Log table
+INSERT INTO stl.Auto_Config_Log(Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Yellow_Duration, Old_Green_Duration, New_Red_Duration, New_Yellow_Duration, New_Green_Duration, Create_Date, Update_Date)
 VALUES
 (21, 14, 5, '08:30:00', '2024-09-08', 35, 3, 50, 40, 3, 60, GETDATE(), GETDATE()),
 (21, 14, 6, '09:15:00', '2024-09-08', 45, 3, 70, 40, 3, 65, GETDATE(), GETDATE()),
