@@ -1,27 +1,18 @@
 // src/views/PictureLog.tsx
 
 import React, { useCallback, useEffect, useState } from 'react'
-import {
-    Card,
-    Flex,
-    Form,
-    Image,
-    Spin,
-    Table,
-    Tag,
-    Typography,
-} from 'antd'
+import { Card, Flex, Form, Image, Spin, Table, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/en'
 
-import { 
-    apiGetImagesByDateAndLane, 
-    apiGetLogRecords, 
-    ImageObject, 
-    LogRecord 
+import {
+    apiGetImagesByDateAndLane,
+    apiGetLogRecords,
+    ImageObject,
+    LogRecord,
 } from '@/services/ImageService'
 
 import DatePickerFormItem from '@/components/shared/DatePickerItem'
@@ -40,9 +31,10 @@ type Lane = (typeof LANE_OPTIONS)[number]
 function pickClosestImageByTime(
     images: ImageObject[],
     target: Dayjs | null,
-    thresholdSeconds: number = 10
+    thresholdSeconds: number = 10,
 ): ImageObject | null {
-    if (!images || images.length === 0 || !target || !target.isValid()) return null
+    if (!images || images.length === 0 || !target || !target.isValid())
+        return null
 
     let best: ImageObject | null = null
     let bestDiffMs = Number.MAX_SAFE_INTEGER
@@ -78,7 +70,12 @@ const PictureLog = () => {
     const [loadingLogs, setLoadingLogs] = useState(false)
 
     const [selectedRow, setSelectedRow] = useState<LogRecord | null>(null)
-    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([null, null, null, null])
+    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
+        null,
+        null,
+        null,
+        null,
+    ])
     const [loadingImages, setLoadingImages] = useState(false)
 
     const fetchLogs = useCallback(async () => {
@@ -87,7 +84,7 @@ const PictureLog = () => {
             const data = await apiGetLogRecords('Lane_1')
             setLogRows(data)
         } catch (error) {
-            console.error("Failed to fetch logs", error)
+            console.error('Failed to fetch logs', error)
         } finally {
             setLoadingLogs(false)
         }
@@ -97,16 +94,36 @@ const PictureLog = () => {
         fetchLogs()
     }, [fetchLogs])
 
+    // ... existing imports
+
+    // ---------------------------------------------------------
+    // ค้นหาบรรทัดที่ประกาศตัวแปร displayRows (ประมาณบรรทัด 87)
+    // ---------------------------------------------------------
+
     const displayRows = logRows.filter((row) => {
+        // --- START EDIT: เพิ่มเงื่อนไขกรองเวลา 05:00 - 18:00 ---
+        // ตรวจสอบว่าเวลาต้องอยู่ระหว่าง 05:00 ถึง 18:00 เท่านั้น
+        // ใช้การเปรียบเทียบ String (Lexicographical) ซึ่งใช้ได้ดีกับ format HH:mm:ss
+        if (row.time < '05:00:00' || row.time > '18:00:00') {
+            return false
+        }
+        // --- END EDIT ---
+
         if (!startDate && !endDate) return true
         const d = dayjs(row.date, 'YYYY-MM-DD', true)
         if (!d.isValid()) return false
 
         let ok = true
-        if (startDate) ok = ok && (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
-        if (endDate) ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
+        if (startDate)
+            ok =
+                ok &&
+                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+        if (endDate)
+            ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
         return ok
     })
+
+    // ... rest of the component
 
     const handleModeLogTableChange = (page: number, pageSize: number) => {
         setModeLogPagination({ current: page, pageSize: pageSize })
@@ -137,9 +154,11 @@ const PictureLog = () => {
             const picked = LANE_OPTIONS.map((lane) => {
                 const found = results.find((x) => x.lane === lane)
                 const images = found?.images ?? []
-                
+
                 const exactTimeStr = row.time.replace(/:/g, '-')
-                const exactMatch = images.find(img => img.title.includes(exactTimeStr))
+                const exactMatch = images.find((img) =>
+                    img.title.includes(exactTimeStr),
+                )
                 if (exactMatch) return exactMatch
 
                 return pickClosestImageByTime(images, target, 10)
@@ -186,77 +205,120 @@ const PictureLog = () => {
     }
 
     return (
-        <div style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}>
+        <div
+            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
+        >
             <Flex vertical gap="large">
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
-                    <Flex justify="space-between" align="middle" className="mb-2 p-4 w-full border-b border-gray-200">
-                        <Title level={4} style={{ margin: 0, color: '#555' }}>Traffic Log</Title>
+                    <Flex
+                        justify="space-between"
+                        align="middle"
+                        className="mb-2 p-4 w-full border-b border-gray-200"
+                    >
+                        <Title level={4} style={{ margin: 0, color: '#555' }}>
+                            Traffic Log
+                        </Title>
                         <Flex gap="middle" align="middle" wrap>
                             <DatePickerFormItem.From
                                 label="Start Date"
                                 endDateName="endDate"
-                                datePickerProps={{ placeholder: 'Select start date', onChange: (v) => setStartDate(v ?? null) }}
+                                datePickerProps={{
+                                    placeholder: 'Select start date',
+                                    onChange: (v) => setStartDate(v ?? null),
+                                }}
                             />
                             <DatePickerFormItem.To
                                 label="End Date"
                                 startDateName="startDate"
-                                datePickerProps={{ placeholder: 'Select end date', onChange: (v) => setEndDate(v ?? null) }}
+                                datePickerProps={{
+                                    placeholder: 'Select end date',
+                                    onChange: (v) => setEndDate(v ?? null),
+                                }}
                             />
                         </Flex>
                     </Flex>
                 </Form>
 
-            <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
-                <Card className="shadow-lg rounded-lg border border-gray-200">
-                     <div className="flex items-center justify-between mb-4">
-                        <Title level={5} style={{ margin: 0, color: '#666' }}>Selected Event Preview</Title>
-                        <div className="text-sm text-gray-500">
-                            {selectedRow 
-                                ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}` 
-                                : 'Select a row to view images'
-                            }
+                <div
+                    className="sticky top-0 z-20 pt-2 pb-4"
+                    style={{ backgroundColor: '#fff' }}
+                >
+                    <Card className="shadow-lg rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <Title
+                                level={5}
+                                style={{ margin: 0, color: '#666' }}
+                            >
+                                Selected Event Preview
+                            </Title>
+                            <div className="text-sm text-gray-500">
+                                {selectedRow
+                                    ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
+                                    : 'Select a row to view images'}
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {LANE_OPTIONS.map((lane: Lane, idx: number) => {
-                            const img = laneImages[idx]
-                            return (
-                                <div key={lane} className="relative">
-                                    <div className="flex items-center justify-between mb-2">
-                                        {/* 🔴 Changed color from "blue" to default gray */}
-                                        <Tag color="default" style={{ border: '1px solid #d9d9d9' }}>
-                                            {lane.replace('_', ' ')}
-                                        </Tag>
-                                    </div>
-                                    <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
-                                        {loadingImages ? (
-                                            <Spin />
-                                        ) : img ? (
-                                            <Image 
-                                                src={img.url} 
-                                                alt={img.title} 
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                                preview 
-                                            />
-                                        ) : (
-                                            <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>No matching image</Text>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {LANE_OPTIONS.map((lane: Lane, idx: number) => {
+                                const img = laneImages[idx]
+                                return (
+                                    <div key={lane} className="relative">
+                                        <div className="flex items-center justify-between mb-2">
+                                            {/* 🔴 Changed color from "blue" to default gray */}
+                                            <Tag
+                                                color="default"
+                                                style={{
+                                                    border: '1px solid #d9d9d9',
+                                                }}
+                                            >
+                                                {lane.replace('_', ' ')}
+                                            </Tag>
+                                        </div>
+                                        <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
+                                            {loadingImages ? (
+                                                <Spin />
+                                            ) : img ? (
+                                                <Image
+                                                    src={img.url}
+                                                    alt={img.title}
+                                                    style={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                    }}
+                                                    preview
+                                                />
+                                            ) : (
+                                                <Text
+                                                    type="secondary"
+                                                    style={{
+                                                        fontSize: 11,
+                                                        color: '#999',
+                                                    }}
+                                                >
+                                                    No matching image
+                                                </Text>
+                                            )}
+                                        </div>
+                                        {img && (
+                                            <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">
+                                                {img.title}
+                                            </div>
                                         )}
                                     </div>
-                                    {img && (
-                                        <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">
-                                            {img.title}
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                </Card>
-            </div>              
+                                )
+                            })}
+                        </div>
+                    </Card>
+                </div>
                 <Card className="shadow-lg rounded-lg border border-gray-200">
-                    <Title level={5} style={{ marginBottom: 16, color: '#666' }}>Log Records</Title>
-                    
+                    <Title
+                        level={5}
+                        style={{ marginBottom: 16, color: '#666' }}
+                    >
+                        Log Records
+                    </Title>
+
                     <Table<LogRecord>
                         rowKey="key"
                         columns={columns}
