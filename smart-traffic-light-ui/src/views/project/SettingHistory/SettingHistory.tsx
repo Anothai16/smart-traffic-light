@@ -14,8 +14,6 @@ interface SettingModeLog {
     Log_ID: number;
     Mode_ID: number;
     Admin_ID: number;
-    // Intersection_ID: number; // ลบออก
-    // Intersection_Name?: string; // ลบออก
     Time: string;
     Date: string;
     Old_Red_Duration: number | null;
@@ -69,9 +67,8 @@ const SettingHistory: React.FC = () => {
             const settingHistory: SettingModeLog[] = settingModeResponse.data.history || [];
             setSettingModeHistory(settingHistory);
 
-            // เนื่องจาก Intersection_ID ถูกลบ การจัดกลุ่ม Card ล่าสุดจะแสดงข้อมูลกว้างๆ แทน
-            // หรือสามารถเลือกแสดง Log ล่าสุด 4 อันดับแรกแทนได้
-            setLatestAutoModeConfigs(settingHistory.slice(0, 4));
+            const autoLogs = settingHistory.filter(log => log.Mode_Name === 'Auto');
+            setLatestAutoModeConfigs(autoLogs.slice(0, 4));
 
             const modeHistoryData: ModeLog[] = modeResponse.data.history || [];
             setModeHistory(modeHistoryData);
@@ -285,7 +282,6 @@ const SettingHistory: React.FC = () => {
                                     }}
                                 >
                                     <Flex vertical align="center" gap="small">
-                                        <h5 className="font-bold text-lg mb-2 text-gray-800">Log ID: {config.Log_ID}</h5>
                                         <div className="flex items-center gap-2 mb-1">
                                             <Tag color="red">Red</Tag>
                                             <span className="font-bold text-lg">{config.New_Red_Duration} s</span>
@@ -294,8 +290,13 @@ const SettingHistory: React.FC = () => {
                                             <Tag color="green">Green</Tag>
                                             <span className="font-bold text-lg">{config.New_Green_Duration} s</span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            By: {config.Admin_Name || "Hardware"}
+                                        
+                                        {/* 🟢 ส่วนที่ปรับแก้: ชื่อตัวหนาสีดำ และวันที่/เวลาอยู่บรรทัดล่าง */}
+                                        <p className="text-xs text-gray-500 mt-2 mb-0">
+                                            Updated By: <span style={{ fontWeight: 'bold', color: '#000' }}>{config.Admin_Name || "Hardware"}</span>
+                                        </p>
+                                        <p className="text-xs text-gray-400">
+                                            {config.Date ? dayjs(config.Date).format('DD/MM/YYYY') : '-'} | {formatTime(config.Time)}
                                         </p>
                                     </Flex>
                                 </Card>
@@ -325,7 +326,10 @@ const SettingHistory: React.FC = () => {
                             </Typography.Title>
                             <div className="text-center mt-4">
                                 <p className="text-sm text-gray-700">
-                                    Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name || "Hardware"}</span>
+                                    Last Updated by: <span className="font-medium" style={{ fontWeight: 'bold', color: '#000' }}>{latestModeConfig.Admin_Name || "Hardware"}</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'} | Time: {formatTime(latestModeConfig.Time)}
                                 </p>
                             </div>
                         </Flex>
