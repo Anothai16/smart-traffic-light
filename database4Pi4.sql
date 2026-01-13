@@ -84,6 +84,7 @@ CREATE TABLE Auto_Config_Log(
     Mode_ID INT,
     Admin_ID INT,
     Intersection_ID INT,
+    Lane_Sequence INT,
     Time TIME,
     Date DATE,
     Old_Red_Duration INT,
