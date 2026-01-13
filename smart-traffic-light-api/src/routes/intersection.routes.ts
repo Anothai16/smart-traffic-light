@@ -12,7 +12,6 @@ const jwtPlugin = jwt({
 
 export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
     .use(jwtPlugin)
-    // Middleware ตรวจสอบ Token
     .onBeforeHandle(async ({ set, jwt, headers }) => {
         const authHeader = headers['authorization'];
         if (!authHeader) {
@@ -26,7 +25,6 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             return { message: 'Invalid or expired token' };
         }
     })
-    // Get All
     .get('/', async ({ set }) => {
         try {
             return await IntersectionController.getAll();
@@ -38,7 +36,7 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
     // Create
     .post('/', async ({ set, body }) => {
         try {
-            return await IntersectionController.create(body);
+            return await IntersectionController.create(body as any);
         } catch (error: any) {
             set.status = 500;
             return { message: error.message };
@@ -48,13 +46,14 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             Name: t.String(),
             Intersection_Number: t.Number(),
             IP_Address: t.String(),
-            Location: t.String()
+            Location: t.String(),
+            Lane_Sequence: t.Number() // 🟢 เพิ่มบรรทัดนี้เพื่อให้ Route ยอมรับข้อมูล
         })
     })
     // Update
     .put('/:id', async ({ set, params, body }) => {
         try {
-            return await IntersectionController.update(Number(params.id), body);
+            return await IntersectionController.update(Number(params.id), body as any);
         } catch (error: any) {
             set.status = 500;
             return { message: error.message };
@@ -64,10 +63,10 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             Name: t.String(),
             Intersection_Number: t.Number(),
             IP_Address: t.String(),
-            Location: t.String()
+            Location: t.String(),
+            Lane_Sequence: t.Number() // 🟢 เพิ่มบรรทัดนี้เพื่อให้ Route ยอมรับข้อมูล
         })
     })
-    // Delete
     .delete('/:id', async ({ set, params }) => {
         try {
             return await IntersectionController.delete(Number(params.id));

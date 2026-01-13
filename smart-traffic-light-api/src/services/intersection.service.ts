@@ -8,6 +8,7 @@ export interface Intersection {
     Intersection_Number: number;
     IP_Address: string;
     Location: string;
+    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
 }
 
 export const IntersectionService = {
@@ -32,9 +33,9 @@ export const IntersectionService = {
     async create(data: Intersection): Promise<number> {
         const pool = await getDbPool();
         const [result] = await pool.execute<ResultSetHeader>(
-            `INSERT INTO Master_Intersection (Name, Intersection_Number, IP_Address, Location, Create_Date, Update_Date)
-             VALUES (?, ?, ?, ?, NOW(), NOW())`,
-            [data.Name, data.Intersection_Number, data.IP_Address, data.Location]
+            `INSERT INTO Master_Intersection (Name, Intersection_Number, IP_Address, Location, Lane_Sequence, Create_Date, Update_Date)
+             VALUES (?, ?, ?, ?, ?, NOW(), NOW())`, // 🟢 เพิ่ม Lane_Sequence เข้า SQL
+            [data.Name, data.Intersection_Number, data.IP_Address, data.Location, data.Lane_Sequence ?? null]
         );
         return result.insertId;
     },
@@ -44,9 +45,9 @@ export const IntersectionService = {
         const pool = await getDbPool();
         await pool.execute(
             `UPDATE Master_Intersection 
-             SET Name = ?, Intersection_Number = ?, IP_Address = ?, Location = ?, Update_Date = NOW()
-             WHERE Intersection_ID = ?`,
-            [data.Name, data.Intersection_Number, data.IP_Address, data.Location, id]
+             SET Name = ?, Intersection_Number = ?, IP_Address = ?, Location = ?, Lane_Sequence = ?, Update_Date = NOW()
+             WHERE Intersection_ID = ?`, // 🟢 เพิ่ม Lane_Sequence เข้า SQL
+            [data.Name, data.Intersection_Number, data.IP_Address, data.Location, data.Lane_Sequence ?? null, id]
         );
     },
 
