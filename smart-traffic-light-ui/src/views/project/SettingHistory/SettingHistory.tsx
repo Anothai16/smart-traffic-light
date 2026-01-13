@@ -14,19 +14,17 @@ interface SettingModeLog {
     Log_ID: number;
     Mode_ID: number;
     Admin_ID: number;
-    Intersection_ID: number;
-    Intersection_Name?: string;
+    // Intersection_ID: number; // ลบออก
+    // Intersection_Name?: string; // ลบออก
     Time: string;
     Date: string;
     Old_Red_Duration: number | null;
-    Old_Yellow_Duration: number | null;
     Old_Green_Duration: number | null;
     New_Red_Duration: number | null;
-    New_Yellow_Duration: number | null;
     New_Green_Duration: number | null;
     Create_Date: string;
     Update_Date: string;
-    Admin_Name: string | null; // อนุญาตให้เป็น null
+    Admin_Name: string | null;
     Mode_Name: string;
 }
 
@@ -38,7 +36,7 @@ interface ModeLog {
     Time: string;
     Create_Date: string;
     Update_Date: string;
-    Admin_Name: string | null; // อนุญาตให้เป็น null
+    Admin_Name: string | null;
     Mode_Name: string;
 }
 
@@ -51,17 +49,12 @@ const SettingHistory: React.FC = () => {
     const [latestModeConfig, setLatestModeConfig] = useState<ModeLog | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     
-    // Pagination states
     const [settingModePagination, setSettingModePagination] = useState({ current: 1, pageSize: 10 });
     const [modeLogPagination, setModeLogPagination] = useState({ current: 1, pageSize: 10 });
 
-    // ✅ แก้ไข: ดึงเวลามาแสดงตรงๆ (เพราะ Backend แก้เป็นเวลาไทยแล้ว)
     const formatTime = (timeStr: string | undefined | null) => {
         if (!timeStr) return '-';
-        
-        // ตัดเอาเฉพาะส่วน HH:mm:ss กรณีที่มีเศษวินาทีหรือตัวอักษร T ปนมา
         const cleanTime = timeStr.includes('T') ? timeStr.split('T')[1].split('.')[0] : timeStr.split('.')[0];
-        
         return cleanTime;
     };
 
@@ -76,17 +69,9 @@ const SettingHistory: React.FC = () => {
             const settingHistory: SettingModeLog[] = settingModeResponse.data.history || [];
             setSettingModeHistory(settingHistory);
 
-            const latestAutoModeMap = new Map<number, SettingModeLog>();
-            settingHistory.forEach(log => {
-                const intersectionId = log.Intersection_ID;
-                if (intersectionId !== null && log.Mode_Name === 'Auto') {
-                    const existingLog = latestAutoModeMap.get(intersectionId);
-                    if (!existingLog || dayjs(log.Create_Date).isAfter(dayjs(existingLog.Create_Date))) {
-                        latestAutoModeMap.set(intersectionId, log);
-                    }
-                }
-            });
-            setLatestAutoModeConfigs(Array.from(latestAutoModeMap.values()));
+            // เนื่องจาก Intersection_ID ถูกลบ การจัดกลุ่ม Card ล่าสุดจะแสดงข้อมูลกว้างๆ แทน
+            // หรือสามารถเลือกแสดง Log ล่าสุด 4 อันดับแรกแทนได้
+            setLatestAutoModeConfigs(settingHistory.slice(0, 4));
 
             const modeHistoryData: ModeLog[] = modeResponse.data.history || [];
             setModeHistory(modeHistoryData);
@@ -100,8 +85,7 @@ const SettingHistory: React.FC = () => {
         } catch (error) {
             console.error(error);
             const err = error as AxiosError;
-            const errorMessage = (err.response?.data as { message: string })?.message || err.message || 'An unexpected error occurred';
-            messageApi.error(`Failed to fetch history data. Error: ${errorMessage}`);
+            messageApi.error(`Failed to fetch history data.`);
         } finally {
             setLoading(false);
         }
@@ -137,15 +121,7 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
             width: 150,
-            // ✅ แก้ไข: แสดง Hardware หากเป็น Null
             render: (name) => name || <Tag color="orange">Hardware</Tag>,
-        },
-        {
-            title: 'Intersection Name',
-            dataIndex: 'Intersection_Name',
-            key: 'Intersection_Name',
-            width: 200,
-            render: (name, record) => name || `ID: ${record.Intersection_ID}`,
         },
         {
             title: 'Change Date',
@@ -162,25 +138,23 @@ const SettingHistory: React.FC = () => {
             render: (time) => formatTime(time),
         },
         {
-            title: 'Old Duration (R-Y-G)',
+            title: 'Old Duration (R-G)',
             key: 'oldDuration',
-            width: 250,
+            width: 200,
             render: (_, record) => (
                 <Flex gap="small">
                     <Tag color="red">R: {record.Old_Red_Duration ?? '-'}</Tag>
-                    <Tag color="gold">Y: {record.Old_Yellow_Duration ?? '-'}</Tag>
                     <Tag color="green">G: {record.Old_Green_Duration ?? '-'}</Tag>
                 </Flex>
             ),
         },
         {
-            title: 'New Duration (R-Y-G)',
+            title: 'New Duration (R-G)',
             key: 'newDuration',
-            width: 250,
+            width: 200,
             render: (_, record) => (
                 <Flex gap="small">
                     <Tag color="red">R: {record.New_Red_Duration ?? '-'}</Tag>
-                    <Tag color="gold">Y: {record.New_Yellow_Duration ?? '-'}</Tag>
                     <Tag color="green">G: {record.New_Green_Duration ?? '-'}</Tag>
                 </Flex>
             ),
@@ -193,7 +167,6 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
             width: 200,
-            // ✅ แก้ไข: แสดง Hardware หากเป็น Null
             render: (name) => name || <Tag color="orange">Hardware</Tag>,
         },
         {
@@ -251,7 +224,7 @@ const SettingHistory: React.FC = () => {
                         pageSizeOptions: ['10', '20', '50', '100'],
                         onChange: handleSettingModeTableChange,
                     }}
-                    scroll={{ x: 1200 }}
+                    scroll={{ x: 1000 }}
                 />
             ),
         },
@@ -295,16 +268,16 @@ const SettingHistory: React.FC = () => {
                     </Flex>
                 </Flex>
 
-                <Card title="Latest Auto Mode Configurations" className="shadow-lg rounded-lg border border-gray-200">
+                <Card title="Recent Auto Mode Configurations" className="shadow-lg rounded-lg border border-gray-200">
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '50px' }}>
-                            <Spin tip="Loading..." size="large" />
+                            <Spin size="large" />
                         </div>
                     ) : (
                         <Flex gap="large" wrap="wrap" justify="space-around">
                             {latestAutoModeConfigs.map(config => (
                                 <Card
-                                    key={config.Intersection_ID}
+                                    key={config.Log_ID}
                                     className="flex-1 min-w-[250px] text-center transition-transform duration-300 hover:scale-105 hover:shadow-xl rounded-lg"
                                     style={{
                                         border: '1px solid #e5e7eb',
@@ -312,7 +285,7 @@ const SettingHistory: React.FC = () => {
                                     }}
                                 >
                                     <Flex vertical align="center" gap="small">
-                                        <h5 className="font-bold text-lg mb-2 text-gray-800">{config.Intersection_Name || `ID: ${config.Intersection_ID}`}</h5>
+                                        <h5 className="font-bold text-lg mb-2 text-gray-800">Log ID: {config.Log_ID}</h5>
                                         <div className="flex items-center gap-2 mb-1">
                                             <Tag color="red">Red</Tag>
                                             <span className="font-bold text-lg">{config.New_Red_Duration} s</span>
@@ -322,14 +295,7 @@ const SettingHistory: React.FC = () => {
                                             <span className="font-bold text-lg">{config.New_Green_Duration} s</span>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-2">
-                                            {/* ✅ แก้ไข: แสดง Hardware หากเป็น Null */}
-                                            Last Updated by: {config.Admin_Name || "Hardware"}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                            Date: {config.Date ? dayjs(config.Date).format('DD/MM/YYYY') : '-'}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                            Time: {formatTime(config.Time)}
+                                            By: {config.Admin_Name || "Hardware"}
                                         </p>
                                     </Flex>
                                 </Card>
@@ -345,7 +311,7 @@ const SettingHistory: React.FC = () => {
                 >
                     {loading ? (
                          <div style={{ textAlign: 'center', padding: '50px' }}>
-                            <Spin tip="Loading..." size="large" />
+                            <Spin size="large" />
                         </div>
                     ) : latestModeConfig ? (
                         <Flex vertical align="center" justify="center" gap="small" className="py-4">
@@ -359,14 +325,7 @@ const SettingHistory: React.FC = () => {
                             </Typography.Title>
                             <div className="text-center mt-4">
                                 <p className="text-sm text-gray-700">
-                                    {/* ✅ แก้ไข: แสดง Hardware หากเป็น Null */}
                                     Last Updated by: <span className="font-medium">{latestModeConfig.Admin_Name || "Hardware"}</span>
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Time: {formatTime(latestModeConfig.Time)}
                                 </p>
                             </div>
                         </Flex>
