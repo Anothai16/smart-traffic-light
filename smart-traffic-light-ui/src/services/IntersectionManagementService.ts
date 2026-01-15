@@ -6,19 +6,21 @@ import type { AxiosResponse } from 'axios';
 export interface Intersection {
     Intersection_ID: number;
     Name: string;
-    Intersection_Number: number;
-    IP_Address: string;
     Location: string;
+    IP_Address: string;
+    Intersection_Number: number;
+    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
     Create_Date?: string;
     Update_Date?: string;
 }
 
-// Interface สำหรับส่งข้อมูล Create/Update (ไม่ต้องส่ง ID ตอน Create)
+// Interface สำหรับส่งข้อมูล Create/Update
 export interface IntersectionPayload {
     Name: string;
     Intersection_Number: number;
     IP_Address: string;
     Location: string;
+    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
 }
 
 interface ApiResponse<T> {

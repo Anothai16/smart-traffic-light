@@ -21,13 +21,14 @@ import { IntersectionManagementService } from '@/services/IntersectionManagement
 const { Title } = Typography;
 const { confirm } = Modal;
 
-// Interface สำหรับข้อมูลใน Table (รวมข้อมูลจริงจาก DB + Mock Status)
+// Interface สำหรับข้อมูลใน Table (เพิ่ม Lane_Sequence)
 interface IntersectionTableItem {
     Intersection_ID: number;
     Name: string;
     Location: string;
     IP_Address: string;
     Intersection_Number: number;
+    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
     status: 'Online' | 'Offline'; // Mock field
 }
 
@@ -44,14 +45,14 @@ const IntersectionManagement: React.FC = () => {
         try {
             const response = await IntersectionManagementService.getAllIntersections();
             if (response.data && response.data.data) {
-                // แปลงข้อมูลจาก API และ Mock Status เข้าไป
                 const mappedData: IntersectionTableItem[] = response.data.data.map((item: any) => ({
                     Intersection_ID: item.Intersection_ID,
                     Name: item.Name,
                     Location: item.Location,
                     IP_Address: item.IP_Address,
                     Intersection_Number: item.Intersection_Number,
-                    status: Math.random() > 0.2 ? 'Online' : 'Offline', // ✅ Mock Status ตรงนี้
+                    Lane_Sequence: item.Lane_Sequence || 1, // 🟢 ดึงข้อมูล Lane_Sequence
+                    status: Math.random() > 0.2 ? 'Online' : 'Offline',
                 }));
                 setIntersections(mappedData);
             }
@@ -92,7 +93,7 @@ const IntersectionManagement: React.FC = () => {
                 try {
                     await IntersectionManagementService.deleteIntersection(record.Intersection_ID);
                     message.success(`ลบแยก "${record.Name}" เรียบร้อยแล้ว`);
-                    fetchIntersections(); // Refresh Table
+                    fetchIntersections(); 
                 } catch (error) {
                     message.error('เกิดข้อผิดพลาดในการลบข้อมูล');
                 }
@@ -110,30 +111,28 @@ const IntersectionManagement: React.FC = () => {
         form.validateFields()
             .then(async (values) => {
                 try {
-                    // จัดเตรียม Payload ให้ตรงกับ API
                     const payload = {
                         Name: values.Name,
                         Location: values.Location,
                         IP_Address: values.IP_Address,
-                        Intersection_Number: Number(values.Intersection_Number)
+                        Intersection_Number: Number(values.Intersection_Number),
+                        Lane_Sequence: Number(values.Lane_Sequence) // 🟢 เพิ่มลงใน Payload
                     };
 
                     if (editingIntersection) {
-                        // --- แก้ไข (Update) ---
                         await IntersectionManagementService.updateIntersection(
                             editingIntersection.Intersection_ID,
                             payload
                         );
                         message.success(`แก้ไขข้อมูล "${values.Name}" เรียบร้อยแล้ว`);
                     } else {
-                        // --- เพิ่มใหม่ (Create) ---
                         await IntersectionManagementService.createIntersection(payload);
                         message.success(`เพิ่มข้อมูล "${values.Name}" เรียบร้อยแล้ว`);
                     }
 
                     setIsModalVisible(false);
                     form.resetFields();
-                    fetchIntersections(); // Refresh Table
+                    fetchIntersections(); 
                 } catch (error) {
                     console.error(error);
                     message.error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -144,37 +143,44 @@ const IntersectionManagement: React.FC = () => {
             });
     };
 
-    // ✅ ปรับปรุง Column: ย้ายหมายเลขแยกไปซ้ายสุด และกำหนด Width/Style กันตกบรรทัด
     const columns: TableProps<IntersectionTableItem>['columns'] = [
         {
-            title: 'หมายเลขแยก', // 🟢 ย้ายมาเป็นลำดับที่ 1
+            title: 'หมายเลขแยก',
             dataIndex: 'Intersection_Number',
             key: 'Intersection_Number',
-            width: 120, // กำหนดความกว้างคงที่
+            width: 110,
             align: 'center',
             sorter: (a, b) => a.Intersection_Number - b.Intersection_Number,
+        },
+        {
+            title: 'ลำดับเลน', // 🟢 เพิ่มคอลัมน์ลำดับเลน
+            dataIndex: 'Lane_Sequence',
+            key: 'Lane_Sequence',
+            width: 100,
+            align: 'center',
+            sorter: (a, b) => a.Lane_Sequence - b.Lane_Sequence,
+            render: (val) => <Tag color="blue">{val}</Tag>
         },
         {
             title: 'ชื่อแยก',
             dataIndex: 'Name',
             key: 'Name',
-            width: 200, // กำหนดความกว้างให้พอดี
+            width: 180,
             sorter: (a, b) => a.Name.localeCompare(b.Name),
-            // ใส่ style เพื่อบังคับไม่ให้ตัดบรรทัด
             render: (text) => <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</div>,
         },
         {
             title: 'ตำแหน่ง',
             dataIndex: 'Location',
             key: 'Location',
-            width: 250, // ให้พื้นที่เยอะหน่อยสำหรับที่อยู่ยาวๆ
+            width: 220,
             render: (text) => <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</div>,
         },
         {
             title: 'IP Address',
             dataIndex: 'IP_Address',
             key: 'IP_Address',
-            width: 150,
+            width: 140,
             render: (text) => <div style={{ whiteSpace: 'nowrap' }}>{text}</div>,
         },
         {
@@ -191,8 +197,8 @@ const IntersectionManagement: React.FC = () => {
         {
             title: 'จัดการ',
             key: 'action',
-            width: 200,
-            fixed: 'right', // (Optional) ตรึงปุ่มจัดการไว้ขวาสุดถ้าต้องการ
+            width: 180,
+            fixed: 'right',
             render: (_, record) => (
                 <Flex gap="small">
                     <Button
@@ -216,11 +222,9 @@ const IntersectionManagement: React.FC = () => {
     ];
 
     return (
-        // ✅ FIX: ใช้ Wrapper div แบบเดียวกับหน้าอื่นๆ เพื่อล็อค Layout
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             <Flex vertical gap="large">
                 <Flex justify="space-between" align="middle" className="mb-2">
-                    {/* ✅ FIX: ใช้ Title level 4 และ style เดิม */}
                     <Title level={4} style={{ margin: 0 }} className="text-gray-800">
                         Intersection Management
                     </Title>
@@ -240,14 +244,13 @@ const IntersectionManagement: React.FC = () => {
                         rowKey="Intersection_ID"
                         loading={loading}
                         pagination={{ pageSize: 10 }}
-                        // ✅ เพิ่ม scroll fixed pixel เพื่อป้องกันการดัน Layout
                         scroll={{ x: 1000 }} 
                     />
                 </Card>
 
                 <Modal
                     title={editingIntersection ? 'Edit intersection detail' : 'Add new intersection'}
-                    open={isModalVisible} // ใช้ open แทน visible ใน antd เวอร์ชั่นใหม่ (แต่ถ้าเวอร์ชั่นเก่าใช้ visible ก็แก้เป็น visible ได้ครับ)
+                    open={isModalVisible}
                     onOk={handleModalSubmit}
                     onCancel={handleCancel}
                     okText={editingIntersection ? 'Save' : 'Add'}
@@ -257,39 +260,51 @@ const IntersectionManagement: React.FC = () => {
                         form={form}
                         layout="vertical"
                         name="intersection_form"
-                        initialValues={{ Intersection_Number: 1 }}
+                        initialValues={{ Intersection_Number: 1, Lane_Sequence: 1 }}
                     >
                         <Form.Item
                             name="Name"
                             label="Intersection Name"
                             rules={[{ required: true, message: 'Please insert intersection name!' }]}
                         >
-                            <Input />
+                            <Input placeholder="ชื่อแยก" />
                         </Form.Item>
                         
-                        <Form.Item
-                            name="Intersection_Number"
-                            label="Intersection Number"
-                            rules={[{ required: true, message: 'Please insert number!' }]}
-                        >
-                            <InputNumber style={{ width: '100%' }} min={1} />
-                        </Form.Item>
+                        <Flex gap="middle">
+                            <Form.Item
+                                name="Intersection_Number"
+                                label="No."
+                                style={{ flex: 1 }}
+                                rules={[{ required: true, message: 'Required' }]}
+                            >
+                                <InputNumber style={{ width: '100%' }} min={1} />
+                            </Form.Item>
+
+                            {/* 🟢 ช่องกรอก Lane Sequence ใน Form */}
+                            <Form.Item
+                                name="Lane_Sequence"
+                                label="Lane Sequence"
+                                style={{ flex: 1 }}
+                                rules={[{ required: true, message: 'Required' }]}
+                            >
+                                <InputNumber style={{ width: '100%' }} min={1} />
+                            </Form.Item>
+                        </Flex>
 
                         <Form.Item
                             name="Location"
                             label="Location"
                             rules={[{ required: true, message: 'Please insert location!' }]}
                         >
-                            <Input />
+                            <Input placeholder="ระบุพิกัดหรือถนน" />
                         </Form.Item>
+
                         <Form.Item
                             name="IP_Address"
                             label="IP Address"
-                            rules={[
-                                { required: true, message: 'Please insert IP Address!' },
-                            ]}
+                            rules={[{ required: true, message: 'Please insert IP Address!' }]}
                         >
-                            <Input />
+                            <Input placeholder="เช่น 192.168.1.100" />
                         </Form.Item>
                     </Form>
                 </Modal>
