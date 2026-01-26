@@ -25,7 +25,7 @@ dayjs.locale('en')
 const { Title, Text } = Typography
 
 // 🟢 กำหนดให้หน้าจอมี 4 ช่องเสมอ (Sequence 1-4)
-const FIXED_LANES = [1, 2, 3, 4] as const;
+const FIXED_LANES = [1, 2, 3, 4] as const
 
 /**
  * Finds the closest image within a ±10-second window.
@@ -73,19 +73,26 @@ const PictureLog = () => {
 
     // เก็บข้อมูล Config ของเลนที่ดึงจาก DB
     // 🟢 Initialize เป็น Array ว่างเสมอ เพื่อกัน Error .find is not a function
-    const [intersectionInfo, setIntersectionInfo] = useState<IntersectionData[]>([])
-    
+    const [intersectionInfo, setIntersectionInfo] = useState<
+        IntersectionData[]
+    >([])
+
     const [selectedRow, setSelectedRow] = useState<LogRecord | null>(null)
-    
+
     // เก็บรูปภาพที่จะแสดงใน 4 ช่อง
-    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([null, null, null, null])
+    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
+        null,
+        null,
+        null,
+        null,
+    ])
     const [loadingImages, setLoadingImages] = useState(false)
 
     // 1. ดึง Log Records
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
         try {
-            const data = await apiGetLogRecords('Lane_1') 
+            const data = await apiGetLogRecords('Lane_1')
             setLogRows(data)
         } catch (error) {
             console.error('Failed to fetch logs', error)
@@ -104,7 +111,7 @@ const PictureLog = () => {
             try {
                 // ใช้ any เพื่อรับค่า response ดิบๆ มาตรวจสอบก่อน
                 const response: any = await apiGetIntersectionData()
-                
+
                 // 🟢 แก้ไข Logic การแกะข้อมูล เพื่อป้องกัน Error
                 if (response && Array.isArray(response.data)) {
                     // กรณี API ส่งมาแบบ { success: true, data: [...] }
@@ -113,7 +120,10 @@ const PictureLog = () => {
                     // กรณี API ส่งมาแบบ [...]
                     setIntersectionInfo(response)
                 } else {
-                    console.warn('Unknown data format from apiGetIntersectionData:', response)
+                    console.warn(
+                        'Unknown data format from apiGetIntersectionData:',
+                        response,
+                    )
                     setIntersectionInfo([]) // Fallback เป็น array ว่าง
                 }
             } catch (error) {
@@ -128,14 +138,16 @@ const PictureLog = () => {
         if (row.time < '05:00:00' || row.time > '18:00:00') {
             return false
         }
-        
+
         if (!startDate && !endDate) return true
         const d = dayjs(row.date, 'YYYY-MM-DD', true)
         if (!d.isValid()) return false
 
         let ok = true
         if (startDate)
-            ok = ok && (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+            ok =
+                ok &&
+                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
         if (endDate)
             ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
         return ok
@@ -162,14 +174,17 @@ const PictureLog = () => {
 
             const results = await Promise.all(
                 FIXED_LANES.map(async (laneSeq) => {
-                    const laneApiName = `Lane_${laneSeq}`;
+                    const laneApiName = `Lane_${laneSeq}`
                     try {
-                        const res = await apiGetImagesByDateAndLane(row.date, laneApiName)
+                        const res = await apiGetImagesByDateAndLane(
+                            row.date,
+                            laneApiName,
+                        )
                         return { laneSequence: laneSeq, images: res }
                     } catch (e) {
                         return { laneSequence: laneSeq, images: [] }
                     }
-                })
+                }),
             )
 
             const picked = FIXED_LANES.map((laneSeq) => {
@@ -226,7 +241,9 @@ const PictureLog = () => {
     }
 
     return (
-        <div style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}>
+        <div
+            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
+        >
             <Flex vertical gap="large">
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
                     <Flex
@@ -258,10 +275,16 @@ const PictureLog = () => {
                     </Flex>
                 </Form>
 
-                <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
+                <div
+                    className="sticky top-0 z-20 pt-2 pb-4"
+                    style={{ backgroundColor: '#fff' }}
+                >
                     <Card className="shadow-lg rounded-lg border border-gray-200">
                         <div className="flex items-center justify-between mb-4">
-                            <Title level={5} style={{ margin: 0, color: '#666' }}>
+                            <Title
+                                level={5}
+                                style={{ margin: 0, color: '#666' }}
+                            >
                                 Selected Event Preview
                             </Title>
                             <div className="text-sm text-gray-500">
@@ -274,21 +297,32 @@ const PictureLog = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {FIXED_LANES.map((laneSeq, idx) => {
                                 // 🟢 เพิ่มการตรวจสอบว่า intersectionInfo เป็น Array จริงหรือไม่ก่อนเรียก .find
-                                const info = Array.isArray(intersectionInfo) 
-                                    ? intersectionInfo.find(d => d.Lane_Sequence === laneSeq)
-                                    : undefined;
-                                
+                                const info = Array.isArray(intersectionInfo)
+                                    ? intersectionInfo.find(
+                                          (d) => d.Lane_Sequence === laneSeq,
+                                      )
+                                    : undefined
+
                                 const img = laneImages[idx]
 
                                 return (
                                     <div key={laneSeq} className="relative">
                                         <div className="flex items-center justify-between mb-2">
                                             <Tag
-                                                color="default"
-                                                style={{ border: '1px solid #d9d9d9', minWidth: '60px', textAlign: 'center' }}
+                                                color="blue"
+                                                style={{
+                                                    minWidth: 80,
+                                                    textAlign: 'center',
+                                                    fontSize: 16,
+                                                }}
                                             >
                                                 {/* ใช้ Optional Chaining (?) ป้องกันจอขาว */}
-                                                {info?.Name ? info.Name : (intersectionInfo.length === 0 ? 'Loading...' : '')}
+                                                {info?.Name
+                                                    ? info.Name
+                                                    : intersectionInfo.length ===
+                                                        0
+                                                      ? 'Loading...'
+                                                      : ''}
                                             </Tag>
                                         </div>
 
@@ -307,7 +341,13 @@ const PictureLog = () => {
                                                     preview
                                                 />
                                             ) : (
-                                                <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>
+                                                <Text
+                                                    type="secondary"
+                                                    style={{
+                                                        fontSize: 11,
+                                                        color: '#999',
+                                                    }}
+                                                >
                                                     No matching image
                                                 </Text>
                                             )}
@@ -325,7 +365,10 @@ const PictureLog = () => {
                 </div>
 
                 <Card className="shadow-lg rounded-lg border border-gray-200">
-                    <Title level={5} style={{ marginBottom: 16, color: '#666' }}>
+                    <Title
+                        level={5}
+                        style={{ marginBottom: 16, color: '#666' }}
+                    >
                         Records
                     </Title>
                     <Table<LogRecord>
