@@ -36,14 +36,20 @@ export const TrafficService = {
         try {
             const pool = await getDbPool();
             const [rows] = await pool.query(`
-                SELECT T1.Intersection_ID, T2.Name, T1.New_Red_Duration, T1.New_Green_Duration
+                SELECT 
+                    T1.Intersection_ID, 
+                    T2.Name, 
+                    T2.Lane_Sequence,
+                    T1.New_Red_Duration, 
+                    T1.New_Green_Duration
                 FROM Auto_Config_Log AS T1
                 JOIN Master_Intersection AS T2 ON T1.Intersection_ID = T2.Intersection_ID
-                WHERE T1.Create_Date IN (
-                    SELECT MAX(Create_Date)
+                WHERE T1.Log_ID IN (
+                    SELECT MAX(Log_ID)
                     FROM Auto_Config_Log
                     GROUP BY Intersection_ID
                 )
+                ORDER BY T2.Lane_Sequence ASC -- เรียงจาก DB มาให้เลย
             `);
             return rows as IntersectionQueryResult[];
         } catch (err) {
@@ -54,9 +60,11 @@ export const TrafficService = {
 
     async updateIntersections(data: UpdateIntersectionData[], adminId: number): Promise<void> {
         const pool = await getDbPool();
-        const connection = await pool.getConnection(); // Transaction ต้องใช้ connection เดียว
+        const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
+
+            await connection.execute("SET time_zone = '+07:00'");
 
             const [modeRows] = await connection.execute<RowDataPacket[]>(`
                 SELECT Mode_ID FROM Traffic_Mode WHERE Mode_Name = 'Auto'
@@ -64,32 +72,26 @@ export const TrafficService = {
             const autoModeID = modeRows[0]?.Mode_ID;
 
             for (const item of data) {
-                // MySQL: ใช้ LIMIT 1 แทน TOP 1
                 const [oldValRows] = await connection.execute<RowDataPacket[]>(`
-                    SELECT New_Red_Duration, New_Yellow_Duration, New_Green_Duration
+                    SELECT New_Red_Duration, New_Green_Duration
                     FROM Auto_Config_Log
                     WHERE Intersection_ID = ?
-                    ORDER BY Create_Date DESC LIMIT 1
+                    ORDER BY Log_ID DESC LIMIT 1
                 `, [item.Intersection_ID]);
                 
-                const oldValues = oldValRows[0] || { 
-                    New_Red_Duration: null, 
-                    New_Yellow_Duration: null, 
-                    New_Green_Duration: null 
-                };
+                const oldValues = oldValRows[0] || { New_Red_Duration: 0, New_Green_Duration: 0 };
 
                 await connection.execute(`
                     INSERT INTO Auto_Config_Log 
-                    (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Yellow_Duration, Old_Green_Duration, New_Red_Duration, New_Yellow_Duration, New_Green_Duration, Create_Date, Update_Date)
+                    (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Green_Duration, New_Red_Duration, New_Green_Duration, Create_Date, Update_Date)
                     VALUES
-                    (?, ?, ?, CURTIME(), CURDATE(), ?, ?, ?, ?, 3, ?, NOW(), NOW())
+                    (?, ?, ?, CURTIME(), CURDATE(), ?, ?, ?, ?, NOW(), NOW())
                 `, [
                     autoModeID, adminId, item.Intersection_ID,
-                    oldValues.New_Red_Duration, oldValues.New_Yellow_Duration, oldValues.New_Green_Duration,
+                    oldValues.New_Red_Duration, oldValues.New_Green_Duration,
                     item.New_Red_Duration, item.New_Green_Duration
                 ]);
             }
-
             await connection.commit();
         } catch (err) {
             await connection.rollback();
@@ -103,30 +105,20 @@ export const TrafficService = {
     async updateTrafficMode(modeName: string, adminId: number): Promise<void> {
         try {
             const pool = await getDbPool();
+            await pool.execute("SET time_zone = '+07:00'");
+
             const [modeRows] = await pool.execute<RowDataPacket[]>(
                 'SELECT Mode_ID FROM Traffic_Mode WHERE Mode_Name = ?', 
                 [modeName]
             );
             
-            if (modeRows.length === 0) {
-                throw new Error('Invalid mode name provided.');
-            }
+            if (modeRows.length === 0) throw new Error('Invalid mode name provided.');
             const modeID = modeRows[0].Mode_ID;
-
-            // ✅ แก้ไขส่วนนี้: สร้างเวลาปัจจุบันให้ตรงกับเวลาไทย (GMT+7)
-            // เพื่อให้เวลาจากการกดหน้าเว็บ เท่ากับเวลาที่กดจากปุ่ม Hardware
-            const now = new Date();
-            const offset = 7 * 60 * 60 * 1000; // GMT+7
-            const localNow = new Date(now.getTime() + offset);
-            
-            const dateStr = localNow.toISOString().split('T')[0]; 
-            const timeStr = localNow.toISOString().split('T')[1].split('.')[0];
-            const fullDateTime = localNow.toISOString().slice(0, 19).replace('T', ' ');
 
             await pool.execute(`
                 INSERT INTO Mode_Log (Mode_ID, Admin_ID, Time, Date, Create_Date, Update_Date)
-                VALUES (?, ?, ?, ?, ?, ?)
-            `, [modeID, adminId, timeStr, dateStr, fullDateTime, fullDateTime]);
+                VALUES (?, ?, CURTIME(), CURDATE(), NOW(), NOW())
+            `, [modeID, adminId]);
             
         } catch (err) {
             console.error('SQL error in updateTrafficMode:', err);
@@ -137,7 +129,6 @@ export const TrafficService = {
     async getCurrentModeStatus(): Promise<string | null> {
         try {
             const pool = await getDbPool();
-            // ✅ ใช้การเรียงลำดับที่ละเอียดขึ้นเพื่อให้ได้ข้อมูลล่าสุดจริงๆ
             const [rows] = await pool.query<RowDataPacket[]>(`
                 SELECT tm.Mode_Name
                 FROM Mode_Log ml

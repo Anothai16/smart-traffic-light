@@ -83,7 +83,7 @@ CREATE TABLE Auto_Config_Log(
     Log_ID INT AUTO_INCREMENT PRIMARY KEY,
     Mode_ID INT,
     Admin_ID INT,
-    Lane_Sequence INT,
+    Intersection_ID INT, 
     Time TIME,
     Date DATE,
     Old_Red_Duration INT,
@@ -93,8 +93,10 @@ CREATE TABLE Auto_Config_Log(
     Create_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
     Update_Date DATETIME ON UPDATE CURRENT_TIMESTAMP,
     
+    -- การตั้งค่า Foreign Key
     FOREIGN KEY (Mode_ID) REFERENCES Traffic_Mode(Mode_ID),
     FOREIGN KEY (Admin_ID) REFERENCES Admin(Admin_ID),
+    FOREIGN KEY (Intersection_ID) REFERENCES Master_Intersection(Intersection_ID)
 ) ENGINE=InnoDB;
 
 -- ตาราง Mode_Log
