@@ -13,6 +13,8 @@ import {
 import type { AxiosError } from 'axios';
 import toast from '@/components/ui/toast';
 import Notification from '@/components/ui/Notification';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store';
 import { SyncOutlined, SettingOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -23,10 +25,8 @@ interface Mode {
     color: string;
 }
 
-// ✅ แก้ไข Interface ให้รองรับทั้งข้อมูลที่มาจาก API และข้อมูลที่จะใช้คำนวณในหน้าจอ
 interface IntersectionTimeData {
     Intersection_ID: number;
-    Lane_Sequence: number; 
     Name: string;
     New_Red_Duration: number;
     New_Green_Duration: number;
@@ -38,7 +38,7 @@ interface ApiErrorResponse {
 
 const YELLOW_LIGHT_DURATION = 3;
 
-
+// ลำดับโหมดที่ต้องการให้แสดงบนหน้าจอ
 const MODE_ORDER = ['Auto', 'Intelligence', 'Caution', 'Stop'];
 
 const TrafficManagement = () => {
@@ -48,6 +48,7 @@ const TrafficManagement = () => {
     const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const username = useSelector((state: RootState) => state.auth.user.firstName);
 
     const showNotification = (type: 'success' | 'warning' | 'danger' | 'info', title: string, message: string) => {
         toast.push(
@@ -62,45 +63,37 @@ const TrafficManagement = () => {
         try {
             setLoading(true);
             setLastUpdated(dayjs().format('DD/MM/YYYY, HH:mm:ss'));
-            
-            // 1. Fetch Modes
             const modesResponse = await apiGetTrafficModes();
             if (modesResponse.data.modes) {
-                const apiModes = modesResponse.data.modes.map((m: any) => {
+                const apiModes = modesResponse.data.modes.map(m => {
                     let colorClass = '';
                     switch (m.Mode_Name) {
-                        case 'Auto': colorClass = 'bg-green-500'; break;
-                        case 'Intelligence': colorClass = 'bg-blue-500'; break;
-                        case 'Caution': colorClass = 'bg-yellow-500'; break;
-                        case 'Stop': colorClass = 'bg-red-500'; break;
-                        default: colorClass = 'bg-gray-500';
+                        case 'Auto':
+                            colorClass = 'bg-green-500';
+                            break;
+                        case 'Intelligence':
+                            colorClass = 'bg-blue-500';
+                            break;
+                        case 'Caution':
+                            colorClass = 'bg-yellow-500';
+                            break;
+                        case 'Stop':
+                            colorClass = 'bg-red-500';
+                            break;
+                        default:
+                            colorClass = 'bg-gray-500';
                     }
-                    return { name: m.Mode_Name, color: colorClass };
+                    return {
+                        name: m.Mode_Name,
+                        color: colorClass,
+                    };
                 });
                 setModes(apiModes);
             }
-            
-            // 2. Fetch Intersections
             const intersectionsResponse = await apiGetIntersectionData();
             if (intersectionsResponse.data.intersections) {
-                // ✅ ใช้ any ชั่วคราวตอน map เพื่อป้องกัน Type Error จาก API เก่า
-                const mappedData: IntersectionTimeData[] = intersectionsResponse.data.intersections.map((item: any) => ({
-                    Intersection_ID: item.Intersection_ID,
-                    // ถ้าไม่มี Lane_Sequence ส่งมา ให้ใช้ Intersection_ID แทนชั่วคราว
-                    Lane_Sequence: item.Lane_Sequence ?? item.Intersection_ID ?? 0, 
-                    Name: item.Name,
-                    New_Red_Duration: Number(item.New_Red_Duration || 0),
-                    New_Green_Duration: Number(item.New_Green_Duration || 0)
-                }));
-
-                // ✅ Sort ได้อย่างปลอดภัยเพราะ Interface มี Lane_Sequence แล้ว
-                const sortedIntersections = mappedData.sort(
-                    (a, b) => a.Lane_Sequence - b.Lane_Sequence
-                );
-                setIntersectionTimes(sortedIntersections);
+                setIntersectionTimes(intersectionsResponse.data.intersections);
             }
-
-            // 3. Mode Status
             const modeStatusResponse = await apiGetModeStatus();
             const modeFromApi = modeStatusResponse.data.currentMode;
             if (modeFromApi) {
@@ -165,6 +158,7 @@ const TrafficManagement = () => {
         setIntersectionTimes(prev => {
             let newTimes = [...prev];
             
+            // 🔥 Edit Green Duration only for Lane 1 (Index 0), sync others
             if (color === 'green' && index === 0) {
                 newTimes = newTimes.map(item => ({ 
                     ...item, 
@@ -172,14 +166,17 @@ const TrafficManagement = () => {
                 }));
             }
 
+            // 🟢 Calculate Red Durations based on Circular Loop Logic
             const green = newTimes[0]?.New_Green_Duration || 0;
-            const segment = green + YELLOW_LIGHT_DURATION; 
+            const segment = green + YELLOW_LIGHT_DURATION; // e.g., 35 + 3 = 38
 
             newTimes = newTimes.map((item, idx) => {
                 let calculatedRed = 0;
                 if (idx === 0) {
+                    // แยกแรก: (Green + Yellow) * จำนวนแยกทั้งหมด (เช่น 38 * 4 = 152)
                     calculatedRed = segment * newTimes.length;
                 } else {
+                    // แยกถัดไป: (Green + Yellow) * ลำดับแยก (38, 76, 114)
                     calculatedRed = segment * idx;
                 }
                 return { ...item, New_Red_Duration: calculatedRed };
@@ -192,41 +189,28 @@ const TrafficManagement = () => {
     const handleSave = async () => {
         try {
             setLoading(true);
-            
-            // ✅ FIX: แก้ Payload ให้ตรงกับที่ traffic.routes.ts ต้องการ (ตัด Old_... และ Intersection_ID ออก)
-            // Backend ต้องการแค่ { Lane_Sequence, New_Red_Duration, New_Green_Duration }
             const payload = {
                 intersections: intersectionTimes.map(item => ({
                     Intersection_ID: item.Intersection_ID,
-                    Lane_Sequence: item.Lane_Sequence, 
                     New_Red_Duration: Number(item.New_Red_Duration),
                     New_Green_Duration: Number(item.New_Green_Duration),
                 })),
             };
-            
-            // ใช้ as any เพื่อเลี่ยง Error ใน Frontend Service ที่อาจยังไม่ได้ update type
-            const response = await apiUpdateIntersectionTimes(payload as any);
-            
+            const response = await apiUpdateIntersectionTimes(payload);
             if (response.data?.success) {
                 showNotification('success', 'Times Updated', response.data.message || 'Successfully changed!');
-                fetchTrafficData(); 
             } else {
                 showNotification('danger', 'Update Failed', response.data.message || 'Failed to change intersection times.');
             }
         } catch (error) {
             const err = error as AxiosError<ApiErrorResponse>;
-            // จัดการ 422 error
-            if (err.response?.status === 422) {
-                console.error("Validation Error:", err.response.data);
-                showNotification('danger', 'Validation Error', 'Backend ปฏิเสธข้อมูล (422) ตรวจสอบว่าส่ง field เกินไปหรือไม่');
-           } else {
-               const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
-               showNotification('danger', 'Update Failed', `An error occurred: ${errorMessage}`);
-           }
+            const errorMessage = err.response?.data?.message || err.message || 'An unexpected error occurred';
+            showNotification('danger', 'Update Failed', `An error occurred: ${errorMessage}`);
         } finally {
             setLoading(false);
         }
     };
+
 
     if (loading && modes.length === 0) {
         return <Flex justify="center" align="middle" style={{ minHeight: '100vh', padding: '20px' }}><Spin size="large" /></Flex>;
@@ -342,12 +326,10 @@ const TrafficManagement = () => {
                         />
                         {intersectionTimes.map((intersection, index) => (
                             <Card
-                                key={intersection.Lane_Sequence}
-                                title={
-                                    <Title level={4} className="!my-0 text-blue-800 font-extrabold flex items-center">
-                                        Sequence {intersection.Lane_Sequence}
-                                    </Title>
-                                }
+                                key={intersection.Intersection_ID}
+                                title={<Title level={4} className="!my-0 text-blue-800 font-extrabold flex items-center">
+                                    {intersection.Name} 
+                                </Title>}
                                 className={classNames(
                                     "w-full border-2 border-gray-100 shadow-md transition-shadow hover:shadow-lg",
                                     index === 0 ? 'bg-blue-50/50' : 'bg-white' 
