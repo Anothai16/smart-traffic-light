@@ -17,7 +17,6 @@ export interface Intersection {
 // Interface สำหรับส่งข้อมูล Create/Update
 export interface IntersectionPayload {
     Name: string;
-    Intersection_Number: number;
     IP_Address: string;
     Location: string;
     Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน

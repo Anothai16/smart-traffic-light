@@ -27,7 +27,6 @@ interface IntersectionTableItem {
     Name: string;
     Location: string;
     IP_Address: string;
-    Intersection_Number: number;
     Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
     status: 'Online' | 'Offline'; // Mock field
 }
@@ -50,7 +49,6 @@ const IntersectionManagement: React.FC = () => {
                     Name: item.Name,
                     Location: item.Location,
                     IP_Address: item.IP_Address,
-                    Intersection_Number: item.Intersection_Number,
                     Lane_Sequence: item.Lane_Sequence || 1, // 🟢 ดึงข้อมูล Lane_Sequence
                     status: Math.random() > 0.2 ? 'Online' : 'Offline',
                 }));
@@ -115,7 +113,7 @@ const IntersectionManagement: React.FC = () => {
                         Name: values.Name,
                         Location: values.Location,
                         IP_Address: values.IP_Address,
-                        Intersection_Number: Number(values.Intersection_Number),
+                        Intersection_ID: Number(values.Intersection_ID),
                         Lane_Sequence: Number(values.Lane_Sequence) // 🟢 เพิ่มลงใน Payload
                     };
 
@@ -146,21 +144,21 @@ const IntersectionManagement: React.FC = () => {
     const columns: TableProps<IntersectionTableItem>['columns'] = [
         {
             title: 'หมายเลขแยก',
-            dataIndex: 'Intersection_Number',
-            key: 'Intersection_Number',
+            dataIndex: 'Intersection_ID',
+            key: 'Intersection_ID',
             width: 110,
             align: 'center',
-            sorter: (a, b) => a.Intersection_Number - b.Intersection_Number,
+            sorter: (a, b) => a.Intersection_ID - b.Intersection_ID,
         },
-        {
-            title: 'ลำดับเลน', // 🟢 เพิ่มคอลัมน์ลำดับเลน
-            dataIndex: 'Lane_Sequence',
-            key: 'Lane_Sequence',
-            width: 100,
-            align: 'center',
-            sorter: (a, b) => a.Lane_Sequence - b.Lane_Sequence,
-            render: (val) => <Tag color="blue">{val}</Tag>
-        },
+        // {
+        //     title: 'ลำดับเลน', // 🟢 เพิ่มคอลัมน์ลำดับเลน
+        //     dataIndex: 'Lane_Sequence',
+        //     key: 'Lane_Sequence',
+        //     width: 100,
+        //     align: 'center',
+        //     sorter: (a, b) => a.Lane_Sequence - b.Lane_Sequence,
+        //     render: (val) => <Tag color="blue">{val}</Tag>
+        // },
         {
             title: 'ชื่อแยก',
             dataIndex: 'Name',
@@ -260,7 +258,7 @@ const IntersectionManagement: React.FC = () => {
                         form={form}
                         layout="vertical"
                         name="intersection_form"
-                        initialValues={{ Intersection_Number: 1, Lane_Sequence: 1 }}
+                        initialValues={{ Intersection_ID: 1, Lane_Sequence: 1 }}
                     >
                         <Form.Item
                             name="Name"
@@ -270,27 +268,6 @@ const IntersectionManagement: React.FC = () => {
                             <Input placeholder="ชื่อแยก" />
                         </Form.Item>
                         
-                        <Flex gap="middle">
-                            <Form.Item
-                                name="Intersection_Number"
-                                label="No."
-                                style={{ flex: 1 }}
-                                rules={[{ required: true, message: 'Required' }]}
-                            >
-                                <InputNumber style={{ width: '100%' }} min={1} />
-                            </Form.Item>
-
-                            {/* 🟢 ช่องกรอก Lane Sequence ใน Form */}
-                            <Form.Item
-                                name="Lane_Sequence"
-                                label="Lane Sequence"
-                                style={{ flex: 1 }}
-                                rules={[{ required: true, message: 'Required' }]}
-                            >
-                                <InputNumber style={{ width: '100%' }} min={1} />
-                            </Form.Item>
-                        </Flex>
-
                         <Form.Item
                             name="Location"
                             label="Location"
