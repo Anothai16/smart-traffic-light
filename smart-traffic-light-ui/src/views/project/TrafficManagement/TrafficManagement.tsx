@@ -38,7 +38,7 @@ interface ApiErrorResponse {
 
 const YELLOW_LIGHT_DURATION = 3;
 
-// ลำดับโหมดที่ต้องการให้แสดงบนหน้าจอ
+
 const MODE_ORDER = ['Auto', 'Intelligence', 'Caution', 'Stop'];
 
 const TrafficManagement = () => {
@@ -116,7 +116,6 @@ const TrafficManagement = () => {
         fetchTrafficData();
     }, [fetchTrafficData]);
 
-    // ✅ เรียงลำดับโหมดก่อนการ Render
     const sortedModes = useMemo(() => {
         return [...modes].sort((a, b) => {
             return MODE_ORDER.indexOf(a.name) - MODE_ORDER.indexOf(b.name);
@@ -125,7 +124,6 @@ const TrafficManagement = () => {
 
     const currentModeDetails = modes.find(m => m.name === currentMode);
 
-    // ✅ ฟังก์ชัน handleUpdateMode ที่แก้ไขแล้วให้เรียกดึงข้อมูลใหม่หลังอัปเดตสำเร็จ
     const handleUpdateMode = async () => {
         if (!selectedMode || selectedMode === 'No Mode Selected' || selectedMode === currentMode) {
             showNotification('info', 'Change Mode', 'Please select a different mode.');
@@ -139,11 +137,7 @@ const TrafficManagement = () => {
 
             if (response.data?.success) {
                 showNotification('success', 'Mode Changed', response.data.message || `Successfully changed mode to ${selectedMode}!`);
-                
-                // 🔥 จุดสำคัญ: หลังจาก POST สำเร็จ ให้เรียก fetch ข้อมูลใหม่ทันที
-                // เพื่อดึงค่าล่าสุดจากฐานข้อมูล (Sync ข้อมูล Hardware/Software)
                 await fetchTrafficData(); 
-                
             } else {
                 showNotification('danger', 'Failed to Change Mode', response.data.message || `Failed to change mode.`);
             }
@@ -156,41 +150,39 @@ const TrafficManagement = () => {
         }
     };
     
+    // --- 🟢 Sequential Loop Logic: Calculate based on Circular Loop (152 Logic) ---
     const handleTimeChange = (index: number, color: 'red' | 'green', value: string) => {
         const parsedValue = parseInt(value, 10);
+        const numericValue = isNaN(parsedValue) ? 0 : parsedValue;
         
         setIntersectionTimes(prev => {
-            const newTimes = [...prev];
-            const updatedTime = { ...newTimes[index] };
+            let newTimes = [...prev];
             
-            if (color === 'red') {
-                updatedTime.New_Red_Duration = isNaN(parsedValue) ? 0 : parsedValue;
-            } else if (color === 'green') {
-                updatedTime.New_Green_Duration = isNaN(parsedValue) ? 0 : parsedValue;
+            if (color === 'green' && index === 0) {
+                newTimes = newTimes.map(item => ({ 
+                    ...item, 
+                    New_Green_Duration: numericValue 
+                }));
             }
-            newTimes[index] = updatedTime; 
 
-            if (newTimes.length >= 4) {
-                for (let i = 1; i < newTimes.length; i++) {
-                    const prevIndex = i - 1;
-                    const prevRed = newTimes[prevIndex].New_Red_Duration || 0;
-                    const prevGreen = newTimes[prevIndex].New_Green_Duration || 0;
-                    const newRed = prevRed + prevGreen + YELLOW_LIGHT_DURATION;
-                    newTimes[i] = {
-                        ...newTimes[i],
-                        New_Red_Duration: newRed, 
-                    };
+            const green = newTimes[0]?.New_Green_Duration || 0;
+            const segment = green + YELLOW_LIGHT_DURATION; 
+
+            newTimes = newTimes.map((item, idx) => {
+                let calculatedRed = 0;
+                if (idx === 0) {
+                    calculatedRed = segment * newTimes.length;
+                } else {
+                    calculatedRed = segment * idx;
                 }
-            }
+                return { ...item, New_Red_Duration: calculatedRed };
+            });
+
             return newTimes;
         });
     };
 
     const handleSave = async () => {
-        if (selectedMode !== 'Auto') {
-            showNotification('warning', 'Action Restricted', 'กรุณาเลือกโหมด Auto เพื่อบันทึกการตั้งค่าเวลาสี่แยก');
-            return;
-        }
         try {
             setLoading(true);
             const payload = {
@@ -283,7 +275,6 @@ const TrafficManagement = () => {
                         
                         <Divider orientation="left">Available Modes</Divider>
 
-                        {/* Mode Selection Grid */}
                         <Flex justify="space-between" gap="large" wrap="wrap">
                             {sortedModes.map(mode => (
                                 <div
@@ -294,7 +285,7 @@ const TrafficManagement = () => {
                                         selectedMode === mode.name 
                                             ? mode.name === 'Stop'
                                                 ? 'border-4 border-red-500 bg-red-50 shadow-red-200 shadow-lg' 
-                                                : 'border-4 border-blue-500 bg-blue-50 shadow-lg'              
+                                                : 'border-4 border-blue-500 bg-blue-50 shadow-lg'               
                                             : 'border border-gray-200 bg-white shadow-sm'                    
                                     )}
                                     onClick={() => setSelectedMode(mode.name)}
@@ -324,8 +315,7 @@ const TrafficManagement = () => {
                 >
                     <Flex vertical gap="large" className="w-full">
                         <Alert
-                            message="Independent Green / Sequential Red Calculation"
-                            description="คุณสามารถกำหนด Green Duration ได้อย่างอิสระสำหรับทุกสี่แยก แต่ระบบจะคำนวณ Red Duration ของสี่แยกถัดไปโดยอัตโนมัติ"
+                            message="กำหนดระยะเวลาไฟเขียวที่เลนแรกเท่านั้น โดยระบบจะคำนวณระยะเวลาไฟเขียวและไฟแดงของสี่แยกถัดไปโดยอัตโนมัติ"
                             type="info"
                             showIcon
                             className="mb-4"
@@ -347,9 +337,9 @@ const TrafficManagement = () => {
                                         <Input
                                             type="number"
                                             value={intersection.New_Red_Duration.toString()}
-                                            onChange={e => handleTimeChange(index, 'red', e.target.value)}
                                             className="rounded-lg h-12 text-lg"
-                                            disabled={index !== 0} 
+                                            disabled={true} 
+                                            style={{ backgroundColor: '#fff1f0', color: '#cf1322', fontWeight: 'bold' }}
                                         />
                                     </Flex>
                                     <Flex vertical gap="small" className="flex-1 min-w-[150px] p-2 rounded-lg bg-green-50">
@@ -359,14 +349,14 @@ const TrafficManagement = () => {
                                             value={intersection.New_Green_Duration.toString()}
                                             onChange={e => handleTimeChange(index, 'green', e.target.value)}
                                             className="rounded-lg h-12 text-lg"
+                                            disabled={index !== 0} 
+                                            placeholder={index !== 0 ? "Linked to Lane 1" : ""}
                                         />
                                     </Flex>
                                 </Flex>
-                                {(index > 0 && intersectionTimes.length >= 4) && (
-                                    <div className="mt-2 text-sm text-gray-600 font-medium p-2 bg-gray-100 rounded">
-                                        <span className="font-bold text-red-800">Note:</span> Red Duration ถูกคำนวณจาก {intersectionTimes[index-1].Name}
-                                    </div>
-                                )}
+                                <div className="mt-2 text-sm text-gray-600 font-medium p-2 bg-gray-100 rounded">
+                                    <span className="font-bold text-red-800">หมายเหตุ:</span> {index === 0 ? 'ไฟแดงแยกนี้คำนวณจากทุกแยกที่เหลือรวมกัน' : `ไฟแดงแยกนี้คำนวณสะสมจากแยกก่อนหน้า`}
+                                </div>
                             </Card>
                         ))}
                         <Flex justify="flex-end" className="mt-4">
@@ -380,7 +370,6 @@ const TrafficManagement = () => {
                         </Flex>
                     </Flex>
                 </Card>
-
             </Flex>
         </div>
     );

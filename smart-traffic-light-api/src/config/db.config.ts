@@ -14,19 +14,19 @@ if (!hasDbConfig(config)) {
 
 // MySQL/MariaDB configuration object
 const dbConfig: mysql.PoolOptions = {
-    host: config.DB_HOST || '',      // เปลี่ยนจาก server เป็น host
-    port: Number(config.DB_PORT) || 3306, // Default Port ของ MySQL/MariaDB คือ 3306
+    host: config.DB_HOST || '',      
+    port: Number(config.DB_PORT) || 3306, 
     user: config.DB_USER || '',
     password: config.DB_PASSWORD || '',
     database: config.DB_NAME || '',
-    waitForConnections: true,        // ให้รอถ้า connection เต็ม (Standard ของ mysql2)
-    connectionLimit: 10,             // เทียบเท่า pool.max
+    timezone: '+07:00',
+    waitForConnections: true,       
+    connectionLimit: 10,            
     queueLimit: 0,
-    connectTimeout: 30000,           // 30 วินาที
-    // ไม่ต้องใช้ encrypt หรือ trustServerCertificate สำหรับ MariaDB บน LAN ปกติ
+    connectTimeout: 30000, 
+
 };
 
-// Variable to hold the connection pool instance (Singleton pattern)
 let pool: mysql.Pool | null = null;
 
 /**
