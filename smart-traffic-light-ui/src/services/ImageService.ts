@@ -1,3 +1,5 @@
+// src/services/ImageService.ts
+
 import ApiService from './ApiService';
 
 export interface ImageObject {
@@ -14,6 +16,14 @@ export interface LogRecord {
     time: string;
 }
 
+export interface IntersectionData {
+    Intersection_ID: number;
+    Name: string;           
+    Lane_Sequence: number;  
+    IP_Address?: string;
+    Location?: string;
+}
+
 export async function apiGetLogRecords(laneName: string = 'Lane_1'): Promise<LogRecord[]> {
     const response = await ApiService.fetchData<LogRecord[]>({
         url: `/image-log/records?lane=${encodeURIComponent(laneName)}`,
@@ -27,5 +37,15 @@ export async function apiGetImagesByDateAndLane(date: string, lane: string): Pro
         url: `/image-log/images?date=${date}&lane=${encodeURIComponent(lane) }`,
         method: 'get',
     });
+    return response.data;
+}
+
+export async function apiGetIntersectionData(): Promise<IntersectionData[]> {
+
+    const response = await ApiService.fetchData<IntersectionData[]>({ 
+        url: 'master/intersection', 
+        method: 'get',
+    });
+    
     return response.data;
 }
