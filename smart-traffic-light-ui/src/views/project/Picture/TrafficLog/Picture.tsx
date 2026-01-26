@@ -10,8 +10,10 @@ import 'dayjs/locale/en'
 
 import {
     apiGetImagesByDateAndLane,
+    apiGetIntersectionData,
     apiGetLogRecords,
     ImageObject,
+    IntersectionData,
     LogRecord,
 } from '@/services/ImageService'
 
@@ -22,8 +24,8 @@ dayjs.locale('en')
 
 const { Title, Text } = Typography
 
-const LANE_OPTIONS = ['Lane_1', 'Lane_2', 'Lane_3', 'Lane_4'] as const
-type Lane = (typeof LANE_OPTIONS)[number]
+// 🟢 กำหนดให้หน้าจอมี 4 ช่องเสมอ (Sequence 1-4)
+const FIXED_LANES = [1, 2, 3, 4] as const;
 
 /**
  * Finds the closest image within a ±10-second window.
@@ -69,19 +71,21 @@ const PictureLog = () => {
     const [logRows, setLogRows] = useState<LogRecord[]>([])
     const [loadingLogs, setLoadingLogs] = useState(false)
 
+    // เก็บข้อมูล Config ของเลนที่ดึงจาก DB
+    // 🟢 Initialize เป็น Array ว่างเสมอ เพื่อกัน Error .find is not a function
+    const [intersectionInfo, setIntersectionInfo] = useState<IntersectionData[]>([])
+    
     const [selectedRow, setSelectedRow] = useState<LogRecord | null>(null)
-    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
-        null,
-        null,
-        null,
-        null,
-    ])
+    
+    // เก็บรูปภาพที่จะแสดงใน 4 ช่อง
+    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([null, null, null, null])
     const [loadingImages, setLoadingImages] = useState(false)
 
+    // 1. ดึง Log Records
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
         try {
-            const data = await apiGetLogRecords('Lane_1')
+            const data = await apiGetLogRecords('Lane_1') 
             setLogRows(data)
         } catch (error) {
             console.error('Failed to fetch logs', error)
@@ -94,36 +98,48 @@ const PictureLog = () => {
         fetchLogs()
     }, [fetchLogs])
 
-    // ... existing imports
-
-    // ---------------------------------------------------------
-    // ค้นหาบรรทัดที่ประกาศตัวแปร displayRows (ประมาณบรรทัด 87)
-    // ---------------------------------------------------------
+    // 2. ดึงข้อมูลชื่อเลนจาก DB (Intersection Data)
+    useEffect(() => {
+        const fetchIntersectionInfo = async () => {
+            try {
+                // ใช้ any เพื่อรับค่า response ดิบๆ มาตรวจสอบก่อน
+                const response: any = await apiGetIntersectionData()
+                
+                // 🟢 แก้ไข Logic การแกะข้อมูล เพื่อป้องกัน Error
+                if (response && Array.isArray(response.data)) {
+                    // กรณี API ส่งมาแบบ { success: true, data: [...] }
+                    setIntersectionInfo(response.data)
+                } else if (Array.isArray(response)) {
+                    // กรณี API ส่งมาแบบ [...]
+                    setIntersectionInfo(response)
+                } else {
+                    console.warn('Unknown data format from apiGetIntersectionData:', response)
+                    setIntersectionInfo([]) // Fallback เป็น array ว่าง
+                }
+            } catch (error) {
+                console.error('Error fetching intersection info:', error)
+                setIntersectionInfo([])
+            }
+        }
+        fetchIntersectionInfo()
+    }, [])
 
     const displayRows = logRows.filter((row) => {
-        // --- START EDIT: เพิ่มเงื่อนไขกรองเวลา 05:00 - 18:00 ---
-        // ตรวจสอบว่าเวลาต้องอยู่ระหว่าง 05:00 ถึง 18:00 เท่านั้น
-        // ใช้การเปรียบเทียบ String (Lexicographical) ซึ่งใช้ได้ดีกับ format HH:mm:ss
         if (row.time < '05:00:00' || row.time > '18:00:00') {
             return false
         }
-        // --- END EDIT ---
-
+        
         if (!startDate && !endDate) return true
         const d = dayjs(row.date, 'YYYY-MM-DD', true)
         if (!d.isValid()) return false
 
         let ok = true
         if (startDate)
-            ok =
-                ok &&
-                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+            ok = ok && (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
         if (endDate)
             ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
         return ok
     })
-
-    // ... rest of the component
 
     const handleModeLogTableChange = (page: number, pageSize: number) => {
         setModeLogPagination({ current: page, pageSize: pageSize })
@@ -145,14 +161,19 @@ const PictureLog = () => {
             const target = dayjs(targetStr, 'YYYY-MM-DD HH:mm:ss')
 
             const results = await Promise.all(
-                LANE_OPTIONS.map(async (lane) => {
-                    const res = await apiGetImagesByDateAndLane(row.date, lane)
-                    return { lane, images: res }
-                }),
+                FIXED_LANES.map(async (laneSeq) => {
+                    const laneApiName = `Lane_${laneSeq}`;
+                    try {
+                        const res = await apiGetImagesByDateAndLane(row.date, laneApiName)
+                        return { laneSequence: laneSeq, images: res }
+                    } catch (e) {
+                        return { laneSequence: laneSeq, images: [] }
+                    }
+                })
             )
 
-            const picked = LANE_OPTIONS.map((lane) => {
-                const found = results.find((x) => x.lane === lane)
+            const picked = FIXED_LANES.map((laneSeq) => {
+                const found = results.find((x) => x.laneSequence === laneSeq)
                 const images = found?.images ?? []
 
                 const exactTimeStr = row.time.replace(/:/g, '-')
@@ -200,14 +221,12 @@ const PictureLog = () => {
 
     const rowClassName: TableProps<LogRecord>['rowClassName'] = (record) => {
         return record.key === selectedRow?.key
-            ? 'cursor-pointer bg-gray-200' // 🔴 Changed from bg-blue-100 to bg-gray-200
+            ? 'cursor-pointer bg-gray-200'
             : 'cursor-pointer hover:bg-gray-50'
     }
 
     return (
-        <div
-            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
-        >
+        <div style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}>
             <Flex vertical gap="large">
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
                     <Flex
@@ -239,16 +258,10 @@ const PictureLog = () => {
                     </Flex>
                 </Form>
 
-                <div
-                    className="sticky top-0 z-20 pt-2 pb-4"
-                    style={{ backgroundColor: '#fff' }}
-                >
+                <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
                     <Card className="shadow-lg rounded-lg border border-gray-200">
                         <div className="flex items-center justify-between mb-4">
-                            <Title
-                                level={5}
-                                style={{ margin: 0, color: '#666' }}
-                            >
+                            <Title level={5} style={{ margin: 0, color: '#666' }}>
                                 Selected Event Preview
                             </Title>
                             <div className="text-sm text-gray-500">
@@ -259,21 +272,26 @@ const PictureLog = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {LANE_OPTIONS.map((lane: Lane, idx: number) => {
+                            {FIXED_LANES.map((laneSeq, idx) => {
+                                // 🟢 เพิ่มการตรวจสอบว่า intersectionInfo เป็น Array จริงหรือไม่ก่อนเรียก .find
+                                const info = Array.isArray(intersectionInfo) 
+                                    ? intersectionInfo.find(d => d.Lane_Sequence === laneSeq)
+                                    : undefined;
+                                
                                 const img = laneImages[idx]
+
                                 return (
-                                    <div key={lane} className="relative">
+                                    <div key={laneSeq} className="relative">
                                         <div className="flex items-center justify-between mb-2">
-                                            {/* 🔴 Changed color from "blue" to default gray */}
                                             <Tag
                                                 color="default"
-                                                style={{
-                                                    border: '1px solid #d9d9d9',
-                                                }}
+                                                style={{ border: '1px solid #d9d9d9', minWidth: '60px', textAlign: 'center' }}
                                             >
-                                                {lane.replace('_', ' ')}
+                                                {/* ใช้ Optional Chaining (?) ป้องกันจอขาว */}
+                                                {info?.Name ? info.Name : (intersectionInfo.length === 0 ? 'Loading...' : '')}
                                             </Tag>
                                         </div>
+
                                         <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
                                             {loadingImages ? (
                                                 <Spin />
@@ -289,13 +307,7 @@ const PictureLog = () => {
                                                     preview
                                                 />
                                             ) : (
-                                                <Text
-                                                    type="secondary"
-                                                    style={{
-                                                        fontSize: 11,
-                                                        color: '#999',
-                                                    }}
-                                                >
+                                                <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>
                                                     No matching image
                                                 </Text>
                                             )}
@@ -311,14 +323,11 @@ const PictureLog = () => {
                         </div>
                     </Card>
                 </div>
-                <Card className="shadow-lg rounded-lg border border-gray-200">
-                    <Title
-                        level={5}
-                        style={{ marginBottom: 16, color: '#666' }}
-                    >
-                        Log Records
-                    </Title>
 
+                <Card className="shadow-lg rounded-lg border border-gray-200">
+                    <Title level={5} style={{ marginBottom: 16, color: '#666' }}>
+                        Records
+                    </Title>
                     <Table<LogRecord>
                         rowKey="key"
                         columns={columns}
