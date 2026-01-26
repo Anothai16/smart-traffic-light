@@ -23,7 +23,6 @@ DROP TABLE IF EXISTS Master_Intersection;
 CREATE TABLE Master_Intersection (
     Intersection_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(255),
-    Intersection_Number INT,
     IP_Address VARCHAR(50),
     Location VARCHAR(255),
     Create_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
