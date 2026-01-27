@@ -28,10 +28,8 @@ services:
       - ./smart-traffic-light-api:/app
       - /app/node_modules
 
-      # ✅ Map โฟลเดอร์รูป (เจาะจง path นี้ให้ทะลุออกไปข้างนอก)
-      # ฝั่งซ้าย ./traffic_data = โฟลเดอร์ข้างนอก (ที่เดียวกับ docker-compose.yml)
-      # ฝั่งขวา /app/traffic_data = ที่อยู่ใน Container
       - ./traffic_data:/traffic_data_storage
+      - ./violation_data:/violation_data_storage
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -46,6 +44,7 @@ services:
       
       # ✅ บังคับให้ Code เขียนลง Path นี้ (ซึ่งจะทะลุไปข้างนอกตาม Volume ด้านบน)
       - IMAGE_ROOT_PATH=/traffic_data_storage
+      - VIOLATION_ROOT_PATH=/violation_data_storage
       
       - PORT=3000
       - LANE_1_NAME=Lane_1
