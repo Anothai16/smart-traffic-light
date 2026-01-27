@@ -12,7 +12,7 @@ const jwtPlugin = jwt({
 export const imageViolationRoutes = new Elysia({ prefix: '/image-violation' })
     .use(jwtPlugin)
     
-    // Route สำหรับดึงรูปภาพ (ยังต้องระบุเลนเพื่อดึงรูปจากโฟลเดอร์ที่ถูกต้อง)
+    // GET /image-violation/images?date=...&lane=...
     .get('/images', async ({ set, query, jwt, headers }) => { 
         const authHeader = headers['authorization'];
         if (!authHeader) { set.status = 401; return { message: 'Authorization header is missing' }; }
@@ -39,18 +39,25 @@ export const imageViolationRoutes = new Elysia({ prefix: '/image-violation' })
         }),
     })
 
-    // Route สำหรับดึงรายการ Records (ปรับให้เรียกแบบรวมทุก Lane)
-    .get('/records', async ({ set, jwt, headers }) => {
+    // GET /image-violation/records?lane=...
+    .get('/records', async ({ set, jwt, headers, query }) => {
         const authHeader = headers['authorization'];
         if (!authHeader) { set.status = 401; return { message: 'No Auth' }; }
         const token = authHeader.split(' ')[1];
         if (!await jwt.verify(token)) { set.status = 401; return { message: 'Invalid Token' }; }
 
+        const { lane } = query;
+        // Default เป็น Lane_1 ถ้าไม่ส่งมา (เหมือน Traffic)
+        const targetLane = (lane as string) || 'Lane_1';
+
         try {
-            // เรียก Controller โดยตรงโดยไม่ผ่าน Query Lane
-            return await ImageViolationController.getLogRecords();
+            return await ImageViolationController.getLogRecords(targetLane);
         } catch (error: any) {
             set.status = 500;
             return { message: error.message };
         }
+    }, {
+        query: t.Object({
+            lane: t.Optional(t.String())
+        })
     });
