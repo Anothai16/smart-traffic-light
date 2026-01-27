@@ -25,6 +25,7 @@ CREATE TABLE Master_Intersection (
     Name VARCHAR(255),
     IP_Address VARCHAR(50),
     Location VARCHAR(255),
+    Lane_Sequence INT,
     Create_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
     Update_Date DATETIME ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -65,9 +66,8 @@ CREATE TABLE Traffic_Log (
     Traffic_Log_ID INT AUTO_INCREMENT PRIMARY KEY,
     Intersection_ID INT,
     Red_Count INT,
-    Yellow_Count INT,
     Green_Count INT,
-    Picture VARCHAR(255),
+    Violation_Count INT,
     Vehicle_Count INT,
     Date DATE,
     Time TIME,
