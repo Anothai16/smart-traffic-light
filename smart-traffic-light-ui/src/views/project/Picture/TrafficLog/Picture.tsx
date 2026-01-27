@@ -1,8 +1,15 @@
-// src/views/PictureLog.tsx
-
 import React, { useCallback, useEffect, useState } from 'react'
-import { Card, Flex, Form, Image, Spin, Table, Tag, Typography } from 'antd'
-import type { TableProps } from 'antd'
+import {
+    Card,
+    Flex,
+    Form,
+    Image,
+    Spin,
+    Table,
+    Tag,
+    Typography,
+    message,
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
@@ -24,11 +31,11 @@ dayjs.locale('en')
 
 const { Title, Text } = Typography
 
-// 🟢 กำหนดให้หน้าจอมี 4 ช่องเสมอ (Sequence 1-4)
-const FIXED_LANES = [1, 2, 3, 4] as const
+// 🟢 กำหนดลำดับกล่องโดยยึดจาก Intersection_ID (1-4) ตามภาพ DB
+const FIXED_INTERSECTIONS = [1, 2, 3, 4] as const
 
 /**
- * Finds the closest image within a ±10-second window.
+ * Logic ค้นหารูปที่เวลาใกล้เคียงที่สุด (±10 วินาที)
  */
 function pickClosestImageByTime(
     images: ImageObject[],
@@ -60,42 +67,36 @@ function pickClosestImageByTime(
 
 const PictureLog = () => {
     const [form] = Form.useForm()
-    const [modeLogPagination, setModeLogPagination] = useState({
-        current: 1,
-        pageSize: 50,
-    })
 
+    // States แบบเดียวกับ TrafficViolations
     const [startDate, setStartDate] = useState<Dayjs | null>(null)
     const [endDate, setEndDate] = useState<Dayjs | null>(null)
-
     const [logRows, setLogRows] = useState<LogRecord[]>([])
-    const [loadingLogs, setLoadingLogs] = useState(false)
-
-    // เก็บข้อมูล Config ของเลนที่ดึงจาก DB
-    // 🟢 Initialize เป็น Array ว่างเสมอ เพื่อกัน Error .find is not a function
     const [intersectionInfo, setIntersectionInfo] = useState<
         IntersectionData[]
     >([])
-
     const [selectedRow, setSelectedRow] = useState<LogRecord | null>(null)
-
-    // เก็บรูปภาพที่จะแสดงใน 4 ช่อง
     const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
         null,
         null,
         null,
         null,
     ])
-    const [loadingImages, setLoadingImages] = useState(false)
 
-    // 1. ดึง Log Records
+    // Loading & Pagination States
+    const [loadingLogs, setLoadingLogs] = useState(false)
+    const [loadingImages, setLoadingImages] = useState(false)
+    const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
+
+    // 1. Fetch Log Records
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
         try {
             const data = await apiGetLogRecords('Lane_1')
             setLogRows(data)
         } catch (error) {
-            console.error('Failed to fetch logs', error)
+            message.error('Failed to fetch logs')
+            console.error(error)
         } finally {
             setLoadingLogs(false)
         }
@@ -105,90 +106,52 @@ const PictureLog = () => {
         fetchLogs()
     }, [fetchLogs])
 
-    // 2. ดึงข้อมูลชื่อเลนจาก DB (Intersection Data)
+    // 2. Fetch Intersection Info
     useEffect(() => {
         const fetchIntersectionInfo = async () => {
             try {
-                // ใช้ any เพื่อรับค่า response ดิบๆ มาตรวจสอบก่อน
                 const response: any = await apiGetIntersectionData()
-
-                // 🟢 แก้ไข Logic การแกะข้อมูล เพื่อป้องกัน Error
                 if (response && Array.isArray(response.data)) {
-                    // กรณี API ส่งมาแบบ { success: true, data: [...] }
                     setIntersectionInfo(response.data)
                 } else if (Array.isArray(response)) {
-                    // กรณี API ส่งมาแบบ [...]
                     setIntersectionInfo(response)
-                } else {
-                    console.warn(
-                        'Unknown data format from apiGetIntersectionData:',
-                        response,
-                    )
-                    setIntersectionInfo([]) // Fallback เป็น array ว่าง
                 }
             } catch (error) {
-                console.error('Error fetching intersection info:', error)
                 setIntersectionInfo([])
             }
         }
         fetchIntersectionInfo()
     }, [])
 
-    const displayRows = logRows.filter((row) => {
-        if (row.time < '05:00:00' || row.time > '18:00:00') {
-            return false
-        }
-
-        if (!startDate && !endDate) return true
-        const d = dayjs(row.date, 'YYYY-MM-DD', true)
-        if (!d.isValid()) return false
-
-        let ok = true
-        if (startDate)
-            ok =
-                ok &&
-                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
-        if (endDate)
-            ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
-        return ok
-    })
-
-    const handleModeLogTableChange = (page: number, pageSize: number) => {
-        setModeLogPagination({ current: page, pageSize: pageSize })
-    }
-
-    const clearPreview = useCallback(() => {
-        setSelectedRow(null)
-        setLaneImages([null, null, null, null])
-        setLoadingImages(false)
-    }, [])
-
+    // 3. Load Images by Intersection_ID
     const loadImagesForRow = useCallback(async (row: LogRecord) => {
         setSelectedRow(row)
         setLaneImages([null, null, null, null])
         setLoadingImages(true)
 
         try {
-            const targetStr = `${row.date} ${row.time}`
-            const target = dayjs(targetStr, 'YYYY-MM-DD HH:mm:ss')
+            const target = dayjs(
+                `${row.date} ${row.time}`,
+                'YYYY-MM-DD HH:mm:ss',
+            )
 
             const results = await Promise.all(
-                FIXED_LANES.map(async (laneSeq) => {
-                    const laneApiName = `Lane_${laneSeq}`
+                FIXED_INTERSECTIONS.map(async (id) => {
+                    const laneApiName = `Lane_${id}`
                     try {
                         const res = await apiGetImagesByDateAndLane(
                             row.date,
                             laneApiName,
                         )
-                        return { laneSequence: laneSeq, images: res }
+                        return { intersectionId: id, images: res }
                     } catch (e) {
-                        return { laneSequence: laneSeq, images: [] }
+                        return { intersectionId: id, images: [] }
                     }
                 }),
             )
 
-            const picked = FIXED_LANES.map((laneSeq) => {
-                const found = results.find((x) => x.laneSequence === laneSeq)
+            const picked = FIXED_INTERSECTIONS.map((id) => {
+                const found = results.find((x) => x.intersectionId === id)
                 const images = found?.images ?? []
 
                 const exactTimeStr = row.time.replace(/:/g, '-')
@@ -208,37 +171,30 @@ const PictureLog = () => {
         }
     }, [])
 
+    const displayRows = logRows.filter((row) => {
+        if (row.time < '05:00:00' || row.time > '18:00:00') return false
+        if (!startDate && !endDate) return true
+        const d = dayjs(row.date, 'YYYY-MM-DD', true)
+        if (!d.isValid()) return false
+        let ok = true
+        if (startDate)
+            ok =
+                ok &&
+                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+        if (endDate)
+            ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
+        return ok
+    })
+
     const columns: ColumnsType<LogRecord> = [
         {
             title: 'Date',
             dataIndex: 'date',
             key: 'date',
-            width: 200,
-            render: (d: string) => dayjs(d).format('DD MMMM YYYY'),
+            render: (d) => dayjs(d).format('DD MMMM YYYY'),
         },
-        {
-            title: 'Time',
-            dataIndex: 'time',
-            key: 'time',
-            width: 150,
-        },
+        { title: 'Time', dataIndex: 'time', key: 'time' },
     ]
-
-    const onRow: TableProps<LogRecord>['onRow'] = (record) => ({
-        onClick: () => {
-            if (selectedRow?.key === record.key) {
-                clearPreview()
-                return
-            }
-            loadImagesForRow(record)
-        },
-    })
-
-    const rowClassName: TableProps<LogRecord>['rowClassName'] = (record) => {
-        return record.key === selectedRow?.key
-            ? 'cursor-pointer bg-gray-200'
-            : 'cursor-pointer hover:bg-gray-50'
-    }
 
     return (
         <div
@@ -259,7 +215,6 @@ const PictureLog = () => {
                                 label="Start Date"
                                 endDateName="endDate"
                                 datePickerProps={{
-                                    placeholder: 'Select start date',
                                     onChange: (v) => setStartDate(v ?? null),
                                 }}
                             />
@@ -267,7 +222,6 @@ const PictureLog = () => {
                                 label="End Date"
                                 startDateName="startDate"
                                 datePickerProps={{
-                                    placeholder: 'Select end date',
                                     onChange: (v) => setEndDate(v ?? null),
                                 }}
                             />
@@ -275,6 +229,7 @@ const PictureLog = () => {
                     </Flex>
                 </Form>
 
+                {/* --- Preview Section (Sticky) --- */}
                 <div
                     className="sticky top-0 z-20 pt-2 pb-4"
                     style={{ backgroundColor: '#fff' }}
@@ -295,18 +250,14 @@ const PictureLog = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {FIXED_LANES.map((laneSeq, idx) => {
-                                // 🟢 เพิ่มการตรวจสอบว่า intersectionInfo เป็น Array จริงหรือไม่ก่อนเรียก .find
-                                const info = Array.isArray(intersectionInfo)
-                                    ? intersectionInfo.find(
-                                          (d) => d.Lane_Sequence === laneSeq,
-                                      )
-                                    : undefined
-
+                            {FIXED_INTERSECTIONS.map((id, idx) => {
+                                const info = intersectionInfo.find(
+                                    (d) => d.Intersection_ID === id,
+                                )
                                 const img = laneImages[idx]
 
                                 return (
-                                    <div key={laneSeq} className="relative">
+                                    <div key={id} className="relative">
                                         <div className="flex items-center justify-between mb-2">
                                             <Tag
                                                 color="blue"
@@ -316,13 +267,11 @@ const PictureLog = () => {
                                                     fontSize: 16,
                                                 }}
                                             >
-                                                {/* ใช้ Optional Chaining (?) ป้องกันจอขาว */}
-                                                {info?.Name
-                                                    ? info.Name
-                                                    : intersectionInfo.length ===
-                                                        0
-                                                      ? 'Loading...'
-                                                      : ''}
+                                                {info?.Name ||
+                                                    (intersectionInfo.length ===
+                                                    0
+                                                        ? 'Loading...'
+                                                        : '')}
                                             </Tag>
                                         </div>
 
@@ -364,7 +313,8 @@ const PictureLog = () => {
                     </Card>
                 </div>
 
-                <Card className="shadow-lg rounded-lg border border-gray-200">
+                {/* --- Records Table (โครงสร้างเดียวกับ TrafficViolations) --- */}
+                <Card className="shadow-sm" style={{ borderRadius: 8 }}>
                     <Title
                         level={5}
                         style={{ marginBottom: 16, color: '#666' }}
@@ -372,18 +322,32 @@ const PictureLog = () => {
                         Records
                     </Title>
                     <Table<LogRecord>
-                        rowKey="key"
-                        columns={columns}
                         dataSource={displayRows}
+                        columns={columns}
                         loading={loadingLogs}
+                        rowKey="key"
+                        onRow={(record) => ({
+                            onClick: () => {
+                                if (selectedRow?.key === record.key) {
+                                    setSelectedRow(null)
+                                    setLaneImages([null, null, null, null])
+                                } else {
+                                    loadImagesForRow(record)
+                                }
+                            },
+                        })}
+                        rowClassName={(record) =>
+                            record.key === selectedRow?.key
+                                ? 'bg-blue-50 cursor-pointer'
+                                : 'cursor-pointer'
+                        }
                         pagination={{
-                            ...modeLogPagination,
+                            ...pagination,
+                            onChange: (page, pageSize) =>
+                                setPagination({ current: page, pageSize }),
                             showSizeChanger: true,
-                            pageSizeOptions: ['10', '20', '50', '100'],
-                            onChange: handleModeLogTableChange,
+                            pageSizeOptions: ['10', '20', '50'],
                         }}
-                        onRow={onRow}
-                        rowClassName={rowClassName}
                     />
                 </Card>
             </Flex>

@@ -8,52 +8,49 @@ import {
     Table,
     Tag,
     Spin,
-    Divider,
     message,
 } from 'antd'
-import { CarOutlined } from '@ant-design/icons'
-import type { TableProps } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/en'
 
-// นำเข้า Service เดิมและเตรียมที่สำหรับ API ใหม่
+// 🟢 นำเข้า Service สำหรับ Violation โดยเฉพาะ
 import {
-    apiGetIntersectionData, // ใช้ตัวเดิมดึงชื่อเลน
-    // apiGetNewViolationImages, // สมมติว่าเป็นชื่อ API ใหม่ที่จะนำมาใส่
+    apiGetViolationLogRecords,
+    apiGetViolationImagesByDateAndLane,
+    ViolationLogRecord,
+    ImageViolationObject,
+} from '@/services/ImageViolationService'
+
+// 🟢 ข้อมูลพื้นฐานจุดตัด (Intersection) ใช้จาก Service เดิม
+import {
+    apiGetIntersectionData,
     IntersectionData,
-    ImageObject,
 } from '@/services/ImageService'
 
 import DatePickerFormItem from '@/components/shared/DatePickerItem'
-import { ColumnsType } from 'antd/es/table'
-
-// --- Interfaces ---
-interface LogRecord {
-    key: string
-    date: string
-    time: string
-    // เพิ่ม field อื่นๆ ที่ API ส่งมา เช่น violation_type, plate_number
-}
 
 dayjs.extend(customParseFormat)
 dayjs.locale('en')
 
 const { Title, Text } = Typography
-const FIXED_LANES = [1, 2, 3, 4] as const
+
+// ลำดับกล่องแสดงผลตาม Intersection_ID (1-4)
+const FIXED_INTERSECTIONS = [1, 2, 3, 4] as const
 
 /**
  * Logic ค้นหารูปที่เวลาใกล้เคียงที่สุด (±10 วินาที)
  */
 function pickClosestImageByTime(
-    images: ImageObject[],
+    images: ImageViolationObject[],
     target: Dayjs | null,
     thresholdSeconds: number = 10,
-): ImageObject | null {
+): ImageViolationObject | null {
     if (!images || images.length === 0 || !target || !target.isValid())
         return null
 
-    let best: ImageObject | null = null
+    let best: ImageViolationObject | null = null
     let bestDiffMs = Number.MAX_SAFE_INTEGER
 
     for (const img of images) {
@@ -76,49 +73,40 @@ function pickClosestImageByTime(
 const TrafficViolations = () => {
     const [form] = Form.useForm()
 
-    // States
     const [startDate, setStartDate] = useState<Dayjs | null>(null)
     const [endDate, setEndDate] = useState<Dayjs | null>(null)
-    const [logRows, setLogRows] = useState<LogRecord[]>([])
+
+    const [logRows, setLogRows] = useState<ViolationLogRecord[]>([])
     const [intersectionInfo, setIntersectionInfo] = useState<
         IntersectionData[]
     >([])
-    const [selectedRow, setSelectedRow] = useState<LogRecord | null>(null)
-    const [laneImages, setLaneImages] = useState<(ImageObject | null)[]>([
+    const [selectedRow, setSelectedRow] = useState<ViolationLogRecord | null>(
         null,
-        null,
-        null,
-        null,
-    ])
+    )
+    const [laneImages, setLaneImages] = useState<
+        (ImageViolationObject | null)[]
+    >([null, null, null, null])
 
-    // Loading States
     const [loadingLogs, setLoadingLogs] = useState(false)
     const [loadingImages, setLoadingImages] = useState(false)
     const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
 
-    // --- 1. Fetch Log Records (รายการการกระทำผิด) ---
+    /**
+     * ดึงข้อมูลรายการการกระทำผิด (รวมทุกเลน)
+     */
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
         try {
-            // TODO: [API PART] ใส่ API สำหรับดึงรายการ Traffic Violations ตรงนี้
-            // const response = await apiGetTrafficViolationLogs()
-            // setLogRows(response.data)
-
-            // Mock ข้อมูลเพื่อทดสอบ UI
-            const mockLogs: LogRecord[] = [
-                { key: '1', date: '2024-05-20', time: '10:30:00' },
-                { key: '2', date: '2024-05-20', time: '11:15:20' },
-            ]
-            setLogRows(mockLogs)
+            // เรียก API ที่จัดการ Group ข้อมูลมาให้แล้วจาก Backend
+            const data = await apiGetViolationLogRecords()
+            setLogRows(data)
         } catch (error) {
-            message.error('Failed to fetch logs')
-            console.error(error)
+            message.error('Failed to fetch violation logs')
         } finally {
             setLoadingLogs(false)
         }
     }, [])
 
-    // --- 2. Fetch Intersection Info (ดึงชื่อเลน - ใช้ API เดิม) ---
     useEffect(() => {
         const fetchIntersectionInfo = async () => {
             try {
@@ -129,7 +117,6 @@ const TrafficViolations = () => {
                     setIntersectionInfo(response)
                 }
             } catch (error) {
-                console.error('Error fetching intersection info:', error)
                 setIntersectionInfo([])
             }
         }
@@ -137,8 +124,10 @@ const TrafficViolations = () => {
         fetchLogs()
     }, [fetchLogs])
 
-    // --- 3. Load Images (ดึงรูปภาพจาก API ใหม่) ---
-    const loadImagesForRow = useCallback(async (row: LogRecord) => {
+    /**
+     * โหลดรูปภาพจากทุกเลนเมื่อคลิกเลือกแถว
+     */
+    const loadImagesForRow = useCallback(async (row: ViolationLogRecord) => {
         setSelectedRow(row)
         setLaneImages([null, null, null, null])
         setLoadingImages(true)
@@ -149,42 +138,40 @@ const TrafficViolations = () => {
                 'YYYY-MM-DD HH:mm:ss',
             )
 
-            // วนลูปดึงรูปทั้ง 4 เลนจาก API ตัวใหม่
             const results = await Promise.all(
-                FIXED_LANES.map(async (laneSeq) => {
-                    const laneApiName = `Lane_${laneSeq}`
+                FIXED_INTERSECTIONS.map(async (id) => {
+                    const laneParam = `Lane_${id}`
                     try {
-                        // 🟢 [API PART] เปลี่ยนเป็น API เส้นใหม่ที่คุณทำตรงนี้
-                        // ตัวอย่าง: const res = await apiGetNewImagesByViolation(row.date, laneApiName)
-                        // return { laneSequence: laneSeq, images: res }
-
-                        return { laneSequence: laneSeq, images: [] }
+                        const res = await apiGetViolationImagesByDateAndLane(
+                            row.date,
+                            laneParam,
+                        )
+                        return { id, images: res }
                     } catch (e) {
-                        return { laneSequence: laneSeq, images: [] }
+                        return { id, images: [] }
                     }
                 }),
             )
 
-            const picked = FIXED_LANES.map((laneSeq) => {
-                const found = results.find((r) => r.laneSequence === laneSeq)
+            const picked = FIXED_INTERSECTIONS.map((id) => {
+                const found = results.find((r) => r.id === id)
                 const images = found?.images ?? []
-
-                // ค้นหารูปที่เวลาใกล้เคียงที่สุด
                 return pickClosestImageByTime(images, target, 10)
             })
 
             setLaneImages(picked)
         } catch (err) {
-            console.error('Failed to load images:', err)
+            console.error('Workflow error:', err)
         } finally {
             setLoadingImages(false)
         }
     }, [])
 
-    // Filter Logic สำหรับวันที่
     const displayRows = logRows.filter((row) => {
         if (!startDate && !endDate) return true
-        const d = dayjs(row.date, 'YYYY-MM-DD')
+        const d = dayjs(row.date, 'YYYY-MM-DD', true)
+        if (!d.isValid()) return false
+
         let ok = true
         if (startDate)
             ok =
@@ -195,17 +182,33 @@ const TrafficViolations = () => {
         return ok
     })
 
-    const columns: ColumnsType<LogRecord> = [
+    const columns: ColumnsType<ViolationLogRecord> = [
         {
-            title: 'Date',
+            title: 'Date ',
             dataIndex: 'date',
             key: 'date',
-            render: (d) => dayjs(d).format('DD MMMM YYYY'),
+            render: (date, record) => (
+                <Flex vertical>
+                    <Text strong>{dayjs(date).format('DD MMMM YYYY')}</Text>
+                    {record.lanes && (
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                            Detected in:{' '}
+                            <Tag
+                                color="blue"
+                                style={{ margin: 0, fontSize: '10px' }}
+                            >
+                                {record.lanes}
+                            </Tag>
+                        </Text>
+                    )}
+                </Flex>
+            ),
         },
         {
             title: 'Time',
             dataIndex: 'time',
             key: 'time',
+            width: 120,
         },
     ]
 
@@ -214,7 +217,6 @@ const TrafficViolations = () => {
             style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
         >
             <Flex vertical gap="large">
-                {/* --- Filter Section --- */}
                 <Form form={form} layout="inline">
                     <Flex
                         justify="space-between"
@@ -226,24 +228,33 @@ const TrafficViolations = () => {
                         }}
                     >
                         <Title level={4} style={{ margin: 0 }}>
-                            Red Light Violations
+                            Traffic Violations{' '}
                         </Title>
                         <Flex gap="middle" align="center">
                             <DatePickerFormItem.From
                                 label="Start Date"
                                 endDateName="endDate"
-                                datePickerProps={{ onChange: setStartDate }}
+                                datePickerProps={{
+                                    placeholder: 'Select start date',
+                                    showTime: false,
+                                    format: 'YYYY-MM-DD',
+                                    onChange: (v) => setStartDate(v ?? null),
+                                }}
                             />
                             <DatePickerFormItem.To
                                 label="End Date"
                                 startDateName="startDate"
-                                datePickerProps={{ onChange: setEndDate }}
+                                datePickerProps={{
+                                    placeholder: 'Select end date',
+                                    showTime: false,
+                                    format: 'YYYY-MM-DD',
+                                    onChange: (v) => setEndDate(v ?? null),
+                                }}
                             />
                         </Flex>
                     </Flex>
                 </Form>
 
-                {/* --- Preview Section (Sticky) --- */}
                 <div
                     style={{
                         position: 'sticky',
@@ -253,7 +264,13 @@ const TrafficViolations = () => {
                         paddingTop: 8,
                     }}
                 >
-                    <Card className="shadow-md" style={{ borderRadius: 8 }}>
+                    <Card
+                        className="shadow-md"
+                        style={{
+                            borderRadius: 8,
+                            borderTop: '4px solid #ff4d4f',
+                        }}
+                    >
                         <Flex
                             justify="space-between"
                             align="center"
@@ -265,11 +282,11 @@ const TrafficViolations = () => {
                             >
                                 Violation Preview
                             </Title>
-                            <Text type="secondary">
+                            <div className="text-sm text-gray-500">
                                 {selectedRow
                                     ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
                                     : 'Select a record to view images'}
-                            </Text>
+                            </div>
                         </Flex>
 
                         <div
@@ -280,25 +297,24 @@ const TrafficViolations = () => {
                                 gap: 16,
                             }}
                         >
-                            {FIXED_LANES.map((laneSeq, idx) => {
+                            {FIXED_INTERSECTIONS.map((id, idx) => {
                                 const info = intersectionInfo.find(
-                                    (d) => d.Lane_Sequence === laneSeq,
+                                    (d) => d.Intersection_ID === id,
                                 )
                                 const img = laneImages[idx]
 
                                 return (
-                                    <div key={laneSeq}>
+                                    <div key={id}>
                                         <div style={{ marginBottom: 8 }}>
                                             <Tag
-                                                color="blue"
+                                                color="error"
                                                 style={{
                                                     minWidth: 80,
                                                     textAlign: 'center',
-                                                    fontSize: 16,
+                                                    fontSize: 14,
                                                 }}
                                             >
-                                                {info?.Name ||
-                                                    `Lane ${laneSeq}`}
+                                                {info?.Name || `Lane ${id}`}
                                             </Tag>
                                         </div>
                                         <div
@@ -341,7 +357,6 @@ const TrafficViolations = () => {
                     </Card>
                 </div>
 
-                {/* --- Records Table --- */}
                 <Card className="shadow-sm" style={{ borderRadius: 8 }}>
                     <Title
                         level={5}
@@ -349,7 +364,7 @@ const TrafficViolations = () => {
                     >
                         Records
                     </Title>
-                    <Table<LogRecord>
+                    <Table<ViolationLogRecord>
                         dataSource={displayRows}
                         columns={columns}
                         loading={loadingLogs}
@@ -366,7 +381,7 @@ const TrafficViolations = () => {
                         })}
                         rowClassName={(record) =>
                             record.key === selectedRow?.key
-                                ? 'bg-blue-50 cursor-pointer'
+                                ? 'bg-red-50 cursor-pointer'
                                 : 'cursor-pointer'
                         }
                         pagination={{
