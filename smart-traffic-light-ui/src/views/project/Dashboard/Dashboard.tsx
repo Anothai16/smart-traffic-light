@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DatePicker, Table, Tag, Button, Typography, Card, Flex, Row, Col, message } from 'antd';
-import type { TableProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import {
@@ -20,7 +19,7 @@ import {
 } from '@ant-design/icons';
 import classNames from 'classnames';
 
-// เชื่อมต่อ Service จริง
+// Import Service (ตรวจสอบ path ให้ตรงกับโปรเจคจริง)
 import { apiGetDashboardAnalytics, DashboardResponse } from '@/services/DashboardService';
 
 dayjs.extend(isSameOrBefore);
@@ -31,28 +30,13 @@ const { Title, Text } = Typography;
 // ----------------------------------------------------
 interface DailyTrafficData { 
   Date: string; 
-  Lane: string; 
+  laneName: string; // ชื่อจริงจาก DB (เช่น "ประตู 1")
+  laneKey: number;
   Vehicle_Count: number; 
   Red_Count: number; 
-  Yellow_Count: number; 
-  Green_Count: number; 
 }
 
-const LANE_NAMES = ['Lane 1 (PC-A)', 'Lane 2 (PC-B)', 'Lane 3 (PC-C)', 'Lane 4 (PC-D)'];
-const LINE_BAR_COLORS = {
-  'Lane 1 (PC-A)': '#3b82f6',
-  'Lane 2 (PC-B)': '#f59e0b',
-  'Lane 3 (PC-C)': '#10b981',
-  'Lane 4 (PC-D)': '#ef4444',
-};
-
-const formatLaneName = (key: string | number) => {
-  const map: Record<string, string> = {
-    '1': 'Lane 1 (PC-A)', '2': 'Lane 2 (PC-B)', '3': 'Lane 3 (PC-C)', '4': 'Lane 4 (PC-D)',
-    'PC-A': 'Lane 1 (PC-A)', 'PC-B': 'Lane 2 (PC-B)', 'PC-C': 'Lane 3 (PC-C)', 'PC-D': 'Lane 4 (PC-D)'
-  };
-  return map[key] || `Lane ${key}`;
-};
+const CHART_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 const ProjectDashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
@@ -70,27 +54,23 @@ const ProjectDashboard = () => {
       const dateStr = selectedDate.format('YYYY-MM-DD');
       const res: DashboardResponse = await apiGetDashboardAnalytics(dateStr);
 
-      setDailyTraffic(res.lanes.map(l => ({
+      // 1. ข้อมูลรายเลน (มีชื่อจริงมาแล้วจาก Backend)
+      const mappedLanes = res.lanes.map((l: any) => ({
         Date: res.date,
-        Lane: formatLaneName(l.laneKey),
-        Vehicle_Count: l.vehicleCount,
-        Red_Count: l.red,
-        Yellow_Count: l.yellow,
-        Green_Count: l.green
-      })));
-
-      setHourlyData(res.hourly.map(h => {
-        const row: any = { Hour: h.hour };
-        Object.keys(h).forEach(key => { if (key !== 'hour') row[formatLaneName(key)] = h[key]; });
-        return row;
+        laneName: l.laneName, // ใช้ชื่อจาก DB โดยตรง
+        laneKey: l.laneKey,
+        Vehicle_Count: Number(l.vehicleCount || 0),
+        Red_Count: Number(l.violationCount || 0) 
       }));
+      setDailyTraffic(mappedLanes);
 
-      setWeeklyData(res.weekly.map(w => {
-        const row: any = { DayName: w.dayName, Total_Count: w.total };
-        Object.keys(w).forEach(key => { if (key !== 'dayName' && key !== 'total') row[formatLaneName(key)] = w[key]; });
-        return row;
-      }));
+      // 2. Hourly Data (Backend จัดรูปแบบมาให้แล้ว ไม่ต้อง map keys เอง)
+      setHourlyData(res.hourly);
+
+      // 3. Weekly Data
+      setWeeklyData(res.weekly);
     } catch (error: any) {
+      console.error(error);
       message.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -100,7 +80,16 @@ const ProjectDashboard = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   // ----------------------------------------------------
-  // 3. STATS & DAILY CHANGE CALCULATION
+  // 3. GET DYNAMIC LANE NAMES (ดึงรายชื่อเลนที่มีอยู่จริง)
+  // ----------------------------------------------------
+  // ใช้สำหรับสร้างแท่งกราฟและคอลัมน์ตาราง
+  const activeLaneNames = useMemo(() => {
+    // ใช้ Set เพื่อกรองชื่อซ้ำ (กรณีข้อมูลดิบมีหลายแถว) และแปลงกลับเป็น Array
+    return Array.from(new Set(dailyTraffic.map(d => d.laneName)));
+  }, [dailyTraffic]);
+
+  // ----------------------------------------------------
+  // 4. STATS & CALCULATION
   // ----------------------------------------------------
   const totalVehicleCount = useMemo(() => dailyTraffic.reduce((sum, item) => sum + item.Vehicle_Count, 0), [dailyTraffic]);
   const totalRedViolations = useMemo(() => dailyTraffic.reduce((sum, item) => sum + item.Red_Count, 0), [dailyTraffic]);
@@ -108,15 +97,13 @@ const ProjectDashboard = () => {
   const busiestLaneInfo = useMemo(() => {
     if (dailyTraffic.length === 0) return { lane: 'N/A', count: 0 };
     const busiest = dailyTraffic.reduce((prev, curr) => (prev.Vehicle_Count > curr.Vehicle_Count) ? prev : curr);
-    return { lane: busiest.Lane.split('(')[0].trim(), count: busiest.Vehicle_Count };
+    return { lane: busiest.laneName, count: busiest.Vehicle_Count };
   }, [dailyTraffic]);
 
-  // คำนวณ Daily Change โดยเทียบกับค่าเฉลี่ยรายสัปดาห์ หรือ Logic ที่คุณต้องการ
   const dailyChangeInfo = useMemo(() => {
     if (weeklyData.length < 2) return { change: 0, percent: '0.0' };
     const todayTotal = totalVehicleCount;
-    const yesterdayData = weeklyData[weeklyData.length - 2]; // ข้อมูลวันก่อนหน้าจาก Weekly List
-    const yesterdayTotal = yesterdayData?.Total_Count || 0;
+    const yesterdayTotal = Number(weeklyData[weeklyData.length - 2]?.total || 0);
     
     if (yesterdayTotal === 0) return { change: 0, percent: '0.0' };
     const diff = todayTotal - yesterdayTotal;
@@ -125,41 +112,60 @@ const ProjectDashboard = () => {
   }, [totalVehicleCount, weeklyData]);
 
   // ----------------------------------------------------
-  // 4. COMPONENTS
+  // 5. RENDER HELPERS
   // ----------------------------------------------------
+  const laneWeeklyColumns = useMemo(() => {
+    const baseCols = [
+      { 
+        title: 'Day', dataIndex: 'dayName', key: 'dayName', fixed: 'left' as const,
+        render: (text: string) => <Tag color={['Saturday', 'Sunday'].includes(text) ? 'blue' : 'volcano'} className='font-bold'>{text}</Tag>
+      }
+    ];
+
+    // สร้างคอลัมน์ตามชื่อเลนจริงที่มี
+    const dynamicCols = activeLaneNames.map((name) => {
+      return {
+        title: name,
+        dataIndex: name, // ใช้ชื่อเลนเป็น Key ตรงๆ
+        key: name,
+        align: 'right' as const,
+        render: (count: number) => (Number(count) || 0).toLocaleString()
+      };
+    });
+
+    return [
+      ...baseCols,
+      ...dynamicCols,
+      { 
+        title: <Text strong className='text-amber-700'><CarOutlined /> Total</Text>,
+        key: 'total', // ไม่ใช้ dataIndex แล้ว เพื่อบังคับใช้ render คำนวณเอง
+        align: 'right' as const,
+        render: (_: any, record: any) => {
+          // ✅✅✅ แก้ไข: คำนวณ Total ใหม่สดๆ ที่ฝั่ง Frontend
+          // โดยการวนลูปเอาค่าของทุกเลนใน record มาบวกกัน
+          const calculatedTotal = activeLaneNames.reduce((sum, laneName) => {
+            const val = Number(record[laneName]); // แปลงเป็นตัวเลข
+            return sum + (isNaN(val) ? 0 : val);  // บวกเข้ากับผลรวม
+          }, 0);
+
+          return <Text strong className="text-amber-700">{calculatedTotal.toLocaleString()}</Text>;
+        }
+      }
+    ];
+  }, [activeLaneNames]);
+
   const ChangeDisplay = ({ change, percent }: { change: number, percent: string }) => {
     const isPositive = change > 0;
     const colorClass = isPositive ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-gray-400';
     const Icon = isPositive ? ArrowUpOutlined : change < 0 ? ArrowDownOutlined : null;
-
     return (
       <div className="flex items-center gap-1">
         {Icon && <Icon className={`${colorClass} text-xl`} />}
-        <span className={`text-3xl font-extrabold ${colorClass}`}>
-          {Math.abs(change).toLocaleString()}
-        </span>
-        <span className={`text-lg font-semibold ${colorClass}`}>
-          ({percent}%)
-        </span>
+        <span className={`text-3xl font-extrabold ${colorClass}`}>{Math.abs(change).toLocaleString()}</span>
+        <span className={`text-lg font-semibold ${colorClass}`}>({percent}%)</span>
       </div>
     );
   };
-
-  const laneWeeklyColumns = [
-    { 
-      title: 'Day', dataIndex: 'DayName', key: 'DayName', fixed: 'left' as const,
-      render: (text: string) => <Tag color={['Sat', 'Sun', 'Saturday', 'Sunday'].includes(text) ? 'blue' : 'volcano'} className='font-bold'>{text}</Tag>
-    },
-    ...LANE_NAMES.map(lane => ({
-      title: lane.split('(')[0].trim(), dataIndex: lane, key: lane, align: 'right' as const,
-      render: (count: number) => <Text>{(count || 0).toLocaleString()}</Text>
-    })),
-    { 
-      title: <Text strong className='text-amber-700'><CarOutlined /> Total Count</Text>,
-      dataIndex: 'Total_Count', key: 'Total_Count', align: 'right' as const,
-      render: (count: number) => <Text strong className="text-amber-700 text-base">{(count || 0).toLocaleString()}</Text>
-    },
-  ];
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
@@ -173,10 +179,9 @@ const ProjectDashboard = () => {
         </Flex>
 
         {/* --- EXECUTIVE SUMMARY --- */}
-        <Card className="shadow-md rounded-xl border border-gray-100" bodyStyle={{ padding: '24px' }}>
+        <Card className="shadow-md rounded-xl border border-gray-100">
           <Title level={5} className="text-gray-600 mb-4 flex items-center"><LineChartOutlined className="mr-2 text-blue-500" /> Executive Summary ({selectedDate.format('DD MMM YYYY')})</Title>
           <Row gutter={[24, 24]}>
-            {/* Total Vehicle */}
             <Col xs={24} md={12} lg={6}>
               <Card className="h-full shadow-sm border-l-4 border-blue-500">
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Total Vehicle Count</p>
@@ -187,7 +192,6 @@ const ProjectDashboard = () => {
               </Card>
             </Col>
             
-            {/* Daily Change (%) - กลับมาแล้ว! */}
             <Col xs={24} md={12} lg={6}>
               <Card className={classNames("h-full shadow-sm border-l-4", dailyChangeInfo.change >= 0 ? "border-green-500" : "border-red-500")}>
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Daily Change (%)</p>
@@ -195,7 +199,6 @@ const ProjectDashboard = () => {
               </Card>
             </Col>
 
-            {/* Busiest Lane */}
             <Col xs={24} md={12} lg={6}>
               <Card className="h-full shadow-sm border-l-4 border-amber-500">
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Busiest Lane</p>
@@ -204,10 +207,9 @@ const ProjectDashboard = () => {
               </Card>
             </Col>
 
-            {/* Red Light Violations */}
             <Col xs={24} md={12} lg={6}>
               <Card className="h-full shadow-sm border-l-4 border-red-500">
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Red Light Violations</p>
+                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Total Violations</p>
                 <div className='flex justify-between items-center'>
                   <h3 className="text-4xl font-extrabold text-red-600 mb-0">{totalRedViolations.toLocaleString()}</h3>
                   <AlertOutlined className="text-4xl text-red-300 opacity-50" />
@@ -218,17 +220,30 @@ const ProjectDashboard = () => {
         </Card>
 
         {/* --- HOURLY TREND --- */}
-        <Card className="shadow-lg rounded-xl" title={<span className="text-gray-700 font-semibold">Hourly Traffic Trend</span>}>
+        <Card className="shadow-lg rounded-xl" title={<span className="text-gray-700 font-semibold">Hourly Traffic Trend (Vehicle Count)</span>}>
           <div style={{ height: 380 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyData} barCategoryGap="22%" barGap={6}>
+              <BarChart data={hourlyData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
-                <XAxis dataKey="Hour" tickLine={false} axisLine={false} />
+                <XAxis dataKey="hour" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} width={42} />
-                <Tooltip contentStyle={{ borderRadius: 8 }} formatter={(v: number) => v.toLocaleString()} />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: 10 }} />
-                {LANE_NAMES.map(lane => (
-                  <Bar key={lane} dataKey={lane} fill={LINE_BAR_COLORS[lane as keyof typeof LINE_BAR_COLORS]} radius={[6, 6, 0, 0]} barSize={26} />
+                <Tooltip 
+                  cursor={{ fill: '#f5f5f5' }} 
+                  contentStyle={{ borderRadius: '8px' }}
+                  formatter={(value: any, name: string) => [Number(value).toLocaleString(), name]} 
+                />
+                <Legend iconType="circle" />
+                
+                {/* ✅ วนลูปสร้างกราฟแท่งตามชื่อเลนที่มีอยู่จริง */}
+                {activeLaneNames.map((name, index) => (
+                  <Bar 
+                    key={name} 
+                    dataKey={name} // ใช้ชื่อเลนเป็น DataKey ตรงๆ
+                    name={name}
+                    fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={20} 
+                  />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -241,10 +256,21 @@ const ProjectDashboard = () => {
             <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><CarOutlined className="text-blue-500" /> Lane Breakdown</span>}>
               <Table 
                 columns={[
-                  { title: 'Lane', dataIndex: 'Lane', key: 'Lane', render: (t) => <Tag color="processing" className="text-sm font-medium">{t.split('(')[0]}</Tag> },
-                  { title: 'Vehicle Count', dataIndex: 'Vehicle_Count', key: 'Vehicle_Count', align: 'right', render: (v) => <Text strong className="text-blue-600 font-extrabold">{v.toLocaleString()}</Text> }
+                  { 
+                    title: 'Lane', 
+                    dataIndex: 'laneName', 
+                    key: 'laneName', 
+                    render: (t) => <Tag color="processing" className="text-sm font-medium">{t}</Tag> 
+                  },
+                  { 
+                    title: 'Vehicle Count', 
+                    dataIndex: 'Vehicle_Count', 
+                    key: 'Vehicle_Count', 
+                    align: 'right', 
+                    render: (v) => <Text strong className="text-blue-600 font-extrabold">{Number(v).toLocaleString()}</Text> 
+                  }
                 ]} 
-                dataSource={dailyTraffic} pagination={false} rowKey="Lane" size="middle" loading={loading}
+                dataSource={dailyTraffic} pagination={false} rowKey="laneKey" size="middle" loading={loading}
               />
             </Card>
           </Col>
@@ -252,10 +278,21 @@ const ProjectDashboard = () => {
             <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><AlertOutlined className="text-red-500" /> Red Light Violations</span>}>
               <Table 
                 columns={[
-                  { title: 'Lane', dataIndex: 'Lane', key: 'Lane', render: (t) => <Tag color="processing" className="text-sm font-medium">{t.split('(')[0]}</Tag> },
-                  { title: 'Red Light Violations', dataIndex: 'Red_Count', key: 'Red_Count', align: 'right', render: (v) => <Text type="danger" strong className="font-bold">{v.toLocaleString()}</Text> }
+                  { 
+                    title: 'Lane', 
+                    dataIndex: 'laneName', 
+                    key: 'laneName', 
+                    render: (t) => <Tag color="error" className="text-sm font-medium">{t}</Tag> 
+                  },
+                  { 
+                    title: 'Violations', 
+                    dataIndex: 'Red_Count', 
+                    key: 'Red_Count', 
+                    align: 'right', 
+                    render: (v) => <Text type="danger" strong className="font-bold">{Number(v).toLocaleString()}</Text> 
+                  }
                 ]} 
-                dataSource={dailyTraffic} pagination={false} rowKey="Lane" size="middle" loading={loading}
+                dataSource={dailyTraffic} pagination={false} rowKey="laneKey" size="middle" loading={loading}
               />
             </Card>
           </Col>
@@ -267,7 +304,7 @@ const ProjectDashboard = () => {
             columns={laneWeeklyColumns}
             dataSource={weeklyData}
             pagination={false}
-            rowKey="DayName"
+            rowKey="dayName"
             size="middle"
             scroll={{ x: 1000 }}
             loading={loading}

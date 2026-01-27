@@ -5,7 +5,9 @@ export interface DashboardResponse {
     date: string;
     lanes: Array<{
         laneKey: number;
+        laneName: string;
         vehicleCount: number;
+        violation_count: number;
         red: number;
         yellow: number;
         green: number;
