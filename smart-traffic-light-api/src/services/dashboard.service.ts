@@ -1,58 +1,104 @@
-// src/services/dashboard.service.ts
+// src/services/DashboardService.ts
+
 import { getDbPool } from '../config/db.config';
 import { RowDataPacket } from 'mysql2';
 
+export interface DashboardResponse {
+    date: string;
+    lanes: any[];
+    hourly: any[];
+    weekly: any[];
+}
+
 export const DashboardService = {
     async getDashboardAnalytics(targetDate: string) {
-        const pool = await getDbPool();
+        try {
+            const pool = await getDbPool();
 
-        // 1. ดึงข้อมูลรายเลน (Lanes Breakdown)
-        const [laneStats] = await pool.query<RowDataPacket[]>(`
-            SELECT 
-                Intersection_ID as laneKey, 
-                SUM(Vehicle_Count) as vehicleCount,
-                SUM(Red_Count) as red,
-                SUM(Yellow_Count) as yellow,
-                SUM(Green_Count) as green
-            FROM Traffic_Log 
-            WHERE Date = ?
-            GROUP BY Intersection_ID
-        `, [targetDate]);
+            // ---------------------------------------------------------
+            // 1. ข้อมูลรายเลน (สำหรับตาราง Lane Breakdown)
+            // ---------------------------------------------------------
+            // ดึงชื่อจริง (m.Name) มาเลย ไม่ต้องสน ID
+            const [laneStats] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    m.Name as laneName, 
+                    m.Intersection_ID as laneKey,
+                    COALESCE(SUM(t.Vehicle_Count), 0) as vehicleCount,
+                    COALESCE(SUM(t.Violation_Count), 0) as violationCount,
+                    COALESCE(SUM(t.Red_Count), 0) as redCount
+                FROM Master_Intersection m
+                LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND t.Date = ?
+                GROUP BY m.Intersection_ID, m.Name
+                ORDER BY m.Lane_Sequence ASC
+            `, [targetDate]);
 
-        // 2. ดึงข้อมูลรายชั่วโมง (Hourly Trend)
-        const [hourlyStats] = await pool.query<RowDataPacket[]>(`
-            SELECT 
-                DATE_FORMAT(Time, '%H:00') as hour,
-                SUM(CASE WHEN Intersection_ID = 1 THEN Vehicle_Count ELSE 0 END) as 'PC-A',
-                SUM(CASE WHEN Intersection_ID = 2 THEN Vehicle_Count ELSE 0 END) as 'PC-B',
-                SUM(CASE WHEN Intersection_ID = 3 THEN Vehicle_Count ELSE 0 END) as 'PC-C',
-                SUM(CASE WHEN Intersection_ID = 4 THEN Vehicle_Count ELSE 0 END) as 'PC-D'
-            FROM Traffic_Log
-            WHERE Date = ?
-            GROUP BY hour
-            ORDER BY hour ASC
-        `, [targetDate]);
+            // ---------------------------------------------------------
+            // 2. ข้อมูลรายชั่วโมง (สำหรับกราฟ) - แบบ Dynamic
+            // ---------------------------------------------------------
+            const [hourlyRaw] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    DATE_FORMAT(t.Time, '%H:00') as hour,
+                    m.Name as laneName,
+                    SUM(t.Vehicle_Count) as count
+                FROM Traffic_Log t
+                JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
+                WHERE t.Date = ?
+                GROUP BY hour, m.Name
+                ORDER BY hour ASC
+            `, [targetDate]);
 
-        // 3. ดึงข้อมูลรายสัปดาห์ (Weekly Pattern)
-        const [weeklyStats] = await pool.query<RowDataPacket[]>(`
-            SELECT 
-                DAYNAME(Date) as dayName,
-                SUM(CASE WHEN Intersection_ID = 1 THEN Vehicle_Count ELSE 0 END) as 'PC-A',
-                SUM(CASE WHEN Intersection_ID = 2 THEN Vehicle_Count ELSE 0 END) as 'PC-B',
-                SUM(CASE WHEN Intersection_ID = 3 THEN Vehicle_Count ELSE 0 END) as 'PC-C',
-                SUM(CASE WHEN Intersection_ID = 4 THEN Vehicle_Count ELSE 0 END) as 'PC-D',
-                SUM(Vehicle_Count) as total
-            FROM Traffic_Log
-            WHERE Date BETWEEN DATE_SUB(?, INTERVAL 6 DAY) AND ?
-            GROUP BY Date, dayName
-            ORDER BY Date ASC
-        `, [targetDate, targetDate]);
+            // แปลงข้อมูลดิบให้เป็นรูปแบบที่กราฟต้องการ: { hour: '09:00', 'ประตู 1': 10, 'บัวเหล็ก': 5 }
+            const hourlyMap: Record<string, any> = {};
+            hourlyRaw.forEach((row: any) => {
+                if (!hourlyMap[row.hour]) {
+                    hourlyMap[row.hour] = { hour: row.hour };
+                }
+                hourlyMap[row.hour][row.laneName] = row.count;
+            });
+            // แปลงกลับเป็น Array
+            const hourlyStats = Object.values(hourlyMap).sort((a: any, b: any) => a.hour.localeCompare(b.hour));
 
-        return {
-            date: targetDate,
-            lanes: laneStats,
-            hourly: hourlyStats,
-            weekly: weeklyStats
-        };
+            // ---------------------------------------------------------
+            // 3. ข้อมูลรายสัปดาห์ - แบบ Dynamic
+            // ---------------------------------------------------------
+            const [weeklyRaw] = await pool.query<RowDataPacket[]>(`
+                SELECT 
+                    DATE_FORMAT(t.Date, '%W') as dayName,
+                    DATE_FORMAT(t.Date, '%Y-%m-%d') as fullDate,
+                    m.Name as laneName,
+                    SUM(t.Vehicle_Count) as count
+                FROM Traffic_Log t
+                JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
+                WHERE t.Date BETWEEN DATE_SUB(?, INTERVAL 6 DAY) AND ?
+                GROUP BY t.Date, dayName, m.Name
+                ORDER BY t.Date ASC
+            `, [targetDate, targetDate]);
+
+            // จัดรูปแบบข้อมูลรายสัปดาห์
+            const weeklyMap: Record<string, any> = {};
+            weeklyRaw.forEach((row: any) => {
+                const key = row.fullDate;
+                if (!weeklyMap[key]) {
+                    weeklyMap[key] = { 
+                        dayName: row.dayName, 
+                        fullDate: row.fullDate,
+                        total: 0
+                    };
+                }
+                weeklyMap[key][row.laneName] = row.count;
+                weeklyMap[key].total += row.count;
+            });
+            const weeklyStats = Object.values(weeklyMap);
+
+            return {
+                date: targetDate,
+                lanes: laneStats,
+                hourly: hourlyStats,
+                weekly: weeklyStats
+            };
+        } catch (error) {
+            console.error("❌ DashboardService Error:", error);
+            throw error;
+        }
     }
 };
