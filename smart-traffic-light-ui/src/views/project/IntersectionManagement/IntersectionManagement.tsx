@@ -12,7 +12,6 @@ import {
     Typography,
     Flex,
     message,
-    InputNumber
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
@@ -21,14 +20,14 @@ import { IntersectionManagementService } from '@/services/IntersectionManagement
 const { Title } = Typography;
 const { confirm } = Modal;
 
-// Interface สำหรับข้อมูลใน Table (เพิ่ม Lane_Sequence)
+// Interface สำหรับข้อมูลใน Table
 interface IntersectionTableItem {
     Intersection_ID: number;
     Name: string;
     Location: string;
     IP_Address: string;
-    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
-    status: 'Online' | 'Offline'; // Mock field
+    Lane_Sequence: number; 
+    status: string; // 🟢 รับค่า 'Online' / 'Offline' จาก API ตรงๆ
 }
 
 const IntersectionManagement: React.FC = () => {
@@ -40,7 +39,7 @@ const IntersectionManagement: React.FC = () => {
 
     // 1. ฟังก์ชันดึงข้อมูลจาก API (Read)
     const fetchIntersections = useCallback(async () => {
-        setLoading(true);
+        // setLoading(true); // ปิดไว้เพื่อไม่ให้หมุนตอน Auto Refresh
         try {
             const response = await IntersectionManagementService.getAllIntersections();
             if (response.data && response.data.data) {
@@ -49,21 +48,29 @@ const IntersectionManagement: React.FC = () => {
                     Name: item.Name,
                     Location: item.Location,
                     IP_Address: item.IP_Address,
-                    Lane_Sequence: item.Lane_Sequence || 1, // 🟢 ดึงข้อมูล Lane_Sequence
-                    status: Math.random() > 0.2 ? 'Online' : 'Offline',
+                    Lane_Sequence: item.Lane_Sequence || 1,
+                    // ✅ ใช้ค่า Status จาก DB (ถ้าไม่มีให้เป็น Offline)
+                    status: item.Status || 'Offline', 
                 }));
                 setIntersections(mappedData);
             }
         } catch (error) {
             console.error(error);
-            message.error('ไม่สามารถดึงข้อมูลทางแยกได้');
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // 🟢 Auto Refresh ทุก 5 วินาที
     useEffect(() => {
+        setLoading(true); // Loading ครั้งแรก
         fetchIntersections();
+        
+        const interval = setInterval(() => {
+            fetchIntersections();
+        }, 5000); 
+
+        return () => clearInterval(interval);
     }, [fetchIntersections]);
 
     const handleAdd = () => {
@@ -78,7 +85,6 @@ const IntersectionManagement: React.FC = () => {
         form.setFieldsValue(record);
     };
 
-    // 2. ฟังก์ชันลบข้อมูล (Delete)
     const handleDelete = (record: IntersectionTableItem) => {
         confirm({
             title: `คุณต้องการลบแยก "${record.Name}" ใช่ไหม?`,
@@ -104,7 +110,6 @@ const IntersectionManagement: React.FC = () => {
         form.resetFields();
     };
 
-    // 3. ฟังก์ชันบันทึกข้อมูล (Create / Update)
     const handleModalSubmit = () => {
         form.validateFields()
             .then(async (values) => {
@@ -114,7 +119,7 @@ const IntersectionManagement: React.FC = () => {
                         Location: values.Location,
                         IP_Address: values.IP_Address,
                         Intersection_ID: Number(values.Intersection_ID),
-                        Lane_Sequence: Number(values.Lane_Sequence) // 🟢 เพิ่มลงใน Payload
+                        Lane_Sequence: Number(values.Lane_Sequence)
                     };
 
                     if (editingIntersection) {
@@ -150,15 +155,6 @@ const IntersectionManagement: React.FC = () => {
             align: 'center',
             sorter: (a, b) => a.Intersection_ID - b.Intersection_ID,
         },
-        // {
-        //     title: 'ลำดับเลน', // 🟢 เพิ่มคอลัมน์ลำดับเลน
-        //     dataIndex: 'Lane_Sequence',
-        //     key: 'Lane_Sequence',
-        //     width: 100,
-        //     align: 'center',
-        //     sorter: (a, b) => a.Lane_Sequence - b.Lane_Sequence,
-        //     render: (val) => <Tag color="blue">{val}</Tag>
-        // },
         {
             title: 'ชื่อแยก',
             dataIndex: 'Name',
@@ -186,9 +182,10 @@ const IntersectionManagement: React.FC = () => {
             dataIndex: 'status',
             key: 'status',
             width: 100,
-            render: (status: 'Online' | 'Offline') => (
+            // 🟢 ปรับ Tag ให้เช็คค่า 'Online'
+            render: (status: string) => (
                 <Tag color={status === 'Online' ? 'green' : 'red'}>
-                    {status.toUpperCase()}
+                    {status ? status.toUpperCase() : 'OFFLINE'}
                 </Tag>
             ),
         },

@@ -40,5 +40,14 @@ export const IntersectionController = {
             console.error('Error deleting intersection:', error);
             throw new Error('Failed to delete intersection');
         }
+    },
+
+    // ✅ เพิ่มฟังก์ชันนี้สำหรับรับ Heartbeat
+    async heartbeat(body: { id: number }) {
+        if (!body.id) {
+            throw new Error('Intersection ID is required');
+        }
+        await IntersectionService.updateHeartbeat(body.id);
+        return { success: true, message: 'Heartbeat received' };
     }
 };
