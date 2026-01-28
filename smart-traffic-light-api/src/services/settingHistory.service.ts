@@ -11,7 +11,7 @@ export const SettingHistoryService = {
                     sml.Log_ID,
                     sml.Mode_ID,
                     sml.Admin_ID,
-                    -- sml.Intersection_ID, -- ลบออกเนื่องจากถูกลบจาก DB แล้ว
+                    -- sml.Intersection_ID, 
                     sml.Old_Red_Duration,
                     sml.Old_Green_Duration,
                     sml.New_Red_Duration,
@@ -20,17 +20,22 @@ export const SettingHistoryService = {
                     DATE_FORMAT(sml.Date, '%Y-%m-%d') as Date,
                     DATE_FORMAT(sml.Create_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Create_Date,
                     DATE_FORMAT(sml.Update_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Update_Date,
-                    -- ✅ ใช้ IFNULL เพื่อจัดการชื่อกรณีไม่มี Admin
+                    -- จัดการชื่อ Admin (ถ้าเป็น NULL คือ Hardware)
                     IFNULL(CONCAT(a.First_Name, ' ', a.Last_Name), NULL) AS Admin_Name,
-                    tm.Mode_Name
+                    tm.Mode_Name,
+                    -- ✅ ดึงชื่อเลนจากตาราง Master_Intersection
+                    mi.Name AS Lane_Name
                 FROM
                    Auto_Config_Log sml
-                -- ✅ เปลี่ยนเป็น LEFT JOIN เพื่อให้ข้อมูล Hardware (NULL) แสดงผล
+                -- JOIN เพื่อดึงชื่อ Admin
                 LEFT JOIN
                     Admin a ON sml.Admin_ID = a.Admin_ID
+                -- JOIN เพื่อดึงชื่อ Mode
                 JOIN
                     Traffic_Mode tm ON sml.Mode_ID = tm.Mode_ID
-                -- ลบ JOIN Master_Intersection ออกเพราะไม่มี Intersection_ID แล้ว
+                -- ✅ JOIN เพื่อดึงชื่อ Lane/Intersection
+                JOIN
+                    Master_Intersection mi ON sml.Intersection_ID = mi.Intersection_ID
                 ORDER BY
                     sml.Create_Date DESC;
             `);
@@ -53,12 +58,10 @@ export const SettingHistoryService = {
                     DATE_FORMAT(ml.Date, '%Y-%m-%d') as Date,
                     DATE_FORMAT(ml.Create_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Create_Date,
                     DATE_FORMAT(ml.Update_Date, '%Y-%m-%dT%H:%i:%s.000Z') as Update_Date,
-                    -- ✅ ใช้ IFNULL เพื่อจัดการชื่อกรณีไม่มี Admin
                     IFNULL(CONCAT(a.First_Name, ' ', a.Last_Name), NULL) AS Admin_Name,
                     tm.Mode_Name
                 FROM
                     Mode_Log ml
-                -- ✅ เปลี่ยนเป็น LEFT JOIN เพื่อให้ข้อมูล Hardware (NULL) แสดงผล
                 LEFT JOIN
                     Admin a ON ml.Admin_ID = a.Admin_ID
                 JOIN

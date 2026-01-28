@@ -1,8 +1,8 @@
 // src/views/setting-history/SettingHistory.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Card, Typography, Flex, Tag, message, Spin, Button } from 'antd';
-import type { TableProps } from 'antd';
+import { Table, Card, Tabs, Typography, Flex, Tag, message, Spin, Button } from 'antd';
+import type { TableProps, TabsProps } from 'antd';
 import dayjs from 'dayjs';
 import { apiGetSettingModeHistory, apiGetModeHistory } from '@/services/SettingHistoryService';
 import type { AxiosError } from 'axios';
@@ -24,7 +24,6 @@ interface SettingModeLog {
     Update_Date: string;
     Admin_Name: string | null;
     Mode_Name: string;
-    Lane_Name?: string;
 }
 
 interface ModeLog {
@@ -98,66 +97,66 @@ const SettingHistory: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
-    // const handleSettingModeTableChange = (page: number, pageSize: number) => {
-    //     setSettingModePagination({ current: page, pageSize: pageSize });
-    // };
+    const handleSettingModeTableChange = (page: number, pageSize: number) => {
+        setSettingModePagination({ current: page, pageSize: pageSize });
+    };
 
     const handleModeLogTableChange = (page: number, pageSize: number) => {
         setModeLogPagination({ current: page, pageSize: pageSize });
     };
 
-    // const settingModeColumns: TableProps<SettingModeLog>['columns'] = [
-    //     {
-    //         title: 'Mode',
-    //         dataIndex: 'Mode_Name',
-    //         key: 'Mode_Name',
-    //         width: 100,
-    //         render: (modeName) => <Tag color="green">{modeName || 'Unknown'}</Tag>,
-    //     },
-    //     {
-    //         title: 'Admin Name',
-    //         dataIndex: 'Admin_Name',
-    //         key: 'Admin_Name',
-    //         width: 150,
-    //         render: (name) => name || <Tag color="orange">Hardware</Tag>,
-    //     },
-    //     {
-    //         title: 'Change Date',
-    //         dataIndex: 'Date',
-    //         key: 'Date',
-    //         width: 120,
-    //         render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
-    //     },
-    //     {
-    //         title: 'Change Time',
-    //         dataIndex: 'Time',
-    //         key: 'Time',
-    //         width: 120,
-    //         render: (time) => formatTime(time),
-    //     },
-    //     {
-    //         title: 'Old Duration (R-G)',
-    //         key: 'oldDuration',
-    //         width: 200,
-    //         render: (_, record) => (
-    //             <Flex gap="small">
-    //                 <Tag color="red">R: {record.Old_Red_Duration ?? '-'}</Tag>
-    //                 <Tag color="green">G: {record.Old_Green_Duration ?? '-'}</Tag>
-    //             </Flex>
-    //         ),
-    //     },
-    //     {
-    //         title: 'New Duration (R-G)',
-    //         key: 'newDuration',
-    //         width: 200,
-    //         render: (_, record) => (
-    //             <Flex gap="small">
-    //                 <Tag color="red">R: {record.New_Red_Duration ?? '-'}</Tag>
-    //                 <Tag color="green">G: {record.New_Green_Duration ?? '-'}</Tag>
-    //             </Flex>
-    //         ),
-    //     },
-    // ];
+    const settingModeColumns: TableProps<SettingModeLog>['columns'] = [
+        {
+            title: 'Mode',
+            dataIndex: 'Mode_Name',
+            key: 'Mode_Name',
+            width: 100,
+            render: (modeName) => <Tag color="green">{modeName || 'Unknown'}</Tag>,
+        },
+        {
+            title: 'Admin Name',
+            dataIndex: 'Admin_Name',
+            key: 'Admin_Name',
+            width: 150,
+            render: (name) => name || <Tag color="orange">Hardware</Tag>,
+        },
+        {
+            title: 'Change Date',
+            dataIndex: 'Date',
+            key: 'Date',
+            width: 120,
+            render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
+        },
+        {
+            title: 'Change Time',
+            dataIndex: 'Time',
+            key: 'Time',
+            width: 120,
+            render: (time) => formatTime(time),
+        },
+        {
+            title: 'Old Duration (R-G)',
+            key: 'oldDuration',
+            width: 200,
+            render: (_, record) => (
+                <Flex gap="small">
+                    <Tag color="red">R: {record.Old_Red_Duration ?? '-'}</Tag>
+                    <Tag color="green">G: {record.Old_Green_Duration ?? '-'}</Tag>
+                </Flex>
+            ),
+        },
+        {
+            title: 'New Duration (R-G)',
+            key: 'newDuration',
+            width: 200,
+            render: (_, record) => (
+                <Flex gap="small">
+                    <Tag color="red">R: {record.New_Red_Duration ?? '-'}</Tag>
+                    <Tag color="green">G: {record.New_Green_Duration ?? '-'}</Tag>
+                </Flex>
+            ),
+        },
+    ];
 
     const modeLogColumns: TableProps<ModeLog>['columns'] = [
         {
@@ -207,6 +206,45 @@ const SettingHistory: React.FC = () => {
         }
     };
 
+    const tabItems: TabsProps['items'] = [
+        // {
+        //     key: '1',
+        //     label: 'Auto Mode Configuration History',
+        //     children: (
+        //         <Table
+        //             columns={settingModeColumns}
+        //             dataSource={settingModeHistory}
+        //             rowKey="Log_ID"
+        //             pagination={{
+        //                 ...settingModePagination,
+        //                 showSizeChanger: true,
+        //                 pageSizeOptions: ['10', '20', '50', '100'],
+        //                 onChange: handleSettingModeTableChange,
+        //             }}
+        //             scroll={{ x: 1000 }}
+        //         />
+        //     ),
+        // },
+        {
+            key: '2',
+            label: 'Configuration Mode History',
+            children: (
+                <Table
+                    columns={modeLogColumns}
+                    dataSource={modeHistory}
+                    rowKey="Log_ID"
+                    pagination={{
+                        ...modeLogPagination,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        onChange: handleModeLogTableChange,
+                    }}
+                    scroll={{ x: 800 }}
+                />
+            ),
+        },
+    ];
+
     return (
         <div style={{ padding: '24px', backgroundColor: '#fff', minHeight: '100vh' }}>
             {contextHolder}
@@ -244,12 +282,6 @@ const SettingHistory: React.FC = () => {
                                     }}
                                 >
                                     <Flex vertical align="center" gap="small">
-                                        <div className="mb-2">
-                                            <span style={{ fontSize: '18px', fontWeight: '900', color: '#000000' }}>
-                                                {config.Lane_Name || 'Unknown Lane'}
-                                            </span>
-                                        </div>
-
                                         <div className="flex items-center gap-2 mb-1">
                                             <Tag color="red">Red</Tag>
                                             <span className="font-bold text-lg">{config.New_Red_Duration} s</span>
@@ -259,6 +291,7 @@ const SettingHistory: React.FC = () => {
                                             <span className="font-bold text-lg">{config.New_Green_Duration} s</span>
                                         </div>
                                         
+                                        {/* 🟢 ส่วนที่ปรับแก้: ชื่อตัวหนาสีดำ และวันที่/เวลาอยู่บรรทัดล่าง */}
                                         <p className="text-xs text-gray-500 mt-2 mb-0">
                                             Updated By: <span style={{ fontWeight: 'bold', color: '#000' }}>{config.Admin_Name || "Hardware"}</span>
                                         </p>
@@ -305,23 +338,8 @@ const SettingHistory: React.FC = () => {
                     )}
                 </Card>
 
-                {/* ✅ แก้ไข: เปลี่ยนจาก Tabs เป็น Card ปกติ พร้อมหัวข้อ */}
-                <Card 
-                    title="Configuration Mode History" 
-                    className="shadow-lg rounded-lg border border-gray-200"
-                >
-                    <Table
-                        columns={modeLogColumns}
-                        dataSource={modeHistory}
-                        rowKey="Log_ID"
-                        pagination={{
-                            ...modeLogPagination,
-                            showSizeChanger: true,
-                            pageSizeOptions: ['10', '20', '50', '100'],
-                            onChange: handleModeLogTableChange,
-                        }}
-                        scroll={{ x: 800 }}
-                    />
+                <Card className="shadow-lg rounded-lg border border-gray-200">
+                    <Tabs defaultActiveKey="1" items={tabItems} />
                 </Card>
             </Flex>
         </div>
