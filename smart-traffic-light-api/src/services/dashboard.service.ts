@@ -18,7 +18,6 @@ export const DashboardService = {
             // ---------------------------------------------------------
             // 1. ข้อมูลรายเลน (สำหรับตาราง Lane Breakdown)
             // ---------------------------------------------------------
-            // ดึงชื่อจริง (m.Name) มาเลย ไม่ต้องสน ID
             const [laneStats] = await pool.query<RowDataPacket[]>(`
                 SELECT 
                     m.Name as laneName, 
@@ -27,13 +26,13 @@ export const DashboardService = {
                     COALESCE(SUM(t.Violation_Count), 0) as violationCount,
                     COALESCE(SUM(t.Red_Count), 0) as redCount
                 FROM Master_Intersection m
-                LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND t.Date = ?
+                LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND DATE(t.Date) = ? -- ✅ แก้: ใช้ DATE() เพื่อตัดเวลา
                 GROUP BY m.Intersection_ID, m.Name
                 ORDER BY m.Lane_Sequence ASC
             `, [targetDate]);
 
             // ---------------------------------------------------------
-            // 2. ข้อมูลรายชั่วโมง (สำหรับกราฟ) - แบบ Dynamic
+            // 2. ข้อมูลรายชั่วโมง
             // ---------------------------------------------------------
             const [hourlyRaw] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -42,39 +41,38 @@ export const DashboardService = {
                     SUM(t.Vehicle_Count) as count
                 FROM Traffic_Log t
                 JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
-                WHERE t.Date = ?
+                WHERE DATE(t.Date) = ? -- ✅ แก้: ใช้ DATE() เพื่อความชัวร์
                 GROUP BY hour, m.Name
                 ORDER BY hour ASC
             `, [targetDate]);
 
-            // แปลงข้อมูลดิบให้เป็นรูปแบบที่กราฟต้องการ: { hour: '09:00', 'ประตู 1': 10, 'บัวเหล็ก': 5 }
+            // ... (Logic แปลง hourlyMap เหมือนเดิม) ...
             const hourlyMap: Record<string, any> = {};
             hourlyRaw.forEach((row: any) => {
-                if (!hourlyMap[row.hour]) {
-                    hourlyMap[row.hour] = { hour: row.hour };
-                }
+                if (!hourlyMap[row.hour]) hourlyMap[row.hour] = { hour: row.hour };
                 hourlyMap[row.hour][row.laneName] = row.count;
             });
-            // แปลงกลับเป็น Array
             const hourlyStats = Object.values(hourlyMap).sort((a: any, b: any) => a.hour.localeCompare(b.hour));
 
+
             // ---------------------------------------------------------
-            // 3. ข้อมูลรายสัปดาห์ - แบบ Dynamic
+            // 3. ข้อมูลรายสัปดาห์ (จุดที่เป็นปัญหา)
             // ---------------------------------------------------------
             const [weeklyRaw] = await pool.query<RowDataPacket[]>(`
                 SELECT 
                     DATE_FORMAT(t.Date, '%W') as dayName,
-                    DATE_FORMAT(t.Date, '%Y-%m-%d') as fullDate,
+                    DATE_FORMAT(t.Date, '%Y-%m-%d') as fullDate, -- อันนี้คือ string วันที่ล้วนๆ
                     m.Name as laneName,
                     SUM(t.Vehicle_Count) as count
                 FROM Traffic_Log t
                 JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
-                WHERE t.Date BETWEEN DATE_SUB(?, INTERVAL 6 DAY) AND ?
-                GROUP BY t.Date, dayName, m.Name
-                ORDER BY t.Date ASC
+                WHERE t.Date BETWEEN DATE_SUB(?, INTERVAL 6 DAY) AND ? -- (BETWEEN ใช้กับ Datetime ได้ปกติ)
+                -- ✅✅✅ แก้ไขจุดสำคัญ: Group By fullDate แทน t.Date
+                GROUP BY fullDate, dayName, m.Name
+                ORDER BY fullDate ASC
             `, [targetDate, targetDate]);
 
-            // จัดรูปแบบข้อมูลรายสัปดาห์
+            // ... (Logic แปลง weeklyMap เหมือนเดิม) ...
             const weeklyMap: Record<string, any> = {};
             weeklyRaw.forEach((row: any) => {
                 const key = row.fullDate;
@@ -85,8 +83,8 @@ export const DashboardService = {
                         total: 0
                     };
                 }
-                weeklyMap[key][row.laneName] = row.count;
-                weeklyMap[key].total += row.count;
+                weeklyMap[key][row.laneName] = Number(row.count); // แปลงเป็น Number กันเหนียว
+                weeklyMap[key].total += Number(row.count);
             });
             const weeklyStats = Object.values(weeklyMap);
 
