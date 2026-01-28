@@ -172,7 +172,7 @@ const PictureLog = () => {
     }, [])
 
     const displayRows = logRows.filter((row) => {
-        if (row.time < '05:00:00' || row.time > '18:00:00') return false
+        // if (row.time < '05:00:00' || row.time > '18:00:00') return false
         if (!startDate && !endDate) return true
         const d = dayjs(row.date, 'YYYY-MM-DD', true)
         if (!d.isValid()) return false

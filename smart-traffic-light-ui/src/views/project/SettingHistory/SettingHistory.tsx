@@ -207,24 +207,24 @@ const SettingHistory: React.FC = () => {
     };
 
     const tabItems: TabsProps['items'] = [
-        {
-            key: '1',
-            label: 'Auto Mode Configuration History',
-            children: (
-                <Table
-                    columns={settingModeColumns}
-                    dataSource={settingModeHistory}
-                    rowKey="Log_ID"
-                    pagination={{
-                        ...settingModePagination,
-                        showSizeChanger: true,
-                        pageSizeOptions: ['10', '20', '50', '100'],
-                        onChange: handleSettingModeTableChange,
-                    }}
-                    scroll={{ x: 1000 }}
-                />
-            ),
-        },
+        // {
+        //     key: '1',
+        //     label: 'Auto Mode Configuration History',
+        //     children: (
+        //         <Table
+        //             columns={settingModeColumns}
+        //             dataSource={settingModeHistory}
+        //             rowKey="Log_ID"
+        //             pagination={{
+        //                 ...settingModePagination,
+        //                 showSizeChanger: true,
+        //                 pageSizeOptions: ['10', '20', '50', '100'],
+        //                 onChange: handleSettingModeTableChange,
+        //             }}
+        //             scroll={{ x: 1000 }}
+        //         />
+        //     ),
+        // },
         {
             key: '2',
             label: 'Configuration Mode History',
