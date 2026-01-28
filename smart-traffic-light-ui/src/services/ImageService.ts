@@ -52,3 +52,12 @@ export async function apiGetIntersectionData(): Promise<IntersectionData[]> {
 
     return response.data
 }
+
+// ✅ เพิ่มฟังก์ชันลบไฟล์
+export async function apiDeleteLogRecord(filename: string, lane: string): Promise<any> {
+    return ApiService.fetchData({
+        url: '/image-log/delete',
+        method: 'delete',
+        data: { filename, lane } // ส่ง Body ไป
+    })
+}

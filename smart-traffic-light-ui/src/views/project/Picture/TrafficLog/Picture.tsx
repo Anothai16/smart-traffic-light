@@ -9,7 +9,10 @@ import {
     Tag,
     Typography,
     message,
+    Popconfirm, // ✅ เพิ่ม
+    Button      // ✅ เพิ่ม
 } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons' // ✅ เพิ่ม
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
@@ -19,6 +22,7 @@ import {
     apiGetImagesByDateAndLane,
     apiGetIntersectionData,
     apiGetLogRecords,
+    apiDeleteLogRecord, // ✅ เพิ่ม Import function ลบ
     ImageObject,
     IntersectionData,
     LogRecord,
@@ -171,6 +175,30 @@ const PictureLog = () => {
         }
     }, [])
 
+    // ✅ เพิ่มฟังก์ชันสำหรับลบข้อมูล
+    const handleDelete = async (record: LogRecord) => {
+        try {
+            // เรียก API ลบไฟล์ (ส่งชื่อไฟล์และชื่อเลนหลัก Lane_1 ไป)
+            // หมายเหตุ: ต้องแน่ใจว่าได้เพิ่ม apiDeleteLogRecord ใน ImageService.ts แล้ว
+            await apiDeleteLogRecord(record.key, 'Lane_1');
+            
+            message.success('Deleted successfully');
+
+            // อัปเดตตารางโดยเอาแถวที่ลบออก (ไม่ต้องโหลดใหม่)
+            setLogRows((prev) => prev.filter((item) => item.key !== record.key));
+            
+            // ถ้าแถวที่ลบคือแถวที่กำลังเลือกดูรูปอยู่ ให้เคลียร์รูปทิ้ง
+            if (selectedRow?.key === record.key) {
+                setSelectedRow(null);
+                setLaneImages([null, null, null, null]);
+            }
+
+        } catch (error) {
+            console.error(error);
+            message.error('Failed to delete record');
+        }
+    };
+
     const displayRows = logRows.filter((row) => {
         // if (row.time < '05:00:00' || row.time > '18:00:00') return false
         if (!startDate && !endDate) return true
@@ -194,6 +222,31 @@ const PictureLog = () => {
             render: (d) => dayjs(d).format('DD MMMM YYYY'),
         },
         { title: 'Time', dataIndex: 'time', key: 'time' },
+        // ✅ เพิ่ม Column Action สำหรับปุ่มลบ
+        {
+            title: 'Action',
+            key: 'action',
+            width: 100,
+            align: 'center',
+            render: (_, record) => (
+                <div onClick={(e) => e.stopPropagation()}> {/* ป้องกันไม่ให้คลิกแล้วไป trigger onRow */}
+                    <Popconfirm
+                        title="Delete this record?"
+                        description="This will permanently delete the image."
+                        onConfirm={() => handleDelete(record)}
+                        okText="Yes"
+                        cancelText="No"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button 
+                            danger 
+                            type="text" 
+                            icon={<DeleteOutlined />} 
+                        />
+                    </Popconfirm>
+                </div>
+            ),
+        },
     ]
 
     return (
