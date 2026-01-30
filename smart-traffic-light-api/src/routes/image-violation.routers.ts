@@ -47,8 +47,9 @@ export const imageViolationRoutes = new Elysia({ prefix: '/image-violation' })
         if (!await jwt.verify(token)) { set.status = 401; return { message: 'Invalid Token' }; }
 
         const { lane } = query;
-        // Default เป็น Lane_1 ถ้าไม่ส่งมา (เหมือน Traffic)
-        const targetLane = (lane as string) || 'Lane_1';
+        
+        // 🟢 แก้ไข: ถ้าไม่มีค่า lane ให้ส่งเป็น undefined ไปเลย (ห้ามใส่ Default 'Lane_1')
+        const targetLane = lane as string | undefined;
 
         try {
             return await ImageViolationController.getLogRecords(targetLane);

@@ -5,7 +5,8 @@ export const ImageViolationController = {
     return await ImageViolationService.getImagesByDateAndLane(date, lane);
   },
 
-  async getLogRecords(lane: string) {
+  // 🟢 แก้ไข: ใส่ ? เพื่อให้รับค่า undefined ได้ (กรณีดึงทุกเลน)
+  async getLogRecords(lane?: string) {
     return ImageViolationService.getLogRecordsFromFiles(lane);
   },
 };
