@@ -64,7 +64,7 @@ const ProjectDashboard = () => {
       }));
       setDailyTraffic(mappedLanes);
 
-      // 2. Hourly Data (Backend จัดรูปแบบมาให้แล้ว ไม่ต้อง map keys เอง)
+      // 2. Hourly Data
       setHourlyData(res.hourly);
 
       // 3. Weekly Data
@@ -80,36 +80,55 @@ const ProjectDashboard = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   // ----------------------------------------------------
-  // 3. GET DYNAMIC LANE NAMES (ดึงรายชื่อเลนที่มีอยู่จริง)
+  // 3. GET DYNAMIC LANE NAMES
   // ----------------------------------------------------
-  // ใช้สำหรับสร้างแท่งกราฟและคอลัมน์ตาราง
   const activeLaneNames = useMemo(() => {
-    // ใช้ Set เพื่อกรองชื่อซ้ำ (กรณีข้อมูลดิบมีหลายแถว) และแปลงกลับเป็น Array
     return Array.from(new Set(dailyTraffic.map(d => d.laneName)));
   }, [dailyTraffic]);
 
   // ----------------------------------------------------
-  // 4. STATS & CALCULATION
+  // 4. STATS & CALCULATION (✅ แก้ไข Logic ตรงนี้)
   // ----------------------------------------------------
   const totalVehicleCount = useMemo(() => dailyTraffic.reduce((sum, item) => sum + item.Vehicle_Count, 0), [dailyTraffic]);
   const totalRedViolations = useMemo(() => dailyTraffic.reduce((sum, item) => sum + item.Red_Count, 0), [dailyTraffic]);
   
+  // ✅ แก้ไข Busiest Lane: ถ้าวันนี้ไม่มีรถเลย ให้ขึ้น N/A
   const busiestLaneInfo = useMemo(() => {
-    if (dailyTraffic.length === 0) return { lane: 'N/A', count: 0 };
+    if (dailyTraffic.length === 0 || totalVehicleCount === 0) {
+      return { lane: 'N/A', count: 0 };
+    }
     const busiest = dailyTraffic.reduce((prev, curr) => (prev.Vehicle_Count > curr.Vehicle_Count) ? prev : curr);
     return { lane: busiest.laneName, count: busiest.Vehicle_Count };
-  }, [dailyTraffic]);
+  }, [dailyTraffic, totalVehicleCount]);
 
+  // ✅ แก้ไข Daily Change: เทียบ Total วันนี้ กับ ข้อมูลของ "เมื่อวาน" (โดยหาวันที่ตรงๆ ไม่ใช้ index)
   const dailyChangeInfo = useMemo(() => {
-    if (weeklyData.length < 2) return { change: 0, percent: '0.0' };
-    const todayTotal = totalVehicleCount;
-    const yesterdayTotal = Number(weeklyData[weeklyData.length - 2]?.total || 0);
+    if (!weeklyData || weeklyData.length === 0) return { change: 0, percent: '0.0' };
+
+    // 1. หาข้อมูลของ "เมื่อวาน" จาก Array (เพื่อความชัวร์)
+    const yesterdayStr = selectedDate.subtract(1, 'day').format('YYYY-MM-DD');
+    const yesterdayRecord = weeklyData.find(d => d.fullDate === yesterdayStr);
     
-    if (yesterdayTotal === 0) return { change: 0, percent: '0.0' };
+    // ยอดรวมของเมื่อวาน (ถ้าหาไม่เจอ ให้ถือเป็น 0)
+    const yesterdayTotal = Number(yesterdayRecord?.total || 0);
+    
+    // 2. ยอดรวมของวันนี้ (ใช้ค่าจาก Realtime State ที่เพิ่งโหลดมา)
+    const todayTotal = totalVehicleCount;
+
+    // 3. คำนวณส่วนต่าง
     const diff = todayTotal - yesterdayTotal;
-    const percent = ((diff / yesterdayTotal) * 100).toFixed(1);
+
+    // 4. คำนวณ %
+    let percent = '0.0';
+    if (yesterdayTotal > 0) {
+      percent = ((diff / yesterdayTotal) * 100).toFixed(1);
+    } else if (todayTotal > 0) {
+      // เมื่อวาน 0 แต่วันนี้มีค่า -> เพิ่ม 100%
+      percent = '100.0';
+    }
+
     return { change: diff, percent };
-  }, [totalVehicleCount, weeklyData]);
+  }, [totalVehicleCount, weeklyData, selectedDate]);
 
   // ----------------------------------------------------
   // 5. RENDER HELPERS
@@ -122,11 +141,10 @@ const ProjectDashboard = () => {
       }
     ];
 
-    // สร้างคอลัมน์ตามชื่อเลนจริงที่มี
     const dynamicCols = activeLaneNames.map((name) => {
       return {
         title: name,
-        dataIndex: name, // ใช้ชื่อเลนเป็น Key ตรงๆ
+        dataIndex: name,
         key: name,
         align: 'right' as const,
         render: (count: number) => (Number(count) || 0).toLocaleString()
@@ -138,16 +156,13 @@ const ProjectDashboard = () => {
       ...dynamicCols,
       { 
         title: <Text strong className='text-amber-700'><CarOutlined /> Total</Text>,
-        key: 'total', // ไม่ใช้ dataIndex แล้ว เพื่อบังคับใช้ render คำนวณเอง
+        key: 'total',
         align: 'right' as const,
         render: (_: any, record: any) => {
-          // ✅✅✅ แก้ไข: คำนวณ Total ใหม่สดๆ ที่ฝั่ง Frontend
-          // โดยการวนลูปเอาค่าของทุกเลนใน record มาบวกกัน
           const calculatedTotal = activeLaneNames.reduce((sum, laneName) => {
-            const val = Number(record[laneName]); // แปลงเป็นตัวเลข
-            return sum + (isNaN(val) ? 0 : val);  // บวกเข้ากับผลรวม
+            const val = Number(record[laneName]);
+            return sum + (isNaN(val) ? 0 : val);
           }, 0);
-
           return <Text strong className="text-amber-700">{calculatedTotal.toLocaleString()}</Text>;
         }
       }
@@ -234,11 +249,10 @@ const ProjectDashboard = () => {
                 />
                 <Legend iconType="circle" />
                 
-                {/* ✅ วนลูปสร้างกราฟแท่งตามชื่อเลนที่มีอยู่จริง */}
                 {activeLaneNames.map((name, index) => (
                   <Bar 
                     key={name} 
-                    dataKey={name} // ใช้ชื่อเลนเป็น DataKey ตรงๆ
+                    dataKey={name}
                     name={name}
                     fill={CHART_COLORS[index % CHART_COLORS.length]} 
                     radius={[4, 4, 0, 0]} 
