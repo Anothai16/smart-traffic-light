@@ -111,12 +111,20 @@ const TrafficViolations = () => {
         }
     }, [])
 
-    // 🟢 ฟังก์ชันสำหรับปุ่ม Refresh
+   // 🟢 ฟังก์ชันสำหรับปุ่ม Refresh
     const loadData = useCallback(async () => {
         setLoading(true)
-        await fetchLogs()
-        setLoading(false)
-        message.success('Data updated successfully')
+        try {
+            await fetchLogs()
+            // 🟢 ล้างค่าแถวที่เลือกและรูปภาพในกล่องพรีวิว
+            setSelectedRow(null)
+            setLaneImages([null, null, null, null])
+            message.success('Data updated successfully')
+        } catch (error) {
+            // Error handling is managed inside fetchLogs
+        } finally {
+            setLoading(false)
+        }
     }, [fetchLogs])
 
     useEffect(() => {
