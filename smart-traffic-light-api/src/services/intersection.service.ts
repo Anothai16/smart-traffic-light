@@ -23,7 +23,7 @@ export const IntersectionService = {
             await pool.execute(
                 `UPDATE Master_Intersection 
                  SET Status = 'Offline' 
-                 WHERE Update_Date < DATE_SUB(NOW(), INTERVAL 30 SECOND) 
+                 WHERE Update_Date < DATE_SUB(NOW(), INTERVAL 3 SECOND) 
                  AND Status = 'Online'` 
             );
         } catch (error) {
@@ -79,7 +79,7 @@ export const IntersectionService = {
     // 🟢 2. รับ Heartbeat จาก Python
     async updateHeartbeat(id: number): Promise<void> {
         const pool = await getDbPool();
-        // ✅ อัปเดต Status เป็น 'Online' และ Update_Date เป็นเวลาปัจจุบัน
+        // ทันทีที่กล้องส่งมา เรา Update เป็น Online และต่ออายุ Update_Date ทันที
         await pool.execute(
             `UPDATE Master_Intersection 
              SET Status = 'Online', Update_Date = NOW() 
