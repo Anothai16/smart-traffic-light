@@ -9,10 +9,10 @@ import {
     Tag,
     Typography,
     message,
-    Popconfirm, // ✅ เพิ่ม
-    Button      // ✅ เพิ่ม
+    Popconfirm,
+    Button
 } from 'antd'
-import { DeleteOutlined } from '@ant-design/icons' // ✅ เพิ่ม
+import { DeleteOutlined, SyncOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
@@ -22,7 +22,7 @@ import {
     apiGetImagesByDateAndLane,
     apiGetIntersectionData,
     apiGetLogRecords,
-    apiDeleteLogRecord, // ✅ เพิ่ม Import function ลบ
+    apiDeleteLogRecord,
     ImageObject,
     IntersectionData,
     LogRecord,
@@ -35,12 +35,8 @@ dayjs.locale('en')
 
 const { Title, Text } = Typography
 
-// 🟢 กำหนดลำดับกล่องโดยยึดจาก Intersection_ID (1-4) ตามภาพ DB
 const FIXED_INTERSECTIONS = [1, 2, 3, 4] as const
 
-/**
- * Logic ค้นหารูปที่เวลาใกล้เคียงที่สุด (±10 วินาที)
- */
 function pickClosestImageByTime(
     images: ImageObject[],
     target: Dayjs | null,
@@ -72,7 +68,6 @@ function pickClosestImageByTime(
 const PictureLog = () => {
     const [form] = Form.useForm()
 
-    // States แบบเดียวกับ TrafficViolations
     const [startDate, setStartDate] = useState<Dayjs | null>(null)
     const [endDate, setEndDate] = useState<Dayjs | null>(null)
     const [logRows, setLogRows] = useState<LogRecord[]>([])
@@ -87,12 +82,11 @@ const PictureLog = () => {
         null,
     ])
 
-    // Loading & Pagination States
     const [loadingLogs, setLoadingLogs] = useState(false)
     const [loadingImages, setLoadingImages] = useState(false)
+    const [loading, setLoading] = useState(false)
     const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
 
-    // 1. Fetch Log Records
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
         try {
@@ -100,17 +94,25 @@ const PictureLog = () => {
             setLogRows(data)
         } catch (error) {
             message.error('Failed to fetch logs')
-            console.error(error)
         } finally {
             setLoadingLogs(false)
         }
     }, [])
 
+    // ✅ ปรับ handleRefresh: ล้างแค่รูปที่พรีวิวและแถวที่เลือก แต่ "ไม่ล้าง" startDate/endDate
+    const handleRefresh = async () => {
+        setLoading(true)
+        await fetchLogs()
+        setSelectedRow(null)
+        setLaneImages([null, null, null, null])
+        setLoading(false)
+        message.success('Data refreshed')
+    }
+
     useEffect(() => {
         fetchLogs()
     }, [fetchLogs])
 
-    // 2. Fetch Intersection Info
     useEffect(() => {
         const fetchIntersectionInfo = async () => {
             try {
@@ -127,7 +129,6 @@ const PictureLog = () => {
         fetchIntersectionInfo()
     }, [])
 
-    // 3. Load Images by Intersection_ID
     const loadImagesForRow = useCallback(async (row: LogRecord) => {
         setSelectedRow(row)
         setLaneImages([null, null, null, null])
@@ -175,40 +176,27 @@ const PictureLog = () => {
         }
     }, [])
 
-    // ✅ เพิ่มฟังก์ชันสำหรับลบข้อมูล
     const handleDelete = async (record: LogRecord) => {
         try {
-            // เรียก API ลบไฟล์ (ส่งชื่อไฟล์และชื่อเลนหลัก Lane_1 ไป)
-            // หมายเหตุ: ต้องแน่ใจว่าได้เพิ่ม apiDeleteLogRecord ใน ImageService.ts แล้ว
             await apiDeleteLogRecord(record.key, 'Lane_1');
-            
             message.success('Deleted successfully');
-
-            // อัปเดตตารางโดยเอาแถวที่ลบออก (ไม่ต้องโหลดใหม่)
             setLogRows((prev) => prev.filter((item) => item.key !== record.key));
-            
-            // ถ้าแถวที่ลบคือแถวที่กำลังเลือกดูรูปอยู่ ให้เคลียร์รูปทิ้ง
             if (selectedRow?.key === record.key) {
                 setSelectedRow(null);
                 setLaneImages([null, null, null, null]);
             }
-
         } catch (error) {
-            console.error(error);
             message.error('Failed to delete record');
         }
     };
 
     const displayRows = logRows.filter((row) => {
-        // if (row.time < '05:00:00' || row.time > '18:00:00') return false
         if (!startDate && !endDate) return true
         const d = dayjs(row.date, 'YYYY-MM-DD', true)
         if (!d.isValid()) return false
         let ok = true
         if (startDate)
-            ok =
-                ok &&
-                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+            ok = ok && (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
         if (endDate)
             ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
         return ok
@@ -222,14 +210,13 @@ const PictureLog = () => {
             render: (d) => dayjs(d).format('DD MMMM YYYY'),
         },
         { title: 'Time', dataIndex: 'time', key: 'time' },
-        // ✅ เพิ่ม Column Action สำหรับปุ่มลบ
         {
             title: 'Action',
             key: 'action',
             width: 100,
             align: 'center',
             render: (_, record) => (
-                <div onClick={(e) => e.stopPropagation()}> {/* ป้องกันไม่ให้คลิกแล้วไป trigger onRow */}
+                <div onClick={(e) => e.stopPropagation()}>
                     <Popconfirm
                         title="Delete this record?"
                         description="This will permanently delete the image."
@@ -238,11 +225,7 @@ const PictureLog = () => {
                         cancelText="No"
                         okButtonProps={{ danger: true }}
                     >
-                        <Button 
-                            danger 
-                            type="text" 
-                            icon={<DeleteOutlined />} 
-                        />
+                        <Button danger type="text" icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </div>
             ),
@@ -250,9 +233,7 @@ const PictureLog = () => {
     ]
 
     return (
-        <div
-            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
-        >
+        <div style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}>
             <Flex vertical gap="large">
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
                     <Flex
@@ -264,11 +245,13 @@ const PictureLog = () => {
                             Traffic Log
                         </Title>
                         <Flex gap="middle" align="middle" wrap>
+                            {/* ✅ เพิ่ม needConfirm: false เพื่อให้เลือกแล้วเปลี่ยนทันทีไม่ต้องกด OK */}
                             <DatePickerFormItem.From
                                 label="Start Date"
                                 endDateName="endDate"
                                 datePickerProps={{
                                     onChange: (v) => setStartDate(v ?? null),
+                                    needConfirm: false, 
                                 }}
                             />
                             <DatePickerFormItem.To
@@ -276,23 +259,25 @@ const PictureLog = () => {
                                 startDateName="startDate"
                                 datePickerProps={{
                                     onChange: (v) => setEndDate(v ?? null),
+                                    needConfirm: false,
                                 }}
                             />
+                            <Button
+                                type="primary"
+                                icon={<SyncOutlined />}
+                                onClick={handleRefresh}
+                                loading={loading}
+                            >
+                                Refresh Data
+                            </Button>
                         </Flex>
                     </Flex>
                 </Form>
 
-                {/* --- Preview Section (Sticky) --- */}
-                <div
-                    className="sticky top-0 z-20 pt-2 pb-4"
-                    style={{ backgroundColor: '#fff' }}
-                >
+                <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
                     <Card className="shadow-lg rounded-lg border border-gray-200">
                         <div className="flex items-center justify-between mb-4">
-                            <Title
-                                level={5}
-                                style={{ margin: 0, color: '#666' }}
-                            >
+                            <Title level={5} style={{ margin: 0, color: '#666' }}>
                                 Selected Event Preview
                             </Title>
                             <div className="text-sm text-gray-500">
@@ -304,30 +289,15 @@ const PictureLog = () => {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {FIXED_INTERSECTIONS.map((id, idx) => {
-                                const info = intersectionInfo.find(
-                                    (d) => d.Intersection_ID === id,
-                                )
+                                const info = intersectionInfo.find((d) => d.Intersection_ID === id)
                                 const img = laneImages[idx]
-
                                 return (
                                     <div key={id} className="relative">
                                         <div className="flex items-center justify-between mb-2">
-                                            <Tag
-                                                color="blue"
-                                                style={{
-                                                    minWidth: 80,
-                                                    textAlign: 'center',
-                                                    fontSize: 16,
-                                                }}
-                                            >
-                                                {info?.Name ||
-                                                    (intersectionInfo.length ===
-                                                    0
-                                                        ? 'Loading...'
-                                                        : '')}
+                                            <Tag color="blue" style={{ minWidth: 80, textAlign: 'center', fontSize: 16 }}>
+                                                {info?.Name || (intersectionInfo.length === 0 ? 'Loading...' : '')}
                                             </Tag>
                                         </div>
-
                                         <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
                                             {loadingImages ? (
                                                 <Spin />
@@ -335,30 +305,16 @@ const PictureLog = () => {
                                                 <Image
                                                     src={img.url}
                                                     alt={img.title}
-                                                    style={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        objectFit: 'cover',
-                                                    }}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                     preview
                                                 />
                                             ) : (
-                                                <Text
-                                                    type="secondary"
-                                                    style={{
-                                                        fontSize: 11,
-                                                        color: '#999',
-                                                    }}
-                                                >
+                                                <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>
                                                     No matching image
                                                 </Text>
                                             )}
                                         </div>
-                                        {img && (
-                                            <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">
-                                                {img.title}
-                                            </div>
-                                        )}
+                                        {img && <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">{img.title}</div>}
                                     </div>
                                 )
                             })}
@@ -366,14 +322,8 @@ const PictureLog = () => {
                     </Card>
                 </div>
 
-                {/* --- Records Table (โครงสร้างเดียวกับ TrafficViolations) --- */}
                 <Card className="shadow-sm" style={{ borderRadius: 8 }}>
-                    <Title
-                        level={5}
-                        style={{ marginBottom: 16, color: '#666' }}
-                    >
-                        Records
-                    </Title>
+                    <Title level={5} style={{ marginBottom: 16, color: '#666' }}>Records</Title>
                     <Table<LogRecord>
                         dataSource={displayRows}
                         columns={columns}
@@ -390,14 +340,11 @@ const PictureLog = () => {
                             },
                         })}
                         rowClassName={(record) =>
-                            record.key === selectedRow?.key
-                                ? 'bg-blue-50 cursor-pointer'
-                                : 'cursor-pointer'
+                            record.key === selectedRow?.key ? 'bg-blue-50 cursor-pointer' : 'cursor-pointer'
                         }
                         pagination={{
                             ...pagination,
-                            onChange: (page, pageSize) =>
-                                setPagination({ current: page, pageSize }),
+                            onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
                             showSizeChanger: true,
                             pageSizeOptions: ['10', '20', '50'],
                         }}

@@ -9,12 +9,13 @@ import {
     Tag,
     Spin,
     message,
+    Button,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/en'
-
+import { SyncOutlined } from '@ant-design/icons'
 // 🟢 นำเข้า Service สำหรับ Violation โดยเฉพาะ
 import {
     apiGetViolationLogRecords,
@@ -91,6 +92,9 @@ const TrafficViolations = () => {
     const [loadingImages, setLoadingImages] = useState(false)
     const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
 
+    // 🟢 เพิ่ม State สำหรับสถานะการกดปุ่ม Refresh
+    const [loading, setLoading] = useState(false)
+
     /**
      * ดึงข้อมูลรายการการกระทำผิด (รวมทุกเลน)
      */
@@ -106,6 +110,22 @@ const TrafficViolations = () => {
             setLoadingLogs(false)
         }
     }, [])
+
+   // 🟢 ฟังก์ชันสำหรับปุ่ม Refresh
+    const loadData = useCallback(async () => {
+        setLoading(true)
+        try {
+            await fetchLogs()
+            // 🟢 ล้างค่าแถวที่เลือกและรูปภาพในกล่องพรีวิว
+            setSelectedRow(null)
+            setLaneImages([null, null, null, null])
+            message.success('Data updated successfully')
+        } catch (error) {
+            // Error handling is managed inside fetchLogs
+        } finally {
+            setLoading(false)
+        }
+    }, [fetchLogs])
 
     useEffect(() => {
         const fetchIntersectionInfo = async () => {
@@ -251,6 +271,14 @@ const TrafficViolations = () => {
                                     onChange: (v) => setEndDate(v ?? null),
                                 }}
                             />
+                            <Button
+                                icon={<SyncOutlined />}
+                                onClick={loadData}
+                                loading={loading}
+                                type="primary"
+                            >
+                                Refresh Data
+                            </Button>
                         </Flex>
                     </Flex>
                 </Form>
