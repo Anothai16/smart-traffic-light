@@ -11,6 +11,7 @@ import { permissionRoutes } from './routes/permission.routes';
 import { intersectionRoutes } from './routes/intersection.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
 import { imageViolationRoutes } from './routes/image-violation.routers';
+import { systemRoutes } from './routes/system.routes';
 
 
 export const appRoutes = new Elysia()
@@ -23,6 +24,7 @@ export const appRoutes = new Elysia()
     .use(permissionRoutes) 
     .use(intersectionRoutes)
     .use(dashboardRoutes)
+    .use(systemRoutes)
     .on('beforeHandle', ({ request }) => {
         console.log(`[Global Router] Received Request: ${request.method} ${request.url}`);
     });
