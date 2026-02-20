@@ -3,10 +3,10 @@ import threading
 
 # ก๊อปปี้ NODES จากไฟล์ start_all_custom.py มาใส่ที่นี่ด้วย
 NODES = [
-    { "ip": "192.168.1.202", "username": "pi5", "password": "pi51234" },
-    { "ip": "192.168.1.203", "username": "pi5node2", "password": "pi51234" },
-    { "ip": "192.168.1.204", "username": "pi5node3", "password": "pi51234" },
-    { "ip": "192.168.1.205", "username": "pi5node4", "password": "pi51234" }
+    { "ip": "100.107.98.48", "username": "pi5",        "password": "pi51234", "script_path": "~/Desktop/main/main.py" },
+    { "ip": "100.92.87.106", "username": "pi5node2", "password": "pi51234", "script_path": "~/Desktop/main/main.py" },
+    { "ip": "100.80.8.105", "username": "pi5node3", "password": "pi51234", "script_path": "~/Desktop/main/main.py" },
+    { "ip": "100.112.182.89", "username": "pi5node4", "password": "pi51234", "script_path": "~/Desktop/main/main.py" }
 ]
 
 def stop_node(node):
