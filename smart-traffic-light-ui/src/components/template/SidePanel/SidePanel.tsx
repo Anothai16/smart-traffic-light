@@ -10,6 +10,7 @@ import type { CommonProps } from '@/@types/common'
 
 // 🔑 นำเข้า setActiveChat เพื่อจัดการสถานะการแชทเมื่อปิด Panel
 import { setActiveChat } from '@/store/chat' 
+import { BsCameraFill } from 'react-icons/bs'
 
 type SidePanelProps = CommonProps
 
@@ -54,7 +55,7 @@ const _SidePanel = (props: SidePanelProps) => {
                 onClick={openPanel}
                 {...rest}
             >
-                <HiOutlineUserGroup />
+                <BsCameraFill /> 
             </div>
             <Drawer
                 title="Controller Panel"
