@@ -30,6 +30,7 @@ services:
 
       - ./traffic_data:/traffic_data_storage
       - ./violation_data:/violation_data_storage
+      - ./:/app_root
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
