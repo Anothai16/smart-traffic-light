@@ -35,4 +35,12 @@ export const systemRoutes = new Elysia({ prefix: '/system' })
             set.status = 500;
             return { success: false, message: error.message };
         }
+    })
+    .post('/reset', async ({ set }) => {
+        try {
+            return await SystemController.resetSystem();
+        } catch (error: any) {
+            set.status = 500;
+            return { success: false, message: error.message };
+        }
     });
