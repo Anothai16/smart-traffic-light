@@ -29,6 +29,9 @@ export default defineConfig({
     watch: {
       usePolling: true
     },
+    hmr: {
+      clientPort: 443 // บังคับให้ระบบ Hot Reload วิ่งผ่าน HTTPS ของ Cloudflare
+    },
     proxy: {
       // ✅ 1. Socket.io (ใช้ตัวแปร backendUrl)
       '/socket.io': {
