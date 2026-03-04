@@ -296,7 +296,7 @@ const SettingHistory: React.FC = () => {
                                     Last Updated by: <span className="font-medium" style={{ fontWeight: 'bold', color: '#000' }}>{latestModeConfig.Admin_Name || "Hardware"}</span>
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    Date: {latestModeConfig.Create_Date ? dayjs(latestModeConfig.Create_Date).format('DD/MM/YYYY') : '-'} | Time: {formatTime(latestModeConfig.Time)}
+                                    Date: {latestModeConfig.Date ? dayjs(latestModeConfig.Date).format('DD/MM/YYYY') : '-'} | Time: {formatTime(latestModeConfig.Time)}
                                 </p>
                             </div>
                         </Flex>
