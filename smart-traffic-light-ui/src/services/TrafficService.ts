@@ -77,3 +77,10 @@ export async function apiUpdateIntersectionTimes(
         data,
     });
 }
+
+export async function apiResetSystem() {
+    return ApiService.fetchData<{ success: boolean; message: string }>({
+        url: '/system/reset',
+        method: 'post',
+    });
+}

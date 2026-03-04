@@ -19,6 +19,7 @@ import {
     apiUpdateIntersectionTimes,
     apiGetModeStatus,
     apiUpdateTrafficMode,
+    apiResetSystem, // ✅ นำเข้า API ตัวใหม่สำหรับ Reset System
 } from '@/services/TrafficService'
 import type { AxiosError } from 'axios'
 import toast from '@/components/ui/toast'
@@ -285,6 +286,33 @@ const TrafficManagement = () => {
         }
     }
 
+    // ✅ ฟังก์ชันสำหรับจัดการปุ่ม Reset System
+    const handleResetSystem = async () => {
+        try {
+            setLoading(true)
+            const response = await apiResetSystem()
+            
+            if (response.data?.success) {
+                showNotification(
+                    'success', 
+                    'System Reset', 
+                    response.data.message || 'รีเซ็ตระบบเรียบร้อย ระบบกำลังกลับเข้าสู่โหมดปกติ'
+                )
+                // ดึงข้อมูลสถานะล่าสุดจาก Database มาแสดงใหม่
+                await fetchTrafficData()
+            } else {
+                showNotification('danger', 'Reset Failed', 'ไม่สามารถรีเซ็ตระบบได้')
+            }
+        } catch (error) {
+            const err = error as AxiosError<ApiErrorResponse>
+            const errorMessage = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ'
+            console.error(error)
+            showNotification('danger', 'Error', `เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์: ${errorMessage}`)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (loading && modes.length === 0) {
         return (
             <Flex
@@ -295,9 +323,6 @@ const TrafficManagement = () => {
                 <Spin size="large" />
             </Flex>
         )
-    }
-    const handleResetSystem = () => {
-        console.log('Reset system triggered')
     }
 
     return (
@@ -361,6 +386,7 @@ const TrafficManagement = () => {
                             danger
                             icon={<BiReset />}
                             onClick={handleResetSystem}
+                            loading={loading} // แสดงสถานะโหลดตอนกด
                         >
                             Reset system
                         </Button>

@@ -45,5 +45,20 @@ export const SystemController = {
         console.log(`🛑 Executing: python3 "${scriptPath}"`);
         exec(`python3 "${scriptPath}"`, { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }, (error, stdout, stderr) => { /* โค้ด error ดักจับเหมือนด้านบน */ });
         return { success: true, message: "ส่งคำสั่งหยุด PI Controller เรียบร้อยแล้ว" };
+    },
+    
+    async resetSystem() {
+        const scriptPath = '/app_root/reset_system.py'; // ชี้ไปที่ไฟล์ใหม่
+        console.log(`🔄 Executing: python3 "${scriptPath}"`);
+
+        exec(`python3 "${scriptPath}"`, { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`❌ Reset System Error: ${error.message}`);
+                return;
+            }
+            console.log(`✅ Reset System Output:\n${stdout}`);
+        });
+
+        return { success: true, message: "ส่งคำสั่งรีเซ็ตระบบไปยัง Pi เรียบร้อยแล้ว" };
     }
 };
