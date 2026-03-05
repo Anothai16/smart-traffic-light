@@ -227,7 +227,7 @@ const SettingHistory: React.FC = () => {
                     </Flex>
                 </Flex>
 
-                <Card title="Recent Auto Mode Configurations" className="shadow-lg rounded-lg border border-gray-200">
+                {/* <Card title="Recent Auto Mode Configurations" className="shadow-lg rounded-lg border border-gray-200">
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '50px' }}>
                             <Spin size="large" />
@@ -270,7 +270,7 @@ const SettingHistory: React.FC = () => {
                             ))}
                         </Flex>
                     )}
-                </Card>
+                </Card> */}
 
                 <Card
                     title="Latest Mode Configurations"

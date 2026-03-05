@@ -207,12 +207,12 @@ const ProjectDashboard = () => {
               </Card>
             </Col>
             
-            <Col xs={24} md={12} lg={6}>
+            {/* <Col xs={24} md={12} lg={6}>
               <Card className={classNames("h-full shadow-sm border-l-4", dailyChangeInfo.change >= 0 ? "border-green-500" : "border-red-500")}>
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Daily Change (%)</p>
                 <ChangeDisplay change={dailyChangeInfo.change} percent={dailyChangeInfo.percent} />
               </Card>
-            </Col>
+            </Col> */}
 
             <Col xs={24} md={12} lg={6}>
               <Card className="h-full shadow-sm border-l-4 border-amber-500">
@@ -245,7 +245,7 @@ const ProjectDashboard = () => {
                 <Tooltip 
                   cursor={{ fill: '#f5f5f5' }} 
                   contentStyle={{ borderRadius: '8px' }}
-                  formatter={(value: any, name: string) => [Number(value).toLocaleString(), name]} 
+                  formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]} 
                 />
                 <Legend iconType="circle" />
                 
@@ -264,10 +264,10 @@ const ProjectDashboard = () => {
           </div>
         </Card>
 
-        {/* --- BREAKDOWN TABLES --- */}
+        {/* --- Number of Vehicles Table --- */}
         <Row gutter={[24, 24]}>
           <Col xs={24} lg={12}>
-            <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><CarOutlined className="text-blue-500" /> Lane Breakdown</span>}>
+            <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><CarOutlined className="text-blue-500" /> Number of Vehicles</span>}>
               <Table 
                 columns={[
                   { 
@@ -299,7 +299,7 @@ const ProjectDashboard = () => {
                     render: (t) => <Tag color="error" className="text-sm font-medium">{t}</Tag> 
                   },
                   { 
-                    title: 'Violations', 
+                    title: 'Violations Count', 
                     dataIndex: 'Red_Count', 
                     key: 'Red_Count', 
                     align: 'right', 
@@ -312,8 +312,8 @@ const ProjectDashboard = () => {
           </Col>
         </Row>
 
-        {/* --- WEEKLY ANALYSIS --- */}
-        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><TableOutlined className="text-blue-500" /> Weekly Pattern Analysis</span>}>
+        {/* --- THIS WEEKLY REPORT  --- */}
+        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><TableOutlined className="text-blue-500" />This Weekly Report</span>}>
           <Table
             columns={laneWeeklyColumns}
             dataSource={weeklyData}
