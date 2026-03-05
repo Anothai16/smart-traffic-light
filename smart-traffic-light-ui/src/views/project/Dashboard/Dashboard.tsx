@@ -53,8 +53,7 @@ interface DailyTrafficData {
     laneName: string // ชื่อจริงจาก DB (เช่น "ประตู 1")
     laneKey: number
     Vehicle_Count: number
-    Red_Count: number
-}
+    Violation_Count: number}
 
 const CHART_COLORS = [
     '#3b82f6',
@@ -88,7 +87,7 @@ const ProjectDashboard = () => {
                 laneName: l.laneName, // ใช้ชื่อจาก DB โดยตรง
                 laneKey: l.laneKey,
                 Vehicle_Count: Number(l.vehicleCount || 0),
-                Red_Count: Number(l.violationCount || 0),
+                Violation_Count: Number(l.violationCount || 0),
             }))
             setDailyTraffic(mappedLanes)
 
@@ -123,8 +122,8 @@ const ProjectDashboard = () => {
         () => dailyTraffic.reduce((sum, item) => sum + item.Vehicle_Count, 0),
         [dailyTraffic],
     )
-    const totalRedViolations = useMemo(
-        () => dailyTraffic.reduce((sum, item) => sum + item.Red_Count, 0),
+    const totalViolations = useMemo(
+        () => dailyTraffic.reduce((sum, item) => sum + item.Violation_Count, 0),
         [dailyTraffic],
     )
 
@@ -372,7 +371,7 @@ const ProjectDashboard = () => {
                                 </p>
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-4xl font-extrabold text-red-600 mb-0">
-                                        {totalRedViolations.toLocaleString()}
+                                        {totalViolations.toLocaleString()}
                                     </h3>
                                     <AlertOutlined className="text-4xl text-red-300 opacity-50" />
                                 </div>
@@ -551,8 +550,8 @@ const ProjectDashboard = () => {
                                     },
                                     {
                                         title: 'Violations Count',
-                                        dataIndex: 'Red_Count',
-                                        key: 'Red_Count',
+                                        dataIndex: 'Violation_Count',
+                                        key: 'Violation_Count',
                                         align: 'right',
                                         render: (v) => (
                                             <Text

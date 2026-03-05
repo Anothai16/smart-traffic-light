@@ -23,8 +23,7 @@ export const DashboardService = {
                     m.Name as laneName, 
                     m.Intersection_ID as laneKey,
                     COALESCE(SUM(t.Vehicle_Count), 0) as vehicleCount,
-                    COALESCE(SUM(t.Violation_Count), 0) as violationCount,
-                    COALESCE(SUM(t.Red_Count), 0) as redCount
+                    COALESCE(SUM(t.Violation_Count), 0) as violationCount
                 FROM Master_Intersection m
                 LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND DATE(t.Date) = ? -- ✅ แก้: ใช้ DATE() เพื่อตัดเวลา
                 GROUP BY m.Intersection_ID, m.Name
