@@ -312,8 +312,8 @@ const ProjectDashboard = () => {
           </Col>
         </Row>
 
-        {/* --- THIS WEEKLY REPORT  --- */}
-        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><TableOutlined className="text-blue-500" />This Weekly Report</span>}>
+        {/* --- THIS WEEK REPORT  --- */}
+        <Card className="shadow-lg rounded-xl" title={<span className="flex items-center gap-2"><TableOutlined className="text-blue-500" />This Week Report</span>}>
           <Table
             columns={laneWeeklyColumns}
             dataSource={weeklyData}
