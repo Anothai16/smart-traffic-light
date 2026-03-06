@@ -8,9 +8,7 @@ export interface DashboardResponse {
         laneName: string;
         vehicleCount: number;
         violation_count: number;
-        red: number;
-        yellow: number;
-        green: number;
+       
     }>;
     hourly: Array<{
         hour: string;
