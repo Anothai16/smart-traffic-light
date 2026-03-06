@@ -360,6 +360,7 @@ const TrafficViolations = () => {
                                             {loadingImages ? (
                                                 <Spin />
                                             ) : img ? (
+                                                // ✅ ปรับเพิ่ม onError เพื่อโหลดภาพใหม่ถ้ารูปยังมาไม่ถึงเหมือนกับหน้า Traffic ปกติ
                                                 <Image
                                                     src={img.url}
                                                     alt={img.title}
@@ -367,6 +368,16 @@ const TrafficViolations = () => {
                                                         width: '100%',
                                                         height: '100%',
                                                         objectFit: 'cover',
+                                                    }}
+                                                    onError={(e) => {
+                                                        const target = e.currentTarget as HTMLImageElement;
+                                                        if (!target.src.includes('retry=')) {
+                                                            setTimeout(() => {
+                                                                target.src = `${img.url}?retry=${new Date().getTime()}`;
+                                                            }, 1000);
+                                                        } else {
+                                                            console.warn("Failed to load violation image after retry:", target.src);
+                                                        }
                                                     }}
                                                 />
                                             ) : (

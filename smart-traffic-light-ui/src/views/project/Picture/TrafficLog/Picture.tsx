@@ -99,7 +99,6 @@ const PictureLog = () => {
         }
     }, [])
 
-    // ✅ ปรับ handleRefresh: ล้างแค่รูปที่พรีวิวและแถวที่เลือก แต่ "ไม่ล้าง" startDate/endDate
     const handleRefresh = async () => {
         setLoading(true)
         await fetchLogs()
@@ -245,7 +244,6 @@ const PictureLog = () => {
                             Traffic Log
                         </Title>
                         <Flex gap="middle" align="middle" wrap>
-                            {/* ✅ เพิ่ม needConfirm: false เพื่อให้เลือกแล้วเปลี่ยนทันทีไม่ต้องกด OK */}
                             <DatePickerFormItem.From
                                 label="Start Date"
                                 endDateName="endDate"
@@ -302,11 +300,24 @@ const PictureLog = () => {
                                             {loadingImages ? (
                                                 <Spin />
                                             ) : img ? (
+                                                // ✅ ปรับ Image Component โดยใส่ onError เพื่อให้โหลดภาพซ้ำถ้ารูปยังมาไม่ถึงเซิร์ฟเวอร์
                                                 <Image
                                                     src={img.url}
                                                     alt={img.title}
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                     preview
+                                                    onError={(e) => {
+                                                        const target = e.currentTarget as HTMLImageElement;
+                                                        // เช็คเพื่อไม่ให้มัน loop error ซ้ำๆ ตลอดเวลา โดยเช็คหาคำว่า retry
+                                                        if (!target.src.includes('retry=')) {
+                                                            setTimeout(() => {
+                                                                target.src = `${img.url}?retry=${new Date().getTime()}`;
+                                                            }, 1000);
+                                                        } else {
+                                                            // ถ้ารีโหลดครั้งที่สองแล้วยังไม่ได้ ก็ปล่อยเป็นภาพแตก (อาจจะไฟล์ไม่มีจริงๆ)
+                                                            console.warn("Failed to load image after retry:", target.src);
+                                                        }
+                                                    }}
                                                 />
                                             ) : (
                                                 <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>
