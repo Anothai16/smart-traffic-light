@@ -285,7 +285,7 @@ const IntersectionManagement: React.FC = () => {
                         dataSource={intersections}
                         rowKey="Intersection_ID"
                         loading={loading}
-                        pagination={{ pageSize: 10 }}
+                        pagination={false}
                         scroll={{ x: 1000 }}
                     />
                 </Card>
