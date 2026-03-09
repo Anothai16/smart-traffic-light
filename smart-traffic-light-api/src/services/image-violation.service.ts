@@ -36,10 +36,10 @@ export interface ViolationLogRecord {
 }
 
 export const ImageViolationService = {
-    // -------------------------------------------------------------------------
-    // 🟢 [Main Function] ดึงข้อมูลจาก "ทุก Lane" หรือระบุเลน ผ่าน Database
-    // -------------------------------------------------------------------------
-    getLogRecordsFromFiles: async (requestedLane?: string): Promise<ViolationLogRecord[]> => {
+    _getRecordsBySingleLane: (laneName: string): ViolationLogRecord[] => {
+        const lanePath = LANE_CONFIG[laneName];
+        if (!lanePath || !fs.existsSync(lanePath)) return [];
+
         try {
             const pool = await getDbPool();
 
@@ -74,6 +74,19 @@ export const ImageViolationService = {
                 lanes: row.IntersectionName || extractLaneFromName(row.Violation_Picture_Path)
             }));
 
+                    // Regex จับชื่อไฟล์ (ปรับให้ตรงกับ Pattern ของคุณ)
+                    const match = fileName.match(/^(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_/);
+                    if (match) {
+                        records.push({
+                            // ใส่ laneName ใน Key กันซ้ำ 
+                            key: `${laneName}_${fileName}`, 
+                            date: match[1],
+                            time: match[2].replace(/-/g, ':'), 
+                            lanes: laneName
+                        });
+                    }
+                });
+            });
             return records;
         } catch (error) {
             console.error('❌ Error fetching violation logs from database:', error);
@@ -82,7 +95,36 @@ export const ImageViolationService = {
     },
 
     // -------------------------------------------------------------------------
-    // 🟢 ฟังก์ชันดึงรูปภาพ
+    //  ดึงข้อมูลจาก "ทุก Lane" และเรียงลำดับใหม่สุดก่อน
+    // -------------------------------------------------------------------------
+    getLogRecordsFromFiles: (requestedLane?: string): ViolationLogRecord[] => {
+        let allRecords: ViolationLogRecord[] = [];
+
+        if (requestedLane && LANE_CONFIG[requestedLane]) {
+            // กรณีระบุเลนมา (เผื่ออนาคตอยาก filter)
+            allRecords = ImageViolationService._getRecordsBySingleLane(requestedLane);
+        } else {
+            //  กรณีไม่ระบุ (Default) -> วนลูปดึง "ทุก Lane" ใน LANE_CONFIG
+            Object.keys(LANE_CONFIG).forEach(laneName => {
+                const laneRecords = ImageViolationService._getRecordsBySingleLane(laneName);
+                allRecords = allRecords.concat(laneRecords);
+            });
+        }
+
+        //  เรียงลำดับ (Sorting) ด้วย Timestamp จริง
+        return allRecords.sort((a, b) => {
+            // สร้าง Date Object เพื่อเปรียบเทียบค่าเวลา
+            // Format: YYYY-MM-DDTHH:mm:ss
+            const dateA = new Date(`${a.date}T${a.time}`);
+            const dateB = new Date(`${b.date}T${b.time}`);
+            
+            // เรียงจาก มาก -> น้อย (ใหม่ -> เก่า)
+            return dateB.getTime() - dateA.getTime();
+        });
+    },
+
+    // -------------------------------------------------------------------------
+    //  ฟังก์ชันดึงรูปภาพ 
     // -------------------------------------------------------------------------
     async getImagesByDateAndLane(date: string, laneName: string): Promise<ImageViolationObject[]> {
         try {

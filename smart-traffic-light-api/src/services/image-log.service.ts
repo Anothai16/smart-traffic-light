@@ -31,7 +31,10 @@ export interface LogRecord {
 }
 
 export const ImageLogService = {
-    getLogRecordsFromFiles: async (laneName: string): Promise<LogRecord[]> => {
+    getLogRecordsFromFiles: (laneName: string): LogRecord[] => {
+        const lanePath = LANE_CONFIG[laneName];
+        if (!lanePath || !fs.existsSync(lanePath)) return [];
+
         try {
             const pool = await getDbPool(); 
 
@@ -102,10 +105,14 @@ export const ImageLogService = {
         }
     },
 
-    // ✅ ปรับเปลี่ยน: ให้ลบทั้ง 4 เลน และลบใน Database จาก Date + Time แทนแค่ชื่อไฟล์เดียว
-    deleteLogRecord: async (filename: string, laneName: string) => {
-        // คาดหวังรูปแบบชื่อไฟล์: 2026-03-05_21-44-49_Lane_1.jpg
-        const match = filename.match(/^(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_/);
+    // ฟังก์ชันลบรูปภาพ
+    deleteLogRecord: (filename: string, laneName: string) => {
+        const lanePath = LANE_CONFIG[laneName];
+        if (!lanePath) throw new Error('Invalid Lane configuration');
+
+        // Parse วันที่จากชื่อไฟล์เพื่อหาโฟลเดอร์ย่อย 
+        // format: 2026-01-27_21-39-23_Lane_1.jpg
+        const match = filename.match(/^(\d{4}-\d{2}-\d{2})_/);
         if (!match) throw new Error('Invalid Filename Format');
         
         const dateFolder = match[1]; // "2026-03-05"
@@ -113,39 +120,13 @@ export const ImageLogService = {
 
         const timeForDB = timePrefix.replace(/-/g, ':'); // แปลงกลับเป็น 21:44:49 สำหรับเช็คใน DB
 
-        console.log(`🗑️ Attempting to delete event at Date: ${dateFolder}, Time: ${timeForDB}`);
-
-        // 1. วนลบไฟล์จริงออกจากฮาร์ดดิสก์ ทั้ง 4 โฟลเดอร์ Lane_1 ถึง Lane_4
-        Object.keys(LANE_CONFIG).forEach(laneKey => {
-            const lanePath = LANE_CONFIG[laneKey];
-            if (lanePath) {
-                // สร้างชื่อไฟล์ตาม Pattern เช่น 2026-03-05_21-44-49_Lane_X.jpg
-                const fileToDelete = `${dateFolder}_${timePrefix}_${laneKey}.jpg`;
-                const fullFilePath = path.join(lanePath, dateFolder, fileToDelete);
-                
-                if (fs.existsSync(fullFilePath)) {
-                    try {
-                        fs.unlinkSync(fullFilePath);
-                        console.log(`✅ Deleted file: ${fullFilePath}`);
-                    } catch (err) {
-                        console.error(`⚠️ Failed to delete file: ${fullFilePath}`, err);
-                    }
-                }
-            }
-        });
-
-        // 2. เคลียร์ข้อมูลใน Database ทุก Record ที่มี Date และ Time ตรงกัน
-        try {
-            const pool = await getDbPool(); 
-            // อัปเดต Picture_Path ให้เป็น NULL ทุกแถวที่ตรงกับเงื่อนไข
-            const result = await pool.query(
-                `UPDATE Traffic_Log SET Picture_Path = NULL WHERE Date = ? AND Time = ?`, 
-                [dateFolder, timeForDB]
-            );
-            console.log(`✅ Cleared Picture_Path in database for event ${dateFolder} ${timeForDB}`);
-        } catch (dbError) {
-            console.error('❌ Failed to clear Picture_Path in database:', dbError);
-            throw new Error('Database update failed');
+        if (fs.existsSync(fullFilePath)) {
+            fs.unlinkSync(fullFilePath); 
+            return { success: true, message: 'File deleted successfully' };
+        } else {
+            // ถ้าไม่เจอไฟล์ หาในโฟลเดอร์อื่นหรือ return error
+            console.warn(`File not found: ${fullFilePath}`);
+            throw new Error('File not found on server');
         }
 
         return { success: true, message: 'Event (all lanes) deleted successfully' };

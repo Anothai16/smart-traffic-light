@@ -55,7 +55,7 @@ export const DashboardService = {
 
 
             // ---------------------------------------------------------
-            // 3. ข้อมูลรายสัปดาห์ (จุดที่เป็นปัญหา)
+            // 3. ข้อมูลรายสัปดาห์ 
             // ---------------------------------------------------------
             const [weeklyRaw] = await pool.query<RowDataPacket[]>(`
                 SELECT 
@@ -82,7 +82,7 @@ export const DashboardService = {
                         total: 0
                     };
                 }
-                weeklyMap[key][row.laneName] = Number(row.count); // แปลงเป็น Number กันเหนียว
+                weeklyMap[key][row.laneName] = Number(row.count); 
                 weeklyMap[key].total += Number(row.count);
             });
             const weeklyStats = Object.values(weeklyMap);
