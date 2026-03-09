@@ -287,7 +287,7 @@ const PictureLog = () => {
                                 level={5}
                                 style={{ margin: 0, color: '#666' }}
                             >
-                                Selected Event Preview
+                                Log Preview
                             </Title>
                             <div className="text-sm text-gray-500">
                                 {selectedRow
