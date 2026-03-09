@@ -275,7 +275,7 @@ const ProjectDashboard = () => {
                         className="text-gray-600 mb-4 flex items-center"
                     >
                         <LineChartOutlined className="mr-2 text-blue-500" />{' '}
-                        Executive Summary ({selectedDate.format('DD MMM YYYY')})
+                        Executive Summary 
                     </Title>
                     <Row gutter={[24, 24]}>
                         <Col xs={24} md={12} lg={6}>

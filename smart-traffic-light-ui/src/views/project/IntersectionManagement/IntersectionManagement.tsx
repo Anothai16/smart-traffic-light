@@ -81,11 +81,11 @@ const IntersectionManagement: React.FC = () => {
         return () => clearInterval(interval)
     }, [fetchIntersections])
 
-    const handleAdd = () => {
-        setEditingIntersection(null)
-        setIsModalVisible(true)
-        form.resetFields()
-    }
+    // const handleAdd = () => {
+    //     setEditingIntersection(null)
+    //     setIsModalVisible(true)
+    //     form.resetFields()
+    // }
 
     const handleEdit = (record: IntersectionTableItem) => {
         setEditingIntersection(record)
@@ -93,27 +93,27 @@ const IntersectionManagement: React.FC = () => {
         form.setFieldsValue(record)
     }
 
-    const handleDelete = (record: IntersectionTableItem) => {
-        confirm({
-            title: `คุณต้องการลบแยก "${record.Name}" ใช่ไหม?`,
-            icon: <ExclamationCircleOutlined />,
-            content: 'การดำเนินการนี้ไม่สามารถยกเลิกได้',
-            okText: 'ลบ',
-            okType: 'danger',
-            cancelText: 'ยกเลิก',
-            onOk: async () => {
-                try {
-                    await IntersectionManagementService.deleteIntersection(
-                        record.Intersection_ID,
-                    )
-                    message.success(`ลบแยก "${record.Name}" เรียบร้อยแล้ว`)
-                    fetchIntersections()
-                } catch (error) {
-                    message.error('เกิดข้อผิดพลาดในการลบข้อมูล')
-                }
-            },
-        })
-    }
+    // const handleDelete = (record: IntersectionTableItem) => {
+    //     confirm({
+    //         title: `คุณต้องการลบแยก "${record.Name}" ใช่ไหม?`,
+    //         icon: <ExclamationCircleOutlined />,
+    //         content: 'การดำเนินการนี้ไม่สามารถยกเลิกได้',
+    //         okText: 'ลบ',
+    //         okType: 'danger',
+    //         cancelText: 'ยกเลิก',
+    //         onOk: async () => {
+    //             try {
+    //                 await IntersectionManagementService.deleteIntersection(
+    //                     record.Intersection_ID,
+    //                 )
+    //                 message.success(`ลบแยก "${record.Name}" เรียบร้อยแล้ว`)
+    //                 fetchIntersections()
+    //             } catch (error) {
+    //                 message.error('เกิดข้อผิดพลาดในการลบข้อมูล')
+    //             }
+    //         },
+    //     })
+    // }
 
     const handleCancel = () => {
         setIsModalVisible(false)
@@ -193,7 +193,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'ตำแหน่ง',
             dataIndex: 'Location',
             key: 'Location',
-            width: 220,
+            width: 150,
             render: (text) => (
                 <div
                     style={{
@@ -210,7 +210,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'IP Address',
             dataIndex: 'IP_Address',
             key: 'IP_Address',
-            width: 140,
+            width: 170,
             render: (text) => (
                 <div style={{ whiteSpace: 'nowrap' }}>{text}</div>
             ),
@@ -229,7 +229,7 @@ const IntersectionManagement: React.FC = () => {
         {
             title: 'จัดการ',
             key: 'action',
-            width: 180,
+            width: 100,
             fixed: 'right',
             render: (_, record) => (
                 <Flex gap="small">
@@ -240,14 +240,14 @@ const IntersectionManagement: React.FC = () => {
                     >
                         Edit
                     </Button>
-                    <Button
+                    {/* <Button
                         type="primary"
                         danger
                         icon={<DeleteOutlined />}
                         onClick={() => handleDelete(record)}
                     >
                         Delete
-                    </Button>
+                    </Button> */}
                 </Flex>
             ),
         },
@@ -270,13 +270,13 @@ const IntersectionManagement: React.FC = () => {
                     >
                         Intersection Management
                     </Title>
-                    <Button
+                    {/* <Button
                         type="primary"
                         icon={<PlusOutlined />}
                         onClick={handleAdd}
                     >
                         Add new Intersection
-                    </Button>
+                    </Button> */}
                 </Flex>
 
                 <Card className="shadow-lg rounded-lg border border-gray-200">
