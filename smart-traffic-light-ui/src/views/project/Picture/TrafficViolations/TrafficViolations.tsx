@@ -16,7 +16,6 @@ import dayjs, { Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/en'
 import { SyncOutlined } from '@ant-design/icons'
-// 🟢 นำเข้า Service สำหรับ Violation โดยเฉพาะ
 import {
     apiGetViolationLogRecords,
     apiGetViolationImagesByDateAndLane,
@@ -24,7 +23,6 @@ import {
     ImageViolationObject,
 } from '@/services/ImageViolationService'
 
-// 🟢 ข้อมูลพื้นฐานจุดตัด (Intersection) ใช้จาก Service เดิม
 import {
     apiGetIntersectionData,
     IntersectionData,
@@ -41,7 +39,7 @@ const { Title, Text } = Typography
 const FIXED_INTERSECTIONS = [1, 2, 3, 4] as const
 
 /**
- * Logic ค้นหารูปที่เวลาใกล้เคียงที่สุด (±10 วินาที)
+ * ค้นหารูปที่เวลาใกล้เคียงที่สุด (บวกลบ 10 วินาที)
  */
 function pickClosestImageByTime(
     images: ImageViolationObject[],
@@ -92,11 +90,10 @@ const TrafficViolations = () => {
     const [loadingImages, setLoadingImages] = useState(false)
     const [pagination, setPagination] = useState({ current: 1, pageSize: 10 })
 
-    // 🟢 เพิ่ม State สำหรับสถานะการกดปุ่ม Refresh
     const [loading, setLoading] = useState(false)
 
     /**
-     * ดึงข้อมูลรายการการกระทำผิด (รวมทุกเลน)
+     * ดึงข้อมูลรูปจาก Backend
      */
     const fetchLogs = useCallback(async () => {
         setLoadingLogs(true)
@@ -111,17 +108,15 @@ const TrafficViolations = () => {
         }
     }, [])
 
-   // 🟢 ฟังก์ชันสำหรับปุ่ม Refresh
     const loadData = useCallback(async () => {
         setLoading(true)
         try {
             await fetchLogs()
-            // 🟢 ล้างค่าแถวที่เลือกและรูปภาพในกล่องพรีวิว
+            // ล้างค่าแถวที่เลือกและรูปภาพในกล่องพรีวิว
             setSelectedRow(null)
             setLaneImages([null, null, null, null])
             message.success('Data updated successfully')
         } catch (error) {
-            // Error handling is managed inside fetchLogs
         } finally {
             setLoading(false)
         }

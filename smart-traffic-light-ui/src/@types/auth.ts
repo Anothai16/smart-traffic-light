@@ -29,11 +29,3 @@ export interface SignUpCredential {
     email: string
 }
 
-export interface ForgotPassword {
-    email: string
-}
-
-export interface ResetPassword {
-    password: string
-    confirmPassword: string
-}

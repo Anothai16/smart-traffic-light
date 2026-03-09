@@ -9,7 +9,7 @@ export interface Intersection {
     IP_Address: string;
     Location: string;
     Lane_Sequence: number;
-    Status?: string; // 🟢 ใช้คอลัมน์ Status
+    Status?: string; 
 }
 
 export const IntersectionService = {
@@ -17,8 +17,7 @@ export const IntersectionService = {
     async getAll(): Promise<Intersection[]> {
         const pool = await getDbPool();
 
-        // ✅ AUTO-CHECK: ถ้า Update_Date เก่ากว่า 30 วินาที และสถานะเป็น Online -> ปรับเป็น Offline
-        // (เราใช้ Update_Date เป็นตัวบอกเวลาล่าสุดที่ติดต่อเข้ามา)
+        //  AUTO-CHECK: ถ้า Update_Date เก่ากว่า 30 วินาที และสถานะเป็น Online -> ปรับเป็น Offline
         try {
             await pool.execute(
                 `UPDATE Master_Intersection 
@@ -30,7 +29,7 @@ export const IntersectionService = {
             console.error("Error updating offline status:", error);
         }
 
-        // ✅ ดึงข้อมูลล่าสุด
+        //  ดึงข้อมูลล่าสุด
         const [rows] = await pool.query<RowDataPacket[]>(`
             SELECT * FROM Master_Intersection 
             ORDER BY Intersection_ID ASC
@@ -76,7 +75,7 @@ export const IntersectionService = {
         await pool.execute('DELETE FROM Master_Intersection WHERE Intersection_ID = ?', [id]);
     },
 
-    // 🟢 2. รับ Heartbeat จาก Python
+    //  2. รับ Heartbeat จาก Python
     async updateHeartbeat(id: number): Promise<void> {
         const pool = await getDbPool();
         // ทันทีที่กล้องส่งมา เรา Update เป็น Online และต่ออายุ Update_Date ทันที

@@ -30,9 +30,6 @@ export interface ViolationLogRecord {
 }
 
 export const ImageViolationService = {
-    // -------------------------------------------------------------------------
-    // 🟢 [Internal Helper] ฟังก์ชันดึงข้อมูลจาก 1 เลน (ใช้ภายใน)
-    // -------------------------------------------------------------------------
     _getRecordsBySingleLane: (laneName: string): ViolationLogRecord[] => {
         const lanePath = LANE_CONFIG[laneName];
         if (!lanePath || !fs.existsSync(lanePath)) return [];
@@ -54,10 +51,10 @@ export const ImageViolationService = {
                     const match = fileName.match(/^(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_/);
                     if (match) {
                         records.push({
-                            // ✅ ใส่ laneName ใน Key กันซ้ำ (กรณีเวลาเดียวกันเป๊ะ คนละเลน)
+                            // ใส่ laneName ใน Key กันซ้ำ 
                             key: `${laneName}_${fileName}`, 
                             date: match[1],
-                            time: match[2].replace(/-/g, ':'), // เปลี่ยน 21-35-05 -> 21:35:05
+                            time: match[2].replace(/-/g, ':'), 
                             lanes: laneName
                         });
                     }
@@ -71,7 +68,7 @@ export const ImageViolationService = {
     },
 
     // -------------------------------------------------------------------------
-    // 🟢 [Main Function] ดึงข้อมูลจาก "ทุก Lane" และเรียงลำดับใหม่สุดก่อน
+    //  ดึงข้อมูลจาก "ทุก Lane" และเรียงลำดับใหม่สุดก่อน
     // -------------------------------------------------------------------------
     getLogRecordsFromFiles: (requestedLane?: string): ViolationLogRecord[] => {
         let allRecords: ViolationLogRecord[] = [];
@@ -80,14 +77,14 @@ export const ImageViolationService = {
             // กรณีระบุเลนมา (เผื่ออนาคตอยาก filter)
             allRecords = ImageViolationService._getRecordsBySingleLane(requestedLane);
         } else {
-            // 🚨 กรณีไม่ระบุ (Default) -> วนลูปดึง "ทุก Lane" ใน LANE_CONFIG
+            //  กรณีไม่ระบุ (Default) -> วนลูปดึง "ทุก Lane" ใน LANE_CONFIG
             Object.keys(LANE_CONFIG).forEach(laneName => {
                 const laneRecords = ImageViolationService._getRecordsBySingleLane(laneName);
                 allRecords = allRecords.concat(laneRecords);
             });
         }
 
-        // 🟢 เรียงลำดับ (Sorting) ด้วย Timestamp จริง
+        //  เรียงลำดับ (Sorting) ด้วย Timestamp จริง
         return allRecords.sort((a, b) => {
             // สร้าง Date Object เพื่อเปรียบเทียบค่าเวลา
             // Format: YYYY-MM-DDTHH:mm:ss
@@ -100,7 +97,7 @@ export const ImageViolationService = {
     },
 
     // -------------------------------------------------------------------------
-    // 🟢 ฟังก์ชันดึงรูปภาพ (คงเดิม)
+    //  ฟังก์ชันดึงรูปภาพ 
     // -------------------------------------------------------------------------
     async getImagesByDateAndLane(date: string, laneName: string): Promise<ImageViolationObject[]> {
         const lanePath = LANE_CONFIG[laneName];

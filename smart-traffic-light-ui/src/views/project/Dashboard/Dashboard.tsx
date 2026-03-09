@@ -34,9 +34,7 @@ import {
     LineChartOutlined,
     TableOutlined,
 } from '@ant-design/icons'
-import classNames from 'classnames'
 
-// Import Service (ตรวจสอบ path ให้ตรงกับโปรเจคจริง)
 import {
     apiGetDashboardAnalytics,
     DashboardResponse,
@@ -50,7 +48,7 @@ const { Title, Text } = Typography
 // ----------------------------------------------------
 interface DailyTrafficData {
     Date: string
-    laneName: string // ชื่อจริงจาก DB (เช่น "ประตู 1")
+    laneName: string
     laneKey: number
     Vehicle_Count: number
     Violation_Count: number
@@ -82,10 +80,10 @@ const ProjectDashboard = () => {
             const res: DashboardResponse =
                 await apiGetDashboardAnalytics(dateStr)
 
-            // 1. ข้อมูลรายเลน (มีชื่อจริงมาแล้วจาก Backend)
+            // 1. ข้อมูลรายเลน
             const mappedLanes = res.lanes.map((l: any) => ({
                 Date: res.date,
-                laneName: l.laneName, // ใช้ชื่อจาก DB โดยตรง
+                laneName: l.laneName,
                 laneKey: l.laneKey,
                 Vehicle_Count: Number(l.vehicleCount || 0),
                 Violation_Count: Number(l.violationCount || 0),
@@ -149,14 +147,22 @@ const ProjectDashboard = () => {
     }, [])
 
     // ----------------------------------------------------
-    // 5. RENDER HELPERS (Fixed Weekly Order: Sunday - Saturday)
+    // 5.RENDER HELPERS (Fixed Weekly Order: Sunday - Saturday)
     // ----------------------------------------------------
-    
+
     // จัดเรียงข้อมูลรายสัปดาห์ให้เริ่มที่วันอาทิตย์
     const sortedWeeklyData = useMemo(() => {
-        const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        return [...weeklyData].sort((a, b) => 
-            dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName)
+        const dayOrder = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+        ]
+        return [...weeklyData].sort(
+            (a, b) => dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName),
         )
     }, [weeklyData])
 
@@ -314,12 +320,12 @@ const ProjectDashboard = () => {
                                 </div>
                             </Card>
                         </Col>
-                        
+
                         <Col xs={24} md={12} lg={6}>
                             <Card className="h-full shadow-sm border-l-4 border-green-500 overflow-hidden relative">
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col ">
-                                        <span className="text-3xl mt-5 font-bold text-gray-800 leading-none">
+                                        <span className="text-2xl mt-5 font-bold text-gray-800 leading-none">
                                             {currentTime.toLocaleDateString(
                                                 'en-GB',
                                                 { weekday: 'long' },
@@ -337,7 +343,7 @@ const ProjectDashboard = () => {
                                         </span>
                                     </div>
                                     <div className="text-right">
-                                        <h3 className="text-5xl font-bold mb-2 text-gray-700 mb-0 tracking-tighter leading-none">
+                                        <h3 className="text-4xl font-bold mb-2 text-gray-700 mb-0 tracking-tighter leading-none">
                                             {currentTime.toLocaleTimeString(
                                                 'en-GB',
                                                 {
