@@ -1,27 +1,25 @@
 // src/services/AccountConfigurationService.ts
 
-import ApiService from './ApiService';
-import type { AxiosResponse } from 'axios';
+import ApiService from './ApiService'
+import type { AxiosResponse } from 'axios'
 
 interface AccountApiResponse {
-    accounts: any[];
+    accounts: any[]
 }
 
 export async function apiGetAccounts() {
     return ApiService.fetchData<AccountApiResponse>({
         url: '/account-config/list',
         method: 'post',
-    });
+    })
 }
 
-// ✅ เพิ่มฟังก์ชันสำหรับสร้างบัญชีใหม่
-// ✅ แก้ไข: ส่ง data ทั้งหมดไปโดยตรง
 export async function apiCreateAccount(data: any) {
     return ApiService.fetchData({
         url: '/account-config/create',
         method: 'post',
         data,
-    });
+    })
 }
 
 export async function apiDeleteAccount(accountIds: number[]) {
@@ -29,7 +27,7 @@ export async function apiDeleteAccount(accountIds: number[]) {
         url: '/account-config/delete',
         method: 'post',
         data: { accountIds },
-    });
+    })
 }
 
 /**
@@ -43,7 +41,7 @@ export async function apiUpdateAccount(adminId: number, data: any) {
         url: `/account-config/update/${adminId}`, // กำหนด URL ให้ตรงกับ route ของ backend
         method: 'put', // ใช้ method 'put' สำหรับการอัปเดต
         data,
-    });
+    })
 }
 
 /**
@@ -51,19 +49,24 @@ export async function apiUpdateAccount(adminId: number, data: any) {
  * @param oldPassword รหัสผ่านเดิม
  * @param newPassword รหัสผ่านใหม่
  */
-export async function apiChangePassword(oldPassword: string, newPassword: string) {
+export async function apiChangePassword(
+    oldPassword: string,
+    newPassword: string,
+) {
     try {
         const response = await ApiService.fetchData({
             url: '/account-config/change-password',
             method: 'put',
             data: {
                 oldPassword,
-                newPassword
+                newPassword,
             },
-        });
-        return response;
+        })
+        return response
     } catch (error: any) {
         // ✅ ส่งข้อความ error จาก backend กลับมา
-        throw new Error(error.response?.data?.message || 'Failed to change password');
+        throw new Error(
+            error.response?.data?.message || 'Failed to change password',
+        )
     }
 }

@@ -7,7 +7,6 @@ export const AuthService = {
     async findByUsername(username: string) {
         try {
             const pool = await getDbPool();
-            // แก้ไข: ดึง Role จากตาราง Admin โดยตรง ไม่ต้อง JOIN
             const [rows] = await pool.execute<RowDataPacket[]>(`
                 SELECT * FROM Admin WHERE Username = ?
             `, [username]);

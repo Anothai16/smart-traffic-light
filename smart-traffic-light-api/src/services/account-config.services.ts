@@ -11,7 +11,6 @@ export const AccountConfigService = {
     async getAllAccounts() {
         try {
             const pool = await getDbPool();
-            // แก้ไข: เลือกข้อมูลตรงๆ ไม่ต้อง JOIN
             const [rows] = await pool.query(`SELECT * FROM Admin`);
             return rows;
         } catch (err) {
@@ -37,7 +36,6 @@ export const AccountConfigService = {
         const pool = await getDbPool();
         const connection = await pool.getConnection();
         try {
-            // ไม่ต้องหา Role_ID แล้ว ใช้ string data.Role ได้เลย
             const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
             // แก้ไข: Insert ลงคอลัมน์ Role แทน Role_ID
@@ -84,7 +82,7 @@ export const AccountConfigService = {
             let passwordQuery = '';
             const params: any[] = [
                 data.First_Name, data.Last_Name, data.ID_Card, data.Email, 
-                data.Phone_Number, data.Role, // ใช้ String Role ตรงๆ
+                data.Phone_Number, data.Role,
                 data.Register_Date
             ];
 
