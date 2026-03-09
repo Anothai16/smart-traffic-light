@@ -193,7 +193,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'ตำแหน่ง',
             dataIndex: 'Location',
             key: 'Location',
-            width: 220,
+            width: 150,
             render: (text) => (
                 <div
                     style={{
@@ -210,7 +210,7 @@ const IntersectionManagement: React.FC = () => {
             title: 'IP Address',
             dataIndex: 'IP_Address',
             key: 'IP_Address',
-            width: 140,
+            width: 170,
             render: (text) => (
                 <div style={{ whiteSpace: 'nowrap' }}>{text}</div>
             ),
@@ -229,7 +229,7 @@ const IntersectionManagement: React.FC = () => {
         {
             title: 'จัดการ',
             key: 'action',
-            width: 180,
+            width: 100,
             fixed: 'right',
             render: (_, record) => (
                 <Flex gap="small">

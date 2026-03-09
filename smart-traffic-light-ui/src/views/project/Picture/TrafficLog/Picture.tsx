@@ -278,11 +278,26 @@ const PictureLog = () => {
                 </Form>
 
                 <div
-                    className="sticky top-0 z-20 pt-2 pb-4"
-                    style={{ backgroundColor: '#fff' }}
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10,
+                        background: '#fff',
+                        paddingTop: 8,
+                    }}
                 >
-                    <Card className="shadow-lg rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
+                    <Card
+                        className="shadow-md"
+                        style={{
+                            borderRadius: 8,
+                            borderTop: '4px solid #1890ff', 
+                        }}
+                    >
+                        <Flex
+                            justify="space-between"
+                            align="center"
+                            style={{ marginBottom: 16 }}
+                        >
                             <Title
                                 level={5}
                                 style={{ margin: 0, color: '#666' }}
@@ -294,37 +309,54 @@ const PictureLog = () => {
                                     ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
                                     : 'Select a row to view images'}
                             </div>
-                        </div>
+                        </Flex>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns:
+                                    'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: 16,
+                            }}
+                        >
                             {FIXED_INTERSECTIONS.map((id, idx) => {
                                 const info = intersectionInfo.find(
                                     (d) => d.Intersection_ID === id,
                                 )
                                 const img = laneImages[idx]
                                 return (
-                                    <div key={id} className="relative">
-                                        <div className="flex items-center justify-between mb-2">
+                                    <div key={id}>
+                                        <div style={{ marginBottom: 8 }}>
                                             <Tag
                                                 color="blue"
                                                 style={{
                                                     minWidth: 80,
                                                     textAlign: 'center',
-                                                    fontSize: 16,
+                                                    fontSize: 14,
                                                 }}
                                             >
                                                 {info?.Name ||
                                                     (intersectionInfo.length ===
                                                     0
                                                         ? 'Loading...'
-                                                        : '')}
+                                                        : `Lane ${id}`)}
                                             </Tag>
                                         </div>
-                                        <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
+                                        <div
+                                            style={{
+                                                aspectRatio: '16/9',
+                                                background: '#f5f5f5',
+                                                borderRadius: 8,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                overflow: 'hidden',
+                                                border: '1px solid #e8e8e8',
+                                            }}
+                                        >
                                             {loadingImages ? (
                                                 <Spin />
                                             ) : img ? (
-                                                // ✅ ปรับ Image Component โดยใส่ onError เพื่อให้โหลดภาพซ้ำถ้ารูปยังมาไม่ถึงเซิร์ฟเวอร์
                                                 <Image
                                                     src={img.url}
                                                     alt={img.title}
@@ -335,25 +367,23 @@ const PictureLog = () => {
                                                     }}
                                                     preview
                                                     onError={(e) => {
-                                                        const target = e.currentTarget as HTMLImageElement;
-                                                        // เช็คเพื่อไม่ให้มัน loop error ซ้ำๆ ตลอดเวลา โดยเช็คหาคำว่า retry
-                                                        if (!target.src.includes('retry=')) {
+                                                        const target =
+                                                            e.currentTarget as HTMLImageElement
+                                                        if (
+                                                            !target.src.includes(
+                                                                'retry=',
+                                                            )
+                                                        ) {
                                                             setTimeout(() => {
-                                                                target.src = `${img.url}?retry=${new Date().getTime()}`;
-                                                            }, 1000);
-                                                        } else {
-                                                            // ถ้ารีโหลดครั้งที่สองแล้วยังไม่ได้ ก็ปล่อยเป็นภาพแตก (อาจจะไฟล์ไม่มีจริงๆ)
-                                                            console.warn("Failed to load image after retry:", target.src);
+                                                                target.src = `${img.url}?retry=${new Date().getTime()}`
+                                                            }, 1000)
                                                         }
                                                     }}
                                                 />
                                             ) : (
                                                 <Text
                                                     type="secondary"
-                                                    style={{
-                                                        fontSize: 11,
-                                                        color: '#999',
-                                                    }}
+                                                    style={{ fontSize: 12 }}
                                                 >
                                                     No matching image
                                                 </Text>
