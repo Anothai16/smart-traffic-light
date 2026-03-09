@@ -17,23 +17,28 @@ export const uploadRoutes = new Elysia()
             ? VIOLATION_BASE_DIR 
             : TRAFFIC_BASE_DIR;
 
-        // 2. TIMEZONE FIX (UTC+7)
-        const now = new Date();
-        const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-        const isoParts = thaiTime.toISOString().split('T');
+        // -----------------------------------------------------
+        // ✅ 2. ใช้ชื่อไฟล์ดั้งเดิมจาก YOLO แทนการสร้างเวลาใหม่
+        // ชื่อไฟล์ที่ได้มาคือ: 2026-03-05_21-12-51_Lane_1.jpg
+        // -----------------------------------------------------
+        const filename = file.name;
         
-        const dateFolder = isoParts[0]; // "2026-01-27"
-        const timeString = isoParts[1].split('.')[0].replace(/:/g, '-'); // "19-30-00"
+        let dateFolder = '';
+        // ดึงวันที่ (YYYY-MM-DD) จากชื่อไฟล์ 10 ตัวอักษรแรก เพื่อเอาไปสร้างโฟลเดอร์
+        if (filename && filename.match(/^\d{4}-\d{2}-\d{2}/)) {
+            dateFolder = filename.substring(0, 10);
+        } else {
+            // เผื่อกรณีไฟล์ไม่มีชื่อ ส่งมาจากที่อื่น ให้ดึงเวลาปัจจุบันเป็น Fallback (กันบัค)
+            const now = new Date();
+            const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+            dateFolder = thaiTime.toISOString().split('T')[0];
+        }
 
         // 3. สร้าง FOLDER STRUCTURE
         const targetDir = join(rootDir, laneId, dateFolder);
         await mkdir(targetDir, { recursive: true });
 
-        // -----------------------------------------------------
-        // ✅ 4. ตั้งชื่อไฟล์ใหม่ (ไม่มี ACTION ต่อท้าย)
-        // ผลลัพธ์จะเป็น: 2026-01-27_19-30-00_Lane_1.jpg
-        // -----------------------------------------------------
-        const filename = `${dateFolder}_${timeString}_${laneId}.jpg`; 
+        // 4. บันทึกไฟล์ด้วยชื่อเดียวกับที่ YOLO ส่งมา
         const filePath = join(targetDir, filename);
 
         await Bun.write(filePath, file);

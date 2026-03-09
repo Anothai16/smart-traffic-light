@@ -1,10 +1,16 @@
+// src/services/image-violation.service.ts
+
 import * as fs from 'fs';
 import * as path from 'path';
+import { getDbPool } from '../config/db.config'; // ✅ ใช้การเชื่อมต่อ Database 
+import { RowDataPacket } from 'mysql2';
 
 // 1. ชี้ไปที่โฟลเดอร์ Violation
 const IMAGE_ROOT_PATH = process.env.VIOLATION_ROOT_PATH || 'violation_data_storage'; 
 // 2. Prefix URL ของ Violation
 const STATIC_PREFIX = process.env.STATIC_PREFIX_VIOLATION || '/static/violation-images'; 
+// (ถ้ามี BACKEND_BASE_URL ให้ดึงมาใช้เหมือนของ traffic เพื่อความสมบูรณ์ของ URL)
+const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL ?? 'http://localhost:3000';
 
 // 3. Config ให้ตรงกับ Folder จริง
 const LANE_CONFIG: { [laneName: string]: string } = {
@@ -31,114 +37,132 @@ export interface ViolationLogRecord {
 
 export const ImageViolationService = {
     // -------------------------------------------------------------------------
-    // 🟢 [Internal Helper] ฟังก์ชันดึงข้อมูลจาก 1 เลน (ใช้ภายใน)
+    // 🟢 [Main Function] ดึงข้อมูลจาก "ทุก Lane" หรือระบุเลน ผ่าน Database
     // -------------------------------------------------------------------------
-    _getRecordsBySingleLane: (laneName: string): ViolationLogRecord[] => {
-        const lanePath = LANE_CONFIG[laneName];
-        if (!lanePath || !fs.existsSync(lanePath)) return [];
-
+    getLogRecordsFromFiles: async (requestedLane?: string): Promise<ViolationLogRecord[]> => {
         try {
-            const records: ViolationLogRecord[] = [];
-            // กรองเฉพาะโฟลเดอร์วันที่ (YYYY-MM-DD)
-            const dateFolders = fs.readdirSync(lanePath).filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f));
+            const pool = await getDbPool();
 
-            dateFolders.forEach(dateFolder => {
-                const fullDatePath = path.join(lanePath, dateFolder);
-                const files = fs.readdirSync(fullDatePath);
+            // ดึงเฉพาะแถวที่มี Violation_Picture_Path
+            let query = `
+                SELECT 
+                    Violation_Picture_Path, 
+                    DATE_FORMAT(Date, '%Y-%m-%d') as DateStr, 
+                    Time,
+                    m.Name as IntersectionName
+                FROM Traffic_Log t
+                LEFT JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
+                WHERE t.Violation_Picture_Path IS NOT NULL 
+            `;
+            
+            const queryParams: any[] = [];
 
-                files.forEach(fileName => {
-                    // กรองเฉพาะไฟล์รูปภาพ
-                    if (!fileName.match(/(\.jpg|\.jpeg|\.png)$/i)) return;
+            if (requestedLane) {
+                query += ` AND t.Violation_Picture_Path LIKE ? `;
+                queryParams.push(`%${requestedLane}%`);
+            }
 
-                    // Regex จับชื่อไฟล์ (ปรับให้ตรงกับ Pattern ของคุณ)
-                    const match = fileName.match(/^(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_/);
-                    if (match) {
-                        records.push({
-                            // ✅ ใส่ laneName ใน Key กันซ้ำ (กรณีเวลาเดียวกันเป๊ะ คนละเลน)
-                            key: `${laneName}_${fileName}`, 
-                            date: match[1],
-                            time: match[2].replace(/-/g, ':'), // เปลี่ยน 21-35-05 -> 21:35:05
-                            lanes: laneName
-                        });
-                    }
-                });
-            });
+            query += ` GROUP BY DateStr, Time, Violation_Picture_Path, m.Name ORDER BY Date DESC, Time DESC`;
+            
+            const [rows] = await pool.query<RowDataPacket[]>(query, queryParams);
+
+            const records: ViolationLogRecord[] = rows.map((row) => ({
+                key: row.Violation_Picture_Path, 
+                date: row.DateStr,
+                time: row.Time,
+                // แมปชื่อเลน ถ้ามีข้อมูลจากตารางมาให้ใช้ ถ้าไม่มีพยายามแกะจากชื่อไฟล์
+                lanes: row.IntersectionName || extractLaneFromName(row.Violation_Picture_Path)
+            }));
+
             return records;
         } catch (error) {
-            console.error(`Error reading ${laneName}:`, error);
+            console.error('❌ Error fetching violation logs from database:', error);
             return [];
         }
     },
 
     // -------------------------------------------------------------------------
-    // 🟢 [Main Function] ดึงข้อมูลจาก "ทุก Lane" และเรียงลำดับใหม่สุดก่อน
-    // -------------------------------------------------------------------------
-    getLogRecordsFromFiles: (requestedLane?: string): ViolationLogRecord[] => {
-        let allRecords: ViolationLogRecord[] = [];
-
-        if (requestedLane && LANE_CONFIG[requestedLane]) {
-            // กรณีระบุเลนมา (เผื่ออนาคตอยาก filter)
-            allRecords = ImageViolationService._getRecordsBySingleLane(requestedLane);
-        } else {
-            // 🚨 กรณีไม่ระบุ (Default) -> วนลูปดึง "ทุก Lane" ใน LANE_CONFIG
-            Object.keys(LANE_CONFIG).forEach(laneName => {
-                const laneRecords = ImageViolationService._getRecordsBySingleLane(laneName);
-                allRecords = allRecords.concat(laneRecords);
-            });
-        }
-
-        // 🟢 เรียงลำดับ (Sorting) ด้วย Timestamp จริง
-        return allRecords.sort((a, b) => {
-            // สร้าง Date Object เพื่อเปรียบเทียบค่าเวลา
-            // Format: YYYY-MM-DDTHH:mm:ss
-            const dateA = new Date(`${a.date}T${a.time}`);
-            const dateB = new Date(`${b.date}T${b.time}`);
-            
-            // เรียงจาก มาก -> น้อย (ใหม่ -> เก่า)
-            return dateB.getTime() - dateA.getTime();
-        });
-    },
-
-    // -------------------------------------------------------------------------
-    // 🟢 ฟังก์ชันดึงรูปภาพ (คงเดิม)
+    // 🟢 ฟังก์ชันดึงรูปภาพ
     // -------------------------------------------------------------------------
     async getImagesByDateAndLane(date: string, laneName: string): Promise<ImageViolationObject[]> {
-        const lanePath = LANE_CONFIG[laneName];
-        if (!lanePath) return [];
-
-        const datePath = path.join(lanePath, date);
-        if (!fs.existsSync(datePath)) return [];
-        
         try {
-            const fileNames = fs.readdirSync(datePath);
-            const allImages: ImageViolationObject[] = [];
-            const filteredFiles = fileNames.filter(name => name.match(/(\.jpg|\.jpeg|\.png)$/i));
+            const pool = await getDbPool();
 
-            filteredFiles.forEach(fileName => {
-                const fullPath = path.join(datePath, fileName);
-                let relativeUrlPath = path.relative(IMAGE_ROOT_PATH, fullPath).replace(/\\/g, '/');
-                const encodedRelativePath = relativeUrlPath.split('/').map(part => encodeURIComponent(part)).join('/');
-                const imageUrl = `${STATIC_PREFIX}/${encodedRelativePath}`; 
+            // ดึงภาพจาก Database โดยเช็ควันที่และเลนจาก Violation_Picture_Path
+            const query = `
+                SELECT 
+                    t.Violation_Picture_Path, 
+                    DATE_FORMAT(t.Date, '%Y-%m-%d') as DateStr, 
+                    t.Time,
+                    m.Name as IntersectionName
+                FROM Traffic_Log t
+                LEFT JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
+                WHERE t.Date = ? 
+                  AND t.Violation_Picture_Path IS NOT NULL 
+                  AND t.Violation_Picture_Path LIKE ?
+                ORDER BY t.Time DESC
+            `;
+            
+            const [rows] = await pool.query<RowDataPacket[]>(query, [date, `%${laneName}%`]);
 
-                const timeMatch = fileName.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})_/);
-                let fullTimestamp = date; 
-                
-                if (timeMatch) {
-                    fullTimestamp = `${timeMatch[1]} ${timeMatch[2]}:${timeMatch[3]}:${timeMatch[4]}`;
-                }
+            const allImages: ImageViolationObject[] = rows.map((row) => {
+                const fileName = row.Violation_Picture_Path;
+                // สร้าง URL จากชื่อไฟล์และข้อมูลเลน (เหมือนฝั่ง Traffic ปกติ)
+                const imageUrl = `${BACKEND_BASE_URL}${STATIC_PREFIX}/${laneName}/${date}/${encodeURIComponent(fileName)}`;
 
-                allImages.push({
+                return {
                     id: `${date}-${laneName}-${fileName}`,
                     url: imageUrl, 
                     title: fileName,
-                    timestamp: fullTimestamp, 
-                    lane: laneName, 
-                });
+                    timestamp: `${row.DateStr} ${row.Time}`, 
+                    lane: row.IntersectionName || laneName, 
+                };
             });
 
-            return allImages.sort((a, b) => b.title.localeCompare(a.title));
+            return allImages;
         } catch (error) {
+            console.error('❌ Error fetching violation images from database:', error);
             return [];
+        }
+    },
+
+    // 🟢 เพิ่มฟังก์ชันลบรูปภาพ สำหรับฝั่ง Violation ด้วย (เหมือนของ traffic)
+    deleteLogRecord: async (filename: string, laneName: string) => {
+        const lanePath = LANE_CONFIG[laneName];
+        if (!lanePath) throw new Error('Invalid Lane configuration');
+
+        const match = filename.match(/^(\d{4}-\d{2}-\d{2})_/);
+        if (!match) throw new Error('Invalid Filename Format');
+        
+        const dateFolder = match[1];
+        const fullFilePath = path.join(lanePath, dateFolder, filename);
+
+        console.log(`🗑️ Attempting to delete violation image: ${fullFilePath}`);
+
+        if (fs.existsSync(fullFilePath)) {
+            fs.unlinkSync(fullFilePath); 
+            
+            // อัปเดตฐานข้อมูลให้ Violation_Picture_Path กลับเป็น NULL
+            try {
+                const pool = await getDbPool(); 
+                await pool.query(
+                    `UPDATE Traffic_Log SET Violation_Picture_Path = NULL WHERE Violation_Picture_Path = ?`, 
+                    [filename]
+                );
+            } catch (dbError) {
+                console.error('❌ Failed to clear Violation_Picture_Path in database:', dbError);
+            }
+
+            return { success: true, message: 'File deleted successfully' };
+        } else {
+            console.warn(`File not found: ${fullFilePath}`);
+            throw new Error('File not found on server');
         }
     }
 };
+
+// Helper function เพื่อดึงชื่อ Lane จากชื่อไฟล์เผื่อฉุกเฉิน (กรณีไม่ได้ JOIN มา)
+function extractLaneFromName(filename: string): string {
+    const match = filename.match(/Lane_\d/);
+    return match ? match[0] : 'Unknown';
+}
