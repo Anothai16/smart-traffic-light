@@ -49,7 +49,7 @@ export const TrafficService = {
                     FROM Auto_Config_Log
                     GROUP BY Intersection_ID
                 )
-                ORDER BY T2.Lane_Sequence ASC -- เรียงจาก DB มาให้เลย
+                ORDER BY T2.Lane_Sequence ASC
             `);
             return rows as IntersectionQueryResult[];
         } catch (err) {
@@ -63,7 +63,6 @@ export const TrafficService = {
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
-
             await connection.execute("SET time_zone = '+07:00'");
 
             const [modeRows] = await connection.execute<RowDataPacket[]>(`
@@ -72,6 +71,7 @@ export const TrafficService = {
             const autoModeID = modeRows[0]?.Mode_ID;
 
             for (const item of data) {
+                // ดึงค่าล่าสุดมาเทียบ
                 const [oldValRows] = await connection.execute<RowDataPacket[]>(`
                     SELECT New_Red_Duration, New_Green_Duration
                     FROM Auto_Config_Log
@@ -81,6 +81,16 @@ export const TrafficService = {
                 
                 const oldValues = oldValRows[0] || { New_Red_Duration: 0, New_Green_Duration: 0 };
 
+                // 🟢 [LOGIC UPDATE] เช็คว่าถ้าค่าใหม่กับค่าเก่าเหมือนกันเป๊ะ ให้ข้ามการ insert
+                if (
+                    oldValues.New_Red_Duration === item.New_Red_Duration &&
+                    oldValues.New_Green_Duration === item.New_Green_Duration
+                ) {
+                    console.log(`⏭️ [Skip] Intersection ${item.Intersection_ID} has identical values. Skipping insert.`);
+                    continue; // ข้าม Loop ของเลนนี้ไปเลย
+                }
+
+                // ถ้าค่าไม่เหมือนกัน ค่อยทำ Insert
                 await connection.execute(`
                     INSERT INTO Auto_Config_Log 
                     (Mode_ID, Admin_ID, Intersection_ID, Time, Date, Old_Red_Duration, Old_Green_Duration, New_Red_Duration, New_Green_Duration, Create_Date, Update_Date)
