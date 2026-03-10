@@ -49,16 +49,19 @@ interface ApiErrorResponse {
 }
 
 const YELLOW_LIGHT_DURATION = 3
-
 const MODE_ORDER = ['Auto', 'Intelligence', 'Caution', 'Stop']
 
 const TrafficManagement = () => {
     const [currentMode, setCurrentMode] = useState('')
     const [selectedMode, setSelectedMode] = useState('')
     const [modes, setModes] = useState<Mode[]>([])
-    const [intersectionTimes, setIntersectionTimes] = useState<
-        IntersectionTimeData[]
-    >([])
+    
+    // State สำหรับเก็บเวลาปัจจุบันที่โดนแก้
+    const [intersectionTimes, setIntersectionTimes] = useState<IntersectionTimeData[]>([])
+    
+    // 🟢 [LOGIC UPDATE] State ใหม่สำหรับเก็บ "ค่าดั้งเดิม" เพื่อเอาไว้เทียบว่าซ้ำหรือไม่
+    const [originalTimes, setOriginalTimes] = useState<IntersectionTimeData[]>([])
+    
     const [loading, setLoading] = useState<boolean>(true)
     const [lastUpdated, setLastUpdated] = useState<string | null>(null)
     const username = useSelector(
@@ -111,7 +114,11 @@ const TrafficManagement = () => {
             }
             const intersectionsResponse = await apiGetIntersectionData()
             if (intersectionsResponse.data.intersections) {
+                // 🟢 เก็บค่าให้ทั้ง State หน้าจอ และ State สำหรับเป็นตัวเปรียบเทียบ (Reference)
                 setIntersectionTimes(intersectionsResponse.data.intersections)
+                
+                // Deep copy ป้องกัน Reference ผูกกัน
+                setOriginalTimes(JSON.parse(JSON.stringify(intersectionsResponse.data.intersections)))
             }
             const modeStatusResponse = await apiGetModeStatus()
             const modeFromApi = modeStatusResponse.data.currentMode
@@ -200,7 +207,7 @@ const TrafficManagement = () => {
         }
     }
 
-    // --- 🟢 Sequential Loop Logic: Calculate based on Circular Loop (152 Logic) ---
+    // --- Sequential Loop Logic ---
     const handleTimeChange = (
         index: number,
         color: 'red' | 'green',
@@ -212,7 +219,6 @@ const TrafficManagement = () => {
         setIntersectionTimes((prev) => {
             let newTimes = [...prev]
 
-            //  Edit Green Duration only for Lane 1 (Index 0), sync others
             if (color === 'green' && index === 0) {
                 newTimes = newTimes.map((item) => ({
                     ...item,
@@ -220,17 +226,14 @@ const TrafficManagement = () => {
                 }))
             }
 
-            // Calculate Red Durations based on Circular Loop Logic
             const green = newTimes[0]?.New_Green_Duration || 0
-            const segment = green + YELLOW_LIGHT_DURATION // e.g., 35 + 3 = 38
+            const segment = green + YELLOW_LIGHT_DURATION 
 
             newTimes = newTimes.map((item, idx) => {
                 let calculatedRed = 0
                 if (idx === 0) {
-                    // แยกแรก: (Green + Yellow) * จำนวนแยกทั้งหมด (ex. 38 * 4 = 152)
                     calculatedRed = segment * newTimes.length
                 } else {
-                    // แยกถัดไป: (Green + Yellow) * ลำดับแยก (38, 76, 114)
                     calculatedRed = segment * idx
                 }
                 return { ...item, New_Red_Duration: calculatedRed }
@@ -241,6 +244,25 @@ const TrafficManagement = () => {
     }
 
     const handleSave = async () => {
+        // 🟢 [LOGIC UPDATE] เช็คซ้ำก่อนยิง API โดยบังคับแปลงเป็น Number() ป้องกัน Type Mismatch
+        const isDuplicate = intersectionTimes.every((item, index) => {
+            const orig = originalTimes[index]
+            return (
+                orig && 
+                Number(orig.New_Red_Duration) === Number(item.New_Red_Duration) &&
+                Number(orig.New_Green_Duration) === Number(item.New_Green_Duration)
+            )
+        })
+
+        if (isDuplicate) {
+            showNotification(
+                'warning',
+                'No Changes Detected',
+                'Traffic light durations have not changed. Cannot save.',
+            )
+            return; // ⛔ บล็อกการทำงานทันที ไม่ยิง API ไปกวน Backend
+        }
+
         try {
             setLoading(true)
             const payload = {
@@ -257,6 +279,8 @@ const TrafficManagement = () => {
                     'Times Updated',
                     response.data.message || 'Successfully changed!',
                 )
+                // ดึงข้อมูลใหม่เพื่ออัปเดต originalTimes ให้เป็นปัจจุบัน
+                await fetchTrafficData();
             } else {
                 showNotification(
                     'danger',
@@ -281,7 +305,6 @@ const TrafficManagement = () => {
         }
     }
 
-    //  Reset System
     const handleResetSystem = async () => {
         try {
             setLoading(true)
@@ -294,7 +317,6 @@ const TrafficManagement = () => {
                     response.data.message ||
                         'รีเซ็ตระบบเรียบร้อย ระบบกำลังกลับเข้าสู่โหมดปกติ',
                 )
-                // ดึงข้อมูลสถานะล่าสุดจาก Database มาแสดงใหม่
                 await fetchTrafficData()
             } else {
                 showNotification(
