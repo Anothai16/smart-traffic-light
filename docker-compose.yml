@@ -61,10 +61,12 @@ services:
     container_name: smart-traffic-tunnel
     network_mode: "host"
     restart: always
-    command: tunnel --no-autoupdate run --token eyJhIjoiZTZiODRhYWZmYzJmMWY5MzNiMzZjZTQzMGM1ZjM0YzciLCJ0IjoiNDJlOTYyZDctNDNiYi00MzE1LWE2YmUtOThhM2JkZWVjODljIiwicyI6Ik1EQTFPV1ZqTVRndE5ETmlZUzAwTVRNekxXSmpNRFV0WW1OaU1UWTFZMkZrTXpKaCJ9
-  # tunnel-quick:
-  #     image: cloudflare/cloudflared:latest
-  #     container_name: quick-tunnel
-  #     network_mode: "host"  # ใช้ network เดียวกับเครื่องจริง เพื่อให้มองเห็น port 5173
-  #     command: tunnel --url http://localhost:5173
-  #     restart: always       # ถ้าดับให้เปิดใหม่เอง
+    command: tunnel --no-autoupdate run --token eyJhIjoiZTZiODRhYWZmYzJmMWY5MzNiMzZjZTQzMGM1ZjM0YzciLCJ0IjoiYmRmMWRlNjYtMzZmNC00NTgxLWIxMGQtYjA3MzkzZjBjZmYxIiwicyI6Ik5USTBNekF3TmprdFptWm1aUzAwTURCbExUaGhNbVF0TWpaak9HWTNPRGsxTjJRNCJ9
+    environment:
+      - TUNNEL_TRANSPORT_PROTOCOL=quic
+  tunnel-quick:
+      image: cloudflare/cloudflared:latest
+      container_name: quick-tunnel
+      network_mode: "host"  # ใช้ network เดียวกับเครื่องจริง เพื่อให้มองเห็น port 5173
+      command: tunnel --url http://localhost:5173
+      restart: always       # ถ้าดับให้เปิดใหม่เอง

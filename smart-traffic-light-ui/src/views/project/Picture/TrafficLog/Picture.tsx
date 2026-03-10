@@ -10,7 +10,7 @@ import {
     Typography,
     message,
     Popconfirm,
-    Button
+    Button,
 } from 'antd'
 import { DeleteOutlined, SyncOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -99,6 +99,7 @@ const PictureLog = () => {
         }
     }, [])
 
+    // handleRefresh: ล้างรูปที่พรีวิวและแถวที่เลือก แต่ "ไม่ล้าง" startDate/endDate
     const handleRefresh = async () => {
         setLoading(true)
         await fetchLogs()
@@ -177,17 +178,17 @@ const PictureLog = () => {
 
     const handleDelete = async (record: LogRecord) => {
         try {
-            await apiDeleteLogRecord(record.key, 'Lane_1');
-            message.success('Deleted successfully');
-            setLogRows((prev) => prev.filter((item) => item.key !== record.key));
+            await apiDeleteLogRecord(record.key, 'Lane_1')
+            message.success('Deleted successfully')
+            setLogRows((prev) => prev.filter((item) => item.key !== record.key))
             if (selectedRow?.key === record.key) {
-                setSelectedRow(null);
-                setLaneImages([null, null, null, null]);
+                setSelectedRow(null)
+                setLaneImages([null, null, null, null])
             }
         } catch (error) {
-            message.error('Failed to delete record');
+            message.error('Failed to delete record')
         }
-    };
+    }
 
     const displayRows = logRows.filter((row) => {
         if (!startDate && !endDate) return true
@@ -195,7 +196,9 @@ const PictureLog = () => {
         if (!d.isValid()) return false
         let ok = true
         if (startDate)
-            ok = ok && (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
+            ok =
+                ok &&
+                (d.isSame(startDate, 'day') || d.isAfter(startDate, 'day'))
         if (endDate)
             ok = ok && (d.isSame(endDate, 'day') || d.isBefore(endDate, 'day'))
         return ok
@@ -232,7 +235,9 @@ const PictureLog = () => {
     ]
 
     return (
-        <div style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}>
+        <div
+            style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
+        >
             <Flex vertical gap="large">
                 <Form form={form} layout="inline" style={{ width: '100%' }}>
                     <Flex
@@ -249,7 +254,7 @@ const PictureLog = () => {
                                 endDateName="endDate"
                                 datePickerProps={{
                                     onChange: (v) => setStartDate(v ?? null),
-                                    needConfirm: false, 
+                                    needConfirm: false,
                                 }}
                             />
                             <DatePickerFormItem.To
@@ -272,60 +277,123 @@ const PictureLog = () => {
                     </Flex>
                 </Form>
 
-                <div className="sticky top-0 z-20 pt-2 pb-4" style={{ backgroundColor: '#fff' }}>
-                    <Card className="shadow-lg rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <Title level={5} style={{ margin: 0, color: '#666' }}>
-                                Selected Event Preview
+                <div
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10,
+                        background: '#fff',
+                        paddingTop: 8,
+                    }}
+                >
+                    <Card
+                        className="shadow-md"
+                        style={{
+                            borderRadius: 8,
+                            borderTop: '4px solid #1890ff', 
+                        }}
+                    >
+                        <Flex
+                            justify="space-between"
+                            align="center"
+                            style={{ marginBottom: 16 }}
+                        >
+                            <Title
+                                level={5}
+                                style={{ margin: 0, color: '#666' }}
+                            >
+                                Log Preview
                             </Title>
                             <div className="text-sm text-gray-500">
                                 {selectedRow
                                     ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
                                     : 'Select a row to view images'}
                             </div>
-                        </div>
+                        </Flex>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns:
+                                    'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: 16,
+                            }}
+                        >
                             {FIXED_INTERSECTIONS.map((id, idx) => {
-                                const info = intersectionInfo.find((d) => d.Intersection_ID === id)
+                                const info = intersectionInfo.find(
+                                    (d) => d.Intersection_ID === id,
+                                )
                                 const img = laneImages[idx]
                                 return (
-                                    <div key={id} className="relative">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Tag color="blue" style={{ minWidth: 80, textAlign: 'center', fontSize: 16 }}>
-                                                {info?.Name || (intersectionInfo.length === 0 ? 'Loading...' : '')}
+                                    <div key={id}>
+                                        <div style={{ marginBottom: 8 }}>
+                                            <Tag
+                                                color="blue"
+                                                style={{
+                                                    minWidth: 80,
+                                                    textAlign: 'center',
+                                                    fontSize: 14,
+                                                }}
+                                            >
+                                                {info?.Name ||
+                                                    (intersectionInfo.length ===
+                                                    0
+                                                        ? 'Loading...'
+                                                        : `Lane ${id}`)}
                                             </Tag>
                                         </div>
-                                        <div className="w-full aspect-video overflow-hidden rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
+                                        <div
+                                            style={{
+                                                aspectRatio: '16/9',
+                                                background: '#f5f5f5',
+                                                borderRadius: 8,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                overflow: 'hidden',
+                                                border: '1px solid #e8e8e8',
+                                            }}
+                                        >
                                             {loadingImages ? (
                                                 <Spin />
                                             ) : img ? (
-                                                // ✅ ปรับ Image Component โดยใส่ onError เพื่อให้โหลดภาพซ้ำถ้ารูปยังมาไม่ถึงเซิร์ฟเวอร์
                                                 <Image
                                                     src={img.url}
                                                     alt={img.title}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    style={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover',
+                                                    }}
                                                     preview
                                                     onError={(e) => {
-                                                        const target = e.currentTarget as HTMLImageElement;
-                                                        // เช็คเพื่อไม่ให้มัน loop error ซ้ำๆ ตลอดเวลา โดยเช็คหาคำว่า retry
-                                                        if (!target.src.includes('retry=')) {
+                                                        const target =
+                                                            e.currentTarget as HTMLImageElement
+                                                        if (
+                                                            !target.src.includes(
+                                                                'retry=',
+                                                            )
+                                                        ) {
                                                             setTimeout(() => {
-                                                                target.src = `${img.url}?retry=${new Date().getTime()}`;
-                                                            }, 1000);
-                                                        } else {
-                                                            // ถ้ารีโหลดครั้งที่สองแล้วยังไม่ได้ ก็ปล่อยเป็นภาพแตก (อาจจะไฟล์ไม่มีจริงๆ)
-                                                            console.warn("Failed to load image after retry:", target.src);
+                                                                target.src = `${img.url}?retry=${new Date().getTime()}`
+                                                            }, 1000)
                                                         }
                                                     }}
                                                 />
                                             ) : (
-                                                <Text type="secondary" style={{ fontSize: 11, color: '#999' }}>
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ fontSize: 12 }}
+                                                >
                                                     No matching image
                                                 </Text>
                                             )}
                                         </div>
-                                        {img && <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">{img.title}</div>}
+                                        {img && (
+                                            <div className="mt-2 text-xs text-gray-400 text-center truncate px-2">
+                                                {img.title}
+                                            </div>
+                                        )}
                                     </div>
                                 )
                             })}
@@ -334,7 +402,12 @@ const PictureLog = () => {
                 </div>
 
                 <Card className="shadow-sm" style={{ borderRadius: 8 }}>
-                    <Title level={5} style={{ marginBottom: 16, color: '#666' }}>Records</Title>
+                    <Title
+                        level={5}
+                        style={{ marginBottom: 16, color: '#666' }}
+                    >
+                        Records
+                    </Title>
                     <Table<LogRecord>
                         dataSource={displayRows}
                         columns={columns}
@@ -351,11 +424,14 @@ const PictureLog = () => {
                             },
                         })}
                         rowClassName={(record) =>
-                            record.key === selectedRow?.key ? 'bg-blue-50 cursor-pointer' : 'cursor-pointer'
+                            record.key === selectedRow?.key
+                                ? 'bg-blue-50 cursor-pointer'
+                                : 'cursor-pointer'
                         }
                         pagination={{
                             ...pagination,
-                            onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
+                            onChange: (page, pageSize) =>
+                                setPagination({ current: page, pageSize }),
                             showSizeChanger: true,
                             pageSizeOptions: ['10', '20', '50'],
                         }}

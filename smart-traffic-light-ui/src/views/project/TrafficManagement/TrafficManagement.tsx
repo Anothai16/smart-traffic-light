@@ -19,18 +19,14 @@ import {
     apiUpdateIntersectionTimes,
     apiGetModeStatus,
     apiUpdateTrafficMode,
-    apiResetSystem, // ✅ นำเข้า API ตัวใหม่สำหรับ Reset System
+    apiResetSystem,
 } from '@/services/TrafficService'
 import type { AxiosError } from 'axios'
 import toast from '@/components/ui/toast'
 import Notification from '@/components/ui/Notification'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
-import {
-    SyncOutlined,
-    SettingOutlined,
-    ReloadOutlined,
-} from '@ant-design/icons'
+import { SyncOutlined, SettingOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { BiReset } from 'react-icons/bi'
 
@@ -54,7 +50,6 @@ interface ApiErrorResponse {
 
 const YELLOW_LIGHT_DURATION = 3
 
-// ลำดับโหมดที่ต้องการให้แสดงบนหน้าจอ
 const MODE_ORDER = ['Auto', 'Intelligence', 'Caution', 'Stop']
 
 const TrafficManagement = () => {
@@ -217,7 +212,7 @@ const TrafficManagement = () => {
         setIntersectionTimes((prev) => {
             let newTimes = [...prev]
 
-            // 🔥 Edit Green Duration only for Lane 1 (Index 0), sync others
+            //  Edit Green Duration only for Lane 1 (Index 0), sync others
             if (color === 'green' && index === 0) {
                 newTimes = newTimes.map((item) => ({
                     ...item,
@@ -225,14 +220,14 @@ const TrafficManagement = () => {
                 }))
             }
 
-            // 🟢 Calculate Red Durations based on Circular Loop Logic
+            // Calculate Red Durations based on Circular Loop Logic
             const green = newTimes[0]?.New_Green_Duration || 0
             const segment = green + YELLOW_LIGHT_DURATION // e.g., 35 + 3 = 38
 
             newTimes = newTimes.map((item, idx) => {
                 let calculatedRed = 0
                 if (idx === 0) {
-                    // แยกแรก: (Green + Yellow) * จำนวนแยกทั้งหมด (เช่น 38 * 4 = 152)
+                    // แยกแรก: (Green + Yellow) * จำนวนแยกทั้งหมด (ex. 38 * 4 = 152)
                     calculatedRed = segment * newTimes.length
                 } else {
                     // แยกถัดไป: (Green + Yellow) * ลำดับแยก (38, 76, 114)
@@ -286,28 +281,40 @@ const TrafficManagement = () => {
         }
     }
 
-    // ✅ ฟังก์ชันสำหรับจัดการปุ่ม Reset System
+    //  Reset System
     const handleResetSystem = async () => {
         try {
             setLoading(true)
             const response = await apiResetSystem()
-            
+
             if (response.data?.success) {
                 showNotification(
-                    'success', 
-                    'System Reset', 
-                    response.data.message || 'รีเซ็ตระบบเรียบร้อย ระบบกำลังกลับเข้าสู่โหมดปกติ'
+                    'success',
+                    'System Reset',
+                    response.data.message ||
+                        'รีเซ็ตระบบเรียบร้อย ระบบกำลังกลับเข้าสู่โหมดปกติ',
                 )
                 // ดึงข้อมูลสถานะล่าสุดจาก Database มาแสดงใหม่
                 await fetchTrafficData()
             } else {
-                showNotification('danger', 'Reset Failed', 'ไม่สามารถรีเซ็ตระบบได้')
+                showNotification(
+                    'danger',
+                    'Reset Failed',
+                    'ไม่สามารถรีเซ็ตระบบได้',
+                )
             }
         } catch (error) {
             const err = error as AxiosError<ApiErrorResponse>
-            const errorMessage = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ'
+            const errorMessage =
+                err.response?.data?.message ||
+                err.message ||
+                'เกิดข้อผิดพลาดในการเชื่อมต่อ'
             console.error(error)
-            showNotification('danger', 'Error', `เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์: ${errorMessage}`)
+            showNotification(
+                'danger',
+                'Error',
+                `เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์: ${errorMessage}`,
+            )
         } finally {
             setLoading(false)
         }
@@ -334,7 +341,6 @@ const TrafficManagement = () => {
             }}
         >
             <Flex vertical gap="large">
-                {/* --- HEADER --- */}
                 <Flex
                     justify="space-between"
                     align="middle"
@@ -386,7 +392,7 @@ const TrafficManagement = () => {
                             danger
                             icon={<BiReset />}
                             onClick={handleResetSystem}
-                            loading={loading} // แสดงสถานะโหลดตอนกด
+                            loading={loading}
                         >
                             Reset system
                         </Button>
@@ -401,7 +407,7 @@ const TrafficManagement = () => {
                     </div>
                 </Flex>
 
-                {/* --- 1. TRAFFIC MODE SELECTION CARD --- */}
+                {/* ---  TRAFFIC MODE SELECTION CARD --- */}
                 <Card className="shadow-lg rounded-xl border-l-4 border-blue-500">
                     <Flex vertical gap="large" className="w-full">
                         <div className="mb-4 flex flex-col md:flex-row md:items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -486,7 +492,7 @@ const TrafficManagement = () => {
                     </Flex>
                 </Card>
 
-                {/* --- 2. TRAFFIC LIGHT TIME MANAGEMENT CARD --- */}
+                {/* ---  TRAFFIC LIGHT TIME MANAGEMENT CARD --- */}
                 <Card
                     title={
                         <Title

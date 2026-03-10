@@ -34,9 +34,7 @@ import {
     LineChartOutlined,
     TableOutlined,
 } from '@ant-design/icons'
-import classNames from 'classnames'
 
-// Import Service (ตรวจสอบ path ให้ตรงกับโปรเจคจริง)
 import {
     apiGetDashboardAnalytics,
     DashboardResponse,
@@ -50,10 +48,11 @@ const { Title, Text } = Typography
 // ----------------------------------------------------
 interface DailyTrafficData {
     Date: string
-    laneName: string // ชื่อจริงจาก DB (เช่น "ประตู 1")
+    laneName: string
     laneKey: number
     Vehicle_Count: number
-    Violation_Count: number}
+    Violation_Count: number
+}
 
 const CHART_COLORS = [
     '#3b82f6',
@@ -81,10 +80,10 @@ const ProjectDashboard = () => {
             const res: DashboardResponse =
                 await apiGetDashboardAnalytics(dateStr)
 
-            // 1. ข้อมูลรายเลน (มีชื่อจริงมาแล้วจาก Backend)
+            // 1. ข้อมูลรายเลน
             const mappedLanes = res.lanes.map((l: any) => ({
                 Date: res.date,
-                laneName: l.laneName, // ใช้ชื่อจาก DB โดยตรง
+                laneName: l.laneName,
                 laneKey: l.laneKey,
                 Vehicle_Count: Number(l.vehicleCount || 0),
                 Violation_Count: Number(l.violationCount || 0),
@@ -116,7 +115,7 @@ const ProjectDashboard = () => {
     }, [dailyTraffic])
 
     // ----------------------------------------------------
-    // 4. STATS & CALCULATION (✅ แก้ไข Logic ตรงนี้)
+    // 4. STATS & CALCULATION
     // ----------------------------------------------------
     const totalVehicleCount = useMemo(
         () => dailyTraffic.reduce((sum, item) => sum + item.Vehicle_Count, 0),
@@ -127,7 +126,6 @@ const ProjectDashboard = () => {
         [dailyTraffic],
     )
 
-    // ✅ แก้ไข Busiest Lane: ถ้าวันนี้ไม่มีรถเลย ให้ขึ้น N/A
     const busiestLaneInfo = useMemo(() => {
         if (dailyTraffic.length === 0 || totalVehicleCount === 0) {
             return { lane: 'N/A', count: 0 }
@@ -138,40 +136,6 @@ const ProjectDashboard = () => {
         return { lane: busiest.laneName, count: busiest.Vehicle_Count }
     }, [dailyTraffic, totalVehicleCount])
 
-    // ✅ แก้ไข Daily Change: เทียบ Total วันนี้ กับ ข้อมูลของ "เมื่อวาน" (โดยหาวันที่ตรงๆ ไม่ใช้ index)
-    const dailyChangeInfo = useMemo(() => {
-        if (!weeklyData || weeklyData.length === 0)
-            return { change: 0, percent: '0.0' }
-
-        // 1. หาข้อมูลของ "เมื่อวาน" จาก Array (เพื่อความชัวร์)
-        const yesterdayStr = selectedDate
-            .subtract(1, 'day')
-            .format('YYYY-MM-DD')
-        const yesterdayRecord = weeklyData.find(
-            (d) => d.fullDate === yesterdayStr,
-        )
-
-        // ยอดรวมของเมื่อวาน (ถ้าหาไม่เจอ ให้ถือเป็น 0)
-        const yesterdayTotal = Number(yesterdayRecord?.total || 0)
-
-        // 2. ยอดรวมของวันนี้ (ใช้ค่าจาก Realtime State ที่เพิ่งโหลดมา)
-        const todayTotal = totalVehicleCount
-
-        // 3. คำนวณส่วนต่าง
-        const diff = todayTotal - yesterdayTotal
-
-        // 4. คำนวณ %
-        let percent = '0.0'
-        if (yesterdayTotal > 0) {
-            percent = ((diff / yesterdayTotal) * 100).toFixed(1)
-        } else if (todayTotal > 0) {
-            // เมื่อวาน 0 แต่วันนี้มีค่า -> เพิ่ม 100%
-            percent = '100.0'
-        }
-
-        return { change: diff, percent }
-    }, [totalVehicleCount, weeklyData, selectedDate])
-
     const [currentTime, setCurrentTime] = useState(new Date())
 
     useEffect(() => {
@@ -179,12 +143,29 @@ const ProjectDashboard = () => {
             setCurrentTime(new Date())
         }, 1000)
 
-        return () => clearInterval(timer) // Clear memory เมื่อปิดหน้าจอ
+        return () => clearInterval(timer)
     }, [])
 
     // ----------------------------------------------------
-    // 5. RENDER HELPERS
+    // 5.RENDER HELPERS (Fixed Weekly Order: Sunday - Saturday)
     // ----------------------------------------------------
+
+    // จัดเรียงข้อมูลรายสัปดาห์ให้เริ่มที่วันอาทิตย์
+    const sortedWeeklyData = useMemo(() => {
+        const dayOrder = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+        ]
+        return [...weeklyData].sort(
+            (a, b) => dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName),
+        )
+    }, [weeklyData])
+
     const laneWeeklyColumns = useMemo(() => {
         const baseCols = [
             {
@@ -247,37 +228,6 @@ const ProjectDashboard = () => {
         ]
     }, [activeLaneNames])
 
-    const ChangeDisplay = ({
-        change,
-        percent,
-    }: {
-        change: number
-        percent: string
-    }) => {
-        const isPositive = change > 0
-        const colorClass = isPositive
-            ? 'text-green-500'
-            : change < 0
-              ? 'text-red-500'
-              : 'text-gray-400'
-        const Icon = isPositive
-            ? ArrowUpOutlined
-            : change < 0
-              ? ArrowDownOutlined
-              : null
-        return (
-            <div className="flex items-center gap-1">
-                {Icon && <Icon className={`${colorClass} text-xl`} />}
-                <span className={`text-3xl font-extrabold ${colorClass}`}>
-                    {Math.abs(change).toLocaleString()}
-                </span>
-                <span className={`text-lg font-semibold ${colorClass}`}>
-                    ({percent}%)
-                </span>
-            </div>
-        )
-    }
-
     return (
         <div
             style={{
@@ -325,7 +275,7 @@ const ProjectDashboard = () => {
                         className="text-gray-600 mb-4 flex items-center"
                     >
                         <LineChartOutlined className="mr-2 text-blue-500" />{' '}
-                        Executive Summary ({selectedDate.format('DD MMM YYYY')})
+                        Executive Summary 
                     </Title>
                     <Row gutter={[24, 24]}>
                         <Col xs={24} md={12} lg={6}>
@@ -341,13 +291,6 @@ const ProjectDashboard = () => {
                                 </div>
                             </Card>
                         </Col>
-
-                        {/* <Col xs={24} md={12} lg={6}>
-              <Card className={classNames("h-full shadow-sm border-l-4", dailyChangeInfo.change >= 0 ? "border-green-500" : "border-red-500")}>
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Daily Change (%)</p>
-                <ChangeDisplay change={dailyChangeInfo.change} percent={dailyChangeInfo.percent} />
-              </Card>
-            </Col> */}
 
                         <Col xs={24} md={12} lg={6}>
                             <Card className="h-full shadow-sm border-l-4 border-amber-500">
@@ -377,11 +320,12 @@ const ProjectDashboard = () => {
                                 </div>
                             </Card>
                         </Col>
+
                         <Col xs={24} md={12} lg={6}>
                             <Card className="h-full shadow-sm border-l-4 border-green-500 overflow-hidden relative">
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col ">
-                                        <span className="text-3xl mt-5 font-bold text-gray-800 leading-none">
+                                        <span className="text-2xl mt-5 font-bold text-gray-800 leading-none">
                                             {currentTime.toLocaleDateString(
                                                 'en-GB',
                                                 { weekday: 'long' },
@@ -399,7 +343,7 @@ const ProjectDashboard = () => {
                                         </span>
                                     </div>
                                     <div className="text-right">
-                                        <h3 className="text-5xl font-bold mb-2 text-gray-700 mb-0 tracking-tighter leading-none">
+                                        <h3 className="text-4xl font-bold mb-2 text-gray-700 mb-0 tracking-tighter leading-none">
                                             {currentTime.toLocaleTimeString(
                                                 'en-GB',
                                                 {
@@ -473,7 +417,7 @@ const ProjectDashboard = () => {
                     </div>
                 </Card>
 
-                {/* --- Number of Vehicles Table --- */}
+                {/* --- TABLES SECTION --- */}
                 <Row gutter={[24, 24]}>
                     <Col xs={24} lg={12}>
                         <Card
@@ -574,19 +518,19 @@ const ProjectDashboard = () => {
                     </Col>
                 </Row>
 
-                {/* --- THIS WEEK REPORT  --- */}
+                {/* --- THIS WEEK REPORT (FIXED ORDER) --- */}
                 <Card
                     className="shadow-lg rounded-xl"
                     title={
                         <span className="flex items-center gap-2">
                             <TableOutlined className="text-blue-500" />
-                            This Week Report
+                            Week Report
                         </span>
                     }
                 >
                     <Table
                         columns={laneWeeklyColumns}
-                        dataSource={weeklyData}
+                        dataSource={sortedWeeklyData}
                         pagination={false}
                         rowKey="dayName"
                         size="middle"

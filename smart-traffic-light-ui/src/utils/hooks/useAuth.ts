@@ -1,6 +1,6 @@
-// src/utils/hooks/useAuth.ts (แก้ไขแล้ว)
+// src/utils/hooks/useAuth.ts 
 
-import { apiSignIn, apiSignOut, apiSignUp } from '@/services/AuthService'
+import { apiSignIn, apiSignOut } from '@/services/AuthService'
 import {
     setUser,
     signInSuccess,
@@ -12,7 +12,7 @@ import appConfig from '@/configs/app.config'
 import { REDIRECT_URL_KEY } from '@/constants/app.constant'
 import { useNavigate } from 'react-router-dom'
 import useQuery from './useQuery'
-import type { SignInCredential, SignUpCredential } from '@/@types/auth'
+import type { SignInCredential} from '@/@types/auth'
 
 type Status = 'success' | 'failed'
 
@@ -109,43 +109,43 @@ function useAuth() {
         }
     }
 
-    const signUp = async (values: SignUpCredential) => {
-        try {
-            const resp = await apiSignUp(values)
-            if (resp.data) {
-                const { token } = resp.data
-                dispatch(signInSuccess(token))
-                if (resp.data.user) {
-                    dispatch(
-                        setUser(
-                            resp.data.user || {
-                                avatar: '',
-                                userName: 'Anonymous',
-                                authority: ['USER'],
-                                email: '',
-                            },
-                        ),
-                    )
-                }
-                const redirectUrl = query.get(REDIRECT_URL_KEY)
-                navigate(
-                    redirectUrl
-                        ? redirectUrl
-                        : appConfig.authenticatedEntryPath,
-                )
-                return {
-                    status: 'success',
-                    message: '',
-                }
-            }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (errors: any) {
-            return {
-                status: 'failed',
-                message: errors?.response?.data?.message || errors.toString(),
-            }
-        }
-    }
+    // const signUp = async (values: SignUpCredential) => {
+    //     try {
+    //         const resp = await apiSignUp(values)
+    //         if (resp.data) {
+    //             const { token } = resp.data
+    //             dispatch(signInSuccess(token))
+    //             if (resp.data.user) {
+    //                 dispatch(
+    //                     setUser(
+    //                         resp.data.user || {
+    //                             avatar: '',
+    //                             userName: 'Anonymous',
+    //                             authority: ['USER'],
+    //                             email: '',
+    //                         },
+    //                     ),
+    //                 )
+    //             }
+    //             const redirectUrl = query.get(REDIRECT_URL_KEY)
+    //             navigate(
+    //                 redirectUrl
+    //                     ? redirectUrl
+    //                     : appConfig.authenticatedEntryPath,
+    //             )
+    //             return {
+    //                 status: 'success',
+    //                 message: '',
+    //             }
+    //         }
+    //         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    //     } catch (errors: any) {
+    //         return {
+    //             status: 'failed',
+    //             message: errors?.response?.data?.message || errors.toString(),
+    //         }
+    //     }
+    // }
 
     const handleSignOut = () => {
         dispatch(signOutSuccess())
@@ -168,7 +168,7 @@ function useAuth() {
     return {
         authenticated: token && signedIn,
         signIn,
-        signUp,
+        // signUp,
         signOut,
     }
 }
