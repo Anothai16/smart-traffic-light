@@ -11,7 +11,7 @@ export interface DashboardResponse {
 }
 
 export const DashboardService = {
-    async getDashboardAnalytics(targetDate: string) {
+    async getDashboardAnalytics(startDate: string, endDate: string) {
         try {
             const pool = await getDbPool();
 
@@ -25,10 +25,10 @@ export const DashboardService = {
                     COALESCE(SUM(t.Vehicle_Count), 0) as vehicleCount,
                     COALESCE(SUM(t.Violation_Count), 0) as violationCount
                 FROM Master_Intersection m
-                LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND DATE(t.Date) = ? -- ✅ แก้: ใช้ DATE() เพื่อตัดเวลา
+                LEFT JOIN Traffic_Log t ON t.Intersection_ID = m.Intersection_ID AND DATE(t.Date) BETWEEN ? AND ?
                 GROUP BY m.Intersection_ID, m.Name
                 ORDER BY m.Lane_Sequence ASC
-            `, [targetDate]);
+            `, [startDate, endDate]);
 
             // ---------------------------------------------------------
             // 2. ข้อมูลรายชั่วโมง
@@ -40,12 +40,11 @@ export const DashboardService = {
                     SUM(t.Vehicle_Count) as count
                 FROM Traffic_Log t
                 JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
-                WHERE DATE(t.Date) = ? -- ✅ แก้: ใช้ DATE() เพื่อความชัวร์
+                WHERE DATE(t.Date) BETWEEN ? AND ? 
                 GROUP BY hour, m.Name
                 ORDER BY hour ASC
-            `, [targetDate]);
+            `, [startDate, endDate]);
 
-            // ... (Logic แปลง hourlyMap เหมือนเดิม) ...
             const hourlyMap: Record<string, any> = {};
             hourlyRaw.forEach((row: any) => {
                 if (!hourlyMap[row.hour]) hourlyMap[row.hour] = { hour: row.hour };
@@ -53,25 +52,22 @@ export const DashboardService = {
             });
             const hourlyStats = Object.values(hourlyMap).sort((a: any, b: any) => a.hour.localeCompare(b.hour));
 
-
             // ---------------------------------------------------------
             // 3. ข้อมูลรายสัปดาห์ 
             // ---------------------------------------------------------
             const [weeklyRaw] = await pool.query<RowDataPacket[]>(`
                 SELECT 
                     DATE_FORMAT(t.Date, '%W') as dayName,
-                    DATE_FORMAT(t.Date, '%Y-%m-%d') as fullDate, -- อันนี้คือ string วันที่ล้วนๆ
+                    DATE_FORMAT(t.Date, '%Y-%m-%d') as fullDate, 
                     m.Name as laneName,
                     SUM(t.Vehicle_Count) as count
                 FROM Traffic_Log t
                 JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
-                WHERE t.Date BETWEEN DATE_SUB(?, INTERVAL 6 DAY) AND ? -- (BETWEEN ใช้กับ Datetime ได้ปกติ)
-                -- ✅✅✅ แก้ไขจุดสำคัญ: Group By fullDate แทน t.Date
+                WHERE YEARWEEK(DATE(t.Date), 0) = YEARWEEK(?, 0)
                 GROUP BY fullDate, dayName, m.Name
                 ORDER BY fullDate ASC
-            `, [targetDate, targetDate]);
+            `, [startDate, endDate]);
 
-            // ... (Logic แปลง weeklyMap เหมือนเดิม) ...
             const weeklyMap: Record<string, any> = {};
             weeklyRaw.forEach((row: any) => {
                 const key = row.fullDate;
@@ -88,7 +84,7 @@ export const DashboardService = {
             const weeklyStats = Object.values(weeklyMap);
 
             return {
-                date: targetDate,
+                date: `${startDate} to ${endDate}`,
                 lanes: laneStats,
                 hourly: hourlyStats,
                 weekly: weeklyStats

@@ -11,9 +11,6 @@ const jwtPlugin = jwt({
 });
 
 export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
-    
-    // ✅ 1. เพิ่ม Route Heartbeat ไว้ตรงนี้ (ก่อน Auth Check) 
-    // เพื่อให้ Hardware/Python Simulator ยิงเข้ามาได้ง่ายๆ
     .post('/heartbeat', async ({ set, body }) => {
         try {
             return await IntersectionController.heartbeat(body as any);
@@ -26,8 +23,6 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             id: t.Number()
         })
     })
-
-    // --- Zone ที่ต้อง Login ---
     .use(jwtPlugin)
     .onBeforeHandle(async ({ set, jwt, headers }) => {
         const authHeader = headers['authorization'];
@@ -42,8 +37,6 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             return { message: 'Invalid or expired token' };
         }
     })
-    
-    // API ปกติสำหรับ Frontend
     .get('/', async ({ set }) => {
         try {
             return await IntersectionController.getAll();
@@ -60,9 +53,9 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             return { message: error.message };
         }
     }, {
+        // 🟢 เอา Intersection_Number ออกจากการตรวจสอบ
         body: t.Object({
             Name: t.String(),
-            Intersection_Number: t.Number(),
             IP_Address: t.String(),
             Location: t.String(),
             Lane_Sequence: t.Number()
@@ -76,9 +69,9 @@ export const intersectionRoutes = new Elysia({ prefix: '/master/intersection' })
             return { message: error.message };
         }
     }, {
+        // 🟢 เอา Intersection_Number ออกจากการตรวจสอบ
         body: t.Object({
             Name: t.String(),
-            Intersection_Number: t.Number(),
             IP_Address: t.String(),
             Location: t.String(),
             Lane_Sequence: t.Number()

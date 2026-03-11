@@ -243,7 +243,7 @@ const TrafficViolations = () => {
                         }}
                     >
                         <Title level={4} style={{ margin: 0 }}>
-                            Traffic Violations{' '}
+                            Traffic Violations
                         </Title>
                         <Flex gap="middle" align="center">
                             <DatePickerFormItem.From
@@ -303,9 +303,11 @@ const TrafficViolations = () => {
                                 level={5}
                                 style={{ margin: 0, color: '#666' }}
                             >
-                                Violation Preview
+                                <span className="text-lg">
+                                    Violation Preview
+                                </span>
                             </Title>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-lg text-gray-500">
                                 {selectedRow
                                     ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
                                     : 'Select a record to view images'}
@@ -365,13 +367,21 @@ const TrafficViolations = () => {
                                                         objectFit: 'cover',
                                                     }}
                                                     onError={(e) => {
-                                                        const target = e.currentTarget as HTMLImageElement;
-                                                        if (!target.src.includes('retry=')) {
+                                                        const target =
+                                                            e.currentTarget as HTMLImageElement
+                                                        if (
+                                                            !target.src.includes(
+                                                                'retry=',
+                                                            )
+                                                        ) {
                                                             setTimeout(() => {
-                                                                target.src = `${img.url}?retry=${new Date().getTime()}`;
-                                                            }, 1000);
+                                                                target.src = `${img.url}?retry=${new Date().getTime()}`
+                                                            }, 1000)
                                                         } else {
-                                                            console.warn("Failed to load violation image after retry:", target.src);
+                                                            console.warn(
+                                                                'Failed to load violation image after retry:',
+                                                                target.src,
+                                                            )
                                                         }
                                                     }}
                                                 />
@@ -392,12 +402,15 @@ const TrafficViolations = () => {
                 </div>
 
                 <Card className="shadow-sm" style={{ borderRadius: 8 }}>
-                    <Title
-                        level={5}
-                        style={{ marginBottom: 16, color: '#666' }}
+                    <Flex
+                        justify="space-between"
+                        align="center"
+                        style={{ marginBottom: 16 }}
                     >
-                        Records
-                    </Title>
+                        <Title level={5} style={{ margin: 0, color: '#666' }}>
+                            <span className="text-lg">Records</span>
+                        </Title>
+                    </Flex>
                     <Table<ViolationLogRecord>
                         dataSource={displayRows}
                         columns={columns}

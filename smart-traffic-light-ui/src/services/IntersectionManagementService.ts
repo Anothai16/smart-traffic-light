@@ -19,7 +19,8 @@ export interface IntersectionPayload {
     Name: string;
     IP_Address: string;
     Location: string;
-    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
+    Intersection_Number: number; // 🟢 เพิ่ม Intersection_Number ให้ตรงกับ Backend Controller
+    Lane_Sequence: number;       // 🟢 เพิ่มฟิลด์ลำดับเลน
 }
 
 interface ApiResponse<T> {

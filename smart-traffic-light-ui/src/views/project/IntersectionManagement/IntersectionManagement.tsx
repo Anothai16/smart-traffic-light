@@ -28,6 +28,7 @@ const { confirm } = Modal
 // Interface สำหรับข้อมูลใน Table
 interface IntersectionTableItem {
     Intersection_ID: number
+    Intersection_Number: number // 🟢 เพิ่มฟิลด์นี้เผื่อไว้ส่งกลับไป Backend
     Name: string
     Location: string
     IP_Address: string
@@ -51,15 +52,20 @@ const IntersectionManagement: React.FC = () => {
             const response =
                 await IntersectionManagementService.getAllIntersections()
             if (response.data && response.data.data) {
-                const mappedData: IntersectionTableItem[] =
+                let mappedData: IntersectionTableItem[] =
                     response.data.data.map((item: any) => ({
                         Intersection_ID: item.Intersection_ID,
+                        Intersection_Number: item.Intersection_Number || item.Intersection_ID, // 🟢 ดึงข้อมูลเดิมมาเก็บไว้
                         Name: item.Name,
                         Location: item.Location,
                         IP_Address: item.IP_Address,
                         Lane_Sequence: item.Lane_Sequence || 1,
                         status: item.Status || 'Offline',
                     }))
+                
+                // 🟢 [KEY FIX] บังคับให้เรียงตาม Intersection_ID เป็นหลักเสมอ!
+                mappedData.sort((a, b) => a.Intersection_ID - b.Intersection_ID)
+                
                 setIntersections(mappedData)
             }
         } catch (error) {
@@ -128,8 +134,8 @@ const IntersectionManagement: React.FC = () => {
                         Name: values.Name,
                         Location: values.Location,
                         IP_Address: values.IP_Address,
-                        Intersection_ID: Number(values.Intersection_ID),
-                        Lane_Sequence: Number(values.Lane_Sequence),
+                        Intersection_Number: Number(values.Intersection_Number || values.Intersection_ID), // 🟢 ส่งกลับไป Backend ด้วย
+                        Lane_Sequence: Number(values.Lane_Sequence), // 🟢 ค่าลำดับเลนใหม่
                     }
 
                     if (editingIntersection) {
@@ -170,6 +176,16 @@ const IntersectionManagement: React.FC = () => {
             width: 110,
             align: 'center',
             sorter: (a, b) => a.Intersection_ID - b.Intersection_ID,
+        },
+        {
+            title: 'ลำดับเลน (Auto)',
+            dataIndex: 'Lane_Sequence',
+            key: 'Lane_Sequence',
+            width: 130,
+            align: 'center',
+            render: (val: number) => <Tag color="blue">{val}</Tag>,
+            sorter: (a, b) => a.Lane_Sequence - b.Lane_Sequence,
+            // 🟢 เอา defaultSortOrder ออกจากตรงนี้แล้ว
         },
         {
             title: 'ชื่อแยก',
@@ -229,7 +245,7 @@ const IntersectionManagement: React.FC = () => {
         {
             title: 'จัดการ',
             key: 'action',
-            width: 100,
+            width: 120,
             fixed: 'right',
             render: (_, record) => (
                 <Flex gap="small">
@@ -345,6 +361,28 @@ const IntersectionManagement: React.FC = () => {
                             ]}
                         >
                             <Input placeholder="เช่น 192.168.1.100" />
+                        </Form.Item>
+
+                        {/* 🟢 เพิ่มช่องแก้ไขลำดับเลนตรงนี้ */}
+                        <Form.Item
+                            name="Lane_Sequence"
+                            label="Lane Sequence (ลำดับคิวไฟเขียวโหมด Auto)"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: 'Please insert Lane Sequence!',
+                                },
+                            ]}
+                        >
+                            <Input type="number" min={1} max={4} placeholder="ระบุลำดับ 1-4" />
+                        </Form.Item>
+
+                        {/* ซ่อนฟิลด์ที่จำเป็นต้องส่งไป API แต่ไม่ให้ User แก้ */}
+                        <Form.Item name="Intersection_Number" hidden>
+                            <Input />
+                        </Form.Item>
+                        <Form.Item name="Intersection_ID" hidden>
+                            <Input />
                         </Form.Item>
                     </Form>
                 </Modal>
