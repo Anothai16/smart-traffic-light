@@ -21,10 +21,11 @@ export interface DashboardResponse {
 }
 
 export async function apiGetDashboardAnalytics(
-    date: string,
+    startDate: string,
+    endDate: string
 ): Promise<DashboardResponse> {
     const response = await ApiService.fetchData<DashboardResponse>({
-        url: `/dashboard/analytics?date=${date}`,
+        url: `/dashboard/analytics?startDate=${startDate}&endDate=${endDate}`,
         method: 'get',
     })
     return response.data
