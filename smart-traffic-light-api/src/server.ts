@@ -7,16 +7,13 @@ import { uploadRoutes } from './routes/upload.routes';
 import { staticPlugin } from '@elysiajs/static';
 import { swagger } from '@elysiajs/swagger';
 import { appRoutes } from './router';
-import * as path from 'path'; 
-import * as fs from 'fs';     
-
-// 🟢 1. Import Cron และ Service ที่เราเขียนไว้
-import { cron } from '@elysiajs/cron';
-import { TestCleanupService } from './services/cleanup.service'; // ตรวจสอบ Path ให้ตรงกับที่อาจารย์เซฟไฟล์ไว้ด้วยนะครับ
+import * as path from 'path'; // ✅ Import path
+import * as fs from 'fs';     // ✅ Import fs
 
 // Helper รับ Path และแปลงเป็น Absolute Path ทันที
 const getPath = (envPath: string | undefined, defaultPath: string) => {
     const raw = envPath || defaultPath;
+    // ✅ แปลงเป็น Path เต็มๆ เพื่อความชัวร์ (แก้ปัญหารูปไม่ขึ้นเพราะหา folder ไม่เจอ)
     return path.resolve(raw);
 };
 
@@ -37,7 +34,7 @@ const app = new Elysia()
     .use(swagger())
     
     // -----------------------------------------------------------
-    // 1. Static Plugin สำหรับ "Traffic Images"
+    // 1. ✅ Static Plugin สำหรับ "Traffic Images"
     // -----------------------------------------------------------
     .use(staticPlugin({
         assets: trafficPath,
@@ -45,7 +42,7 @@ const app = new Elysia()
     }))
 
     // -----------------------------------------------------------
-    // 2. Static Plugin สำหรับ "Violation Images"
+    // 2. ✅ Static Plugin สำหรับ "Violation Images"
     // -----------------------------------------------------------
     .use(staticPlugin({
         assets: violationPath,
@@ -57,22 +54,6 @@ const app = new Elysia()
 
     // 4. App Routes
     .use(appRoutes)
-
-    // -----------------------------------------------------------
-    // 🟢 5. เพิ่ม Cron Job สำหรับลบรูปอัตโนมัติไว้ตรงนี้เลยครับ
-    // -----------------------------------------------------------
-    .use(
-        cron({
-            name: 'test-hardcode-delete-5min',
-            pattern: '*/5 * * * *', // รันทุกๆ 5 นาที
-            async run() {
-                console.log('⏰ [Cron] ทำงานทุก 5 นาที! สั่งรันฟังก์ชันกวาดลบไฟล์และ DB...');
-                
-                // เรียกใช้ฟังก์ชันจาก Service ของเรา
-                await TestCleanupService.executeHardcodeDelete();
-            }
-        })
-    )
 
     // Error Handler (กรอง NOT_FOUND ไม่ให้รก Console)
     .onError(({ code, error, set }) => {
@@ -116,4 +97,4 @@ const cleanup = async (signal: string) => {
 };
 
 process.on('SIGINT', () => cleanup('SIGINT'));
-process.on('SIGTERM', () => cleanup('SIGTERM'));    
+process.on('SIGTERM', () => cleanup('SIGTERM'));
