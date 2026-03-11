@@ -5,12 +5,10 @@ import { exec } from 'child_process';
 export const SystemController = {
     // 🟢 ฟังก์ชันสั่งเปิด Video
     async startVideo() {
-        // ✅ 3.1 แก้ Path ให้ชี้ไปที่ /app_root และไม่ต้องใช้ path.resolve() แล้ว
         const scriptPath = '/app_root/start_all_custom.py';
         
         console.log(`🚀 Executing: python3 "${scriptPath}"`);
 
-        // ✅ 3.2 เปลี่ยนคำสั่งจาก python เป็น python3
         exec(`python3 "${scriptPath}"`, { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }, (error, stdout, stderr) => {
             if (error) {
                 console.error(`❌ Start Video Error: ${error.message}`);
@@ -48,7 +46,7 @@ export const SystemController = {
     },
     
     async resetSystem() {
-        const scriptPath = '/app_root/reset_system.py'; // ชี้ไปที่ไฟล์ใหม่
+        const scriptPath = '/app_root/reset_system.py'; 
         console.log(`🔄 Executing: python3 "${scriptPath}"`);
 
         exec(`python3 "${scriptPath}"`, { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }, (error, stdout, stderr) => {

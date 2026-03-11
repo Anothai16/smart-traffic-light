@@ -9,7 +9,7 @@ export interface Intersection {
     Location: string;
     IP_Address: string;
     Intersection_Number: number;
-    Lane_Sequence: number; // 🟢 เพิ่มฟิลด์ลำดับเลน
+    Lane_Sequence: number; 
     Create_Date?: string;
     Update_Date?: string;
 }
@@ -19,8 +19,8 @@ export interface IntersectionPayload {
     Name: string;
     IP_Address: string;
     Location: string;
-    Intersection_Number: number; // 🟢 เพิ่ม Intersection_Number ให้ตรงกับ Backend Controller
-    Lane_Sequence: number;       // 🟢 เพิ่มฟิลด์ลำดับเลน
+    Intersection_Number: number; 
+    Lane_Sequence: number;    
 }
 
 interface ApiResponse<T> {
