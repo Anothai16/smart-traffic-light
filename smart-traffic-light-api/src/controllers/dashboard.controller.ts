@@ -2,9 +2,9 @@
 import { DashboardService } from '../services/dashboard.service';
 
 export const DashboardController = {
-    async getAnalytics(date: string) {
+    async getAnalytics(startDate: string, endDate: string) {
         try {
-            return await DashboardService.getDashboardAnalytics(date);
+            return await DashboardService.getDashboardAnalytics(startDate, endDate);
         } catch (error: any) {
             throw new Error(`Failed to fetch dashboard data: ${error.message}`);
         }

@@ -29,12 +29,9 @@ import {
     SyncOutlined,
     CarOutlined,
     AlertOutlined,
-    ArrowUpOutlined,
-    ArrowDownOutlined,
     LineChartOutlined,
     TableOutlined,
 } from '@ant-design/icons'
-
 import {
     apiGetDashboardAnalytics,
     DashboardResponse,
@@ -64,7 +61,10 @@ const CHART_COLORS = [
 ]
 
 const ProjectDashboard = () => {
-    const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs())
+    // ค่าเริ่มต้นคือวันที่ปัจจุบัน (วันนี้)
+    const [startDate, setStartDate] = useState<Dayjs | null>(dayjs())
+    const [endDate, setEndDate] = useState<Dayjs | null>(dayjs())
+
     const [loading, setLoading] = useState(false)
     const [dailyTraffic, setDailyTraffic] = useState<DailyTrafficData[]>([])
     const [hourlyData, setHourlyData] = useState<any[]>([])
@@ -74,11 +74,15 @@ const ProjectDashboard = () => {
     // 2. DATA LOADING
     // ----------------------------------------------------
     const loadData = useCallback(async () => {
+        if (!startDate || !endDate) return
         setLoading(true)
         try {
-            const dateStr = selectedDate.format('YYYY-MM-DD')
-            const res: DashboardResponse =
-                await apiGetDashboardAnalytics(dateStr)
+            const startStr = startDate.format('YYYY-MM-DD')
+            const endStr = endDate.format('YYYY-MM-DD')
+            const res: DashboardResponse = await apiGetDashboardAnalytics(
+                startStr,
+                endStr,
+            )
 
             // 1. ข้อมูลรายเลน
             const mappedLanes = res.lanes.map((l: any) => ({
@@ -101,7 +105,7 @@ const ProjectDashboard = () => {
         } finally {
             setLoading(false)
         }
-    }, [selectedDate])
+    }, [startDate, endDate])
 
     useEffect(() => {
         loadData()
@@ -147,10 +151,48 @@ const ProjectDashboard = () => {
     }, [])
 
     // ----------------------------------------------------
-    // 5.RENDER HELPERS (Fixed Weekly Order: Sunday - Saturday)
+    // 5. DATE PICKER VALIDATION
     // ----------------------------------------------------
+    const disabledStartDate = (current: Dayjs) => {
+        // ห้ามเลือกวันที่เป็นอนาคตจากปัจจุบันเด็ดขาด
+        if (current.isAfter(dayjs(), 'day')) return true
 
-    // จัดเรียงข้อมูลรายสัปดาห์ให้เริ่มที่วันอาทิตย์
+        // ถ้ามีการเลือก End Date ไว้แล้ว ให้ล็อค Start Date ให้อยู่ในสัปดาห์เดียวกัน และห้ามเกิน End Date
+        if (endDate) {
+            const startOfWeek = endDate.startOf('week')
+            const endOfWeek = endDate.endOf('week')
+
+            return (
+                current.isAfter(endDate, 'day') ||
+                current.isBefore(startOfWeek, 'day') ||
+                current.isAfter(endOfWeek, 'day')
+            )
+        }
+        // ถ้ายังไม่มี End Date เลือกอิสระได้เลย
+        return false
+    }
+
+    const disabledEndDate = (current: Dayjs) => {
+        // ห้ามเลือกวันที่เป็นอนาคตจากปัจจุบันเด็ดขาด
+        if (current.isAfter(dayjs(), 'day')) return true
+
+        if (startDate) {
+            const startOfWeek = startDate.startOf('week')
+            const endOfWeek = startDate.endOf('week')
+
+            // บังคับว่า endDate ต้องอยู่ในสัปดาห์เดียวกับ startDate และต้องไม่ก่อนหน้า startDate
+            return (
+                current.isBefore(startDate, 'day') ||
+                current.isBefore(startOfWeek, 'day') ||
+                current.isAfter(endOfWeek, 'day')
+            )
+        }
+        return false
+    }
+
+    // ----------------------------------------------------
+    // 6. RENDER HELPERS
+    // ----------------------------------------------------
     const sortedWeeklyData = useMemo(() => {
         const dayOrder = [
             'Sunday',
@@ -250,18 +292,50 @@ const ProjectDashboard = () => {
                     >
                         Smart Traffic Operations Dashboard
                     </Title>
-                    <Flex gap="middle">
-                        <DatePicker
-                            onChange={(d) => d && setSelectedDate(d)}
-                            value={selectedDate}
-                            allowClear={false}
-                            style={{ minWidth: 150 }}
-                        />
+                    <Flex gap="middle" align="center" wrap="wrap">
+                        {/* เปลี่ยนจาก DatePickerFormItem เป็น DatePicker ตรงๆ */}
+                        <Flex align="center" gap="small">
+                            <Text strong className="text-gray-600">
+                                Start Date:
+                            </Text>
+                            <DatePicker
+                                value={startDate}
+                                onChange={(d) => {
+                                    setStartDate(d)
+                                    if (!d) {
+                                        setEndDate(null)
+                                    }
+                                    console.log('Selected Start Date:', d ? d.format('YYYY-MM-DD') : 'None')
+                                }}
+                                disabledDate={disabledStartDate}
+                                allowClear
+                                format="YYYY-MM-DD"
+                            />
+                        </Flex>
+                        <Flex align="center" gap="small">
+                            <Text strong className="text-gray-600">
+                                End Date:
+                            </Text>
+                            <DatePicker
+                                value={endDate}
+                                onChange={(d) => {
+                                    setEndDate(d)
+                                    if (!d) {
+                                        setStartDate(null)
+                                    }
+                                    console.log('Selected End Date:', d ? d.format('YYYY-MM-DD') : 'None')
+                                }}
+                                disabledDate={disabledEndDate}
+                                allowClear
+                                format="YYYY-MM-DD"
+                            />
+                        </Flex>
                         <Button
                             icon={<SyncOutlined />}
                             onClick={loadData}
                             loading={loading}
                             type="primary"
+                            disabled={!startDate || !endDate}
                         >
                             Refresh Data
                         </Button>
@@ -275,7 +349,7 @@ const ProjectDashboard = () => {
                         className="text-gray-600 mb-4 flex items-center"
                     >
                         <LineChartOutlined className="mr-2 text-blue-500" />{' '}
-                        Executive Summary 
+                        Executive Summary
                     </Title>
                     <Row gutter={[24, 24]}>
                         <Col xs={24} md={12} lg={6}>
@@ -518,13 +592,13 @@ const ProjectDashboard = () => {
                     </Col>
                 </Row>
 
-                {/* --- THIS WEEK REPORT (FIXED ORDER) --- */}
+                {/* --- THIS WEEK REPORT --- */}
                 <Card
                     className="shadow-lg rounded-xl"
                     title={
                         <span className="flex items-center gap-2">
                             <TableOutlined className="text-blue-500" />
-                            Week Report
+                            Weekly Report
                         </span>
                     }
                 >

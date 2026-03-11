@@ -239,11 +239,15 @@ const PictureLog = () => {
             style={{ padding: 24, backgroundColor: '#fff', minHeight: '100vh' }}
         >
             <Flex vertical gap="large">
-                <Form form={form} layout="inline" style={{ width: '100%' }}>
+                <Form form={form} layout="inline">
                     <Flex
                         justify="space-between"
-                        align="middle"
-                        className="mb-2 p-4 w-full border-b border-gray-200"
+                        align="center"
+                        style={{
+                            width: '100%',
+                            borderBottom: '1px solid #f0f0f0',
+                            paddingBottom: 16,
+                        }}
                     >
                         <Title level={4} style={{ margin: 0, color: '#555' }}>
                             Traffic Log
@@ -290,7 +294,7 @@ const PictureLog = () => {
                         className="shadow-md"
                         style={{
                             borderRadius: 8,
-                            borderTop: '4px solid #1890ff', 
+                            borderTop: '4px solid #1890ff',
                         }}
                     >
                         <Flex
@@ -302,9 +306,9 @@ const PictureLog = () => {
                                 level={5}
                                 style={{ margin: 0, color: '#666' }}
                             >
-                                Log Preview
+                                <span className="text-lg">Log Preview</span>
                             </Title>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-lg text-gray-500">
                                 {selectedRow
                                     ? `${dayjs(selectedRow.date).format('DD MMM YYYY')} - ${selectedRow.time}`
                                     : 'Select a row to view images'}
@@ -385,7 +389,7 @@ const PictureLog = () => {
                                                     type="secondary"
                                                     style={{ fontSize: 12 }}
                                                 >
-                                                    No matching image
+                                                    No image matched
                                                 </Text>
                                             )}
                                         </div>
@@ -402,12 +406,19 @@ const PictureLog = () => {
                 </div>
 
                 <Card className="shadow-sm" style={{ borderRadius: 8 }}>
-                    <Title
-                        level={5}
-                        style={{ marginBottom: 16, color: '#666' }}
+                    <Flex
+                        justify="space-between"
+                        align="center"
+                        style={{ marginBottom: 16 }}
                     >
-                        Records
-                    </Title>
+                        <Title level={5} style={{ margin: 0, color: '#666' }}>
+                            <span className="text-lg">Records</span>
+                        </Title>
+                        <span className="text-lg text-gray-700 font-normal">
+                            Note: Images are deleted every Sunday at 12.00 AM
+                        </span>
+                    </Flex>
+
                     <Table<LogRecord>
                         dataSource={displayRows}
                         columns={columns}
