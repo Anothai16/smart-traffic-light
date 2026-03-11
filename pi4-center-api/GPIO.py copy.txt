@@ -1,0 +1,355 @@
+import time
+import pymssql 
+import yaml
+import RPi.GPIO as GPIO 
+import threading
+import sys 
+from typing import Dict, Any, Optional
+
+# =========================================================================
+# Load Configuration from YAML file
+# =========================================================================
+
+def load_config() -> Dict[str, Any]:
+    """Loads configuration settings from config.yaml."""
+    try:
+        with open('config.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+            return config
+    except Exception as e:
+        print(f"Error loading config file: {e}")
+        # Return default configuration in case of an error
+        return {
+            'traffic_light': {
+                'green_duration': 10,
+                'yellow_duration': 3,
+                'all_red_duration': 2,
+                'light_size': 40,
+                'spacing': 10
+            },
+            'gui': {
+                'center_x': 275,
+                'center_y': 275,
+                'offset': 150
+            },
+            'database': {
+                # 🛠️ ค่าเหล่านี้จะถูกใช้โดย pymssql โดยตรง
+                'driver': "N/A (using pymssql)", # Driver name ไม่มีผลแล้ว
+                'server': "192.168.1.100", 
+                'name': "Smart_Traffic_Light",
+                'uid': "admin",
+                'pwd': "1234"
+            }
+        }
+
+CONFIG = load_config()
+
+# =========================================================================
+# GPIO Pin Mapping
+# =========================================================================
+
+GPIO_PINS = {
+    'N': {'green': 17, 'yellow': 18, 'red': 27},
+    'E': {'green': 22, 'yellow': 23, 'red': 24},
+    'S': {'green': 25, 'yellow': 5, 'red': 6},
+    'W': {'green': 12, 'yellow': 13, 'red': 16},
+}
+
+# =========================================================================
+# Database Connection Utilities (ปรับปรุงใหม่สำหรับ pymssql)
+# =========================================================================
+
+def get_db_connection() -> Optional[pymssql.Connection]:
+    """Attempts to connect to the database using pymssql parameters."""
+    db_config = CONFIG['database']
+    try:
+        # 🟢 pymssql เชื่อมต่อโดยตรงโดยใช้พารามิเตอร์
+        conn = pymssql.connect(
+            server=db_config['server'],
+            user=db_config['uid'],
+            password=db_config['pwd'],
+            database=db_config['name'],
+            timeout=3, 
+            charset='UTF-8'
+        )
+        return conn
+    except Exception:
+        # หากการเชื่อมต่อล้มเหลว
+        return None
+
+def check_db_connection_status() -> tuple[bool, str]:
+    """Checks if a connection to the database can be established."""
+    cnxn = get_db_connection()
+    if cnxn:
+        cnxn.close()
+        return True, "Connected (pymssql)"
+    else:
+        return False, "Connection Failed (pymssql)"
+
+
+def fetch_current_mode_from_db() -> str:
+    """Fetches the latest operating mode from the database."""
+    cnxn = get_db_connection()
+    
+    if cnxn is None:
+        return "Auto" # ถ้าเชื่อมต่อไม่ได้ ให้คืนค่าเริ่มต้น
+
+    try:
+        cursor = cnxn.cursor()
+        
+        # 1. Fetch the latest Mode_ID
+        # NOTE: ใช้ SELECT TOP 1 และ ORDER BY เพื่อให้ได้ Mode_ID ล่าสุด
+        cursor.execute("SELECT TOP 1 Mode_ID FROM stl.Mode_Log ORDER BY Create_Date DESC")
+        result = cursor.fetchone() 
+        if not result:
+            cnxn.close()
+            # print("DB Warning: Mode_Log is empty. Defaulting to Auto.")
+            return "Auto"
+
+        last_mode_id = result[0]
+        
+        # 2. Fetch the corresponding Mode_Name
+        # 🟢 ใช้รูปแบบ string formatting ของ SQL สำหรับ pymssql (%d สำหรับ int)
+        cursor.execute("SELECT Mode_Name FROM stl.Traffic_Mode WHERE Mode_ID = %d" % last_mode_id)
+        mode_result = cursor.fetchone()
+        
+        cnxn.close()
+
+        if mode_result:
+             # คืนค่า Mode_Name (เช่น 'Auto', 'Caution', 'Stop')
+             return mode_result[0]
+        else:
+             # print(f"DB Warning: Mode ID {last_mode_id} not found in Traffic_Mode. Defaulting to Auto.")
+             return "Auto"
+            
+    except Exception as e:
+        # print(f"Database read error (pymssql): {e}") 
+        return "Auto"
+
+# =========================================================================
+# GPIO Traffic Light Controller
+# =========================================================================
+
+class TrafficControllerGPIO:
+    def __init__(self):
+        # GPIO setup
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False) # ปิด RuntimeWarning
+        for light in GPIO_PINS.values():
+            for pin in light.values():
+                GPIO.setup(pin, GPIO.OUT)
+                
+        self.stop_threads = False  
+        self.db_status = "Not Checked" 
+        self.mode = fetch_current_mode_from_db()
+        self.pending_mode = None
+        
+        print(f"Initial mode: {self.mode}")
+        
+        # 🚀 Start Mode Check Thread
+        self.mode_thread = threading.Thread(target=self.check_mode_loop, daemon=True)
+        self.mode_thread.start()
+        
+        # 🚀 Start Main Cycle Thread
+        self.cycle_thread = threading.Thread(target=self.run_mode, daemon=True)
+        self.cycle_thread.start()
+
+
+    def cleanup(self):
+        """Clean up GPIO settings on program exit."""
+        self.stop_threads = True
+        # รอให้ threads หลักจบก่อน (แม้ว่าจะเป็น daemon thread ก็ตาม)
+        try:
+            self.mode_thread.join(timeout=1)
+            self.cycle_thread.join(timeout=1)
+        except Exception:
+             pass
+
+        GPIO.cleanup()
+        print("\nGPIO Cleaned up. Program exit.")
+
+    def set_lights(self, north_status, east_status, south_status, west_status):
+        """
+        Sets the status of all traffic lights using GPIO.
+        Statuses should be 'red', 'yellow', or 'green'.
+        """
+        status_map = {
+            'N': north_status,
+            'E': east_status,
+            'S': south_status,
+            'W': west_status
+        }
+        
+        # Turn off all lights
+        for pins in GPIO_PINS.values():
+            for pin in pins.values():
+                GPIO.output(pin, GPIO.LOW)
+
+        # Turn on the desired lights
+        for direction, status in status_map.items():
+            pins = GPIO_PINS[direction]
+            if status == 'red':
+                GPIO.output(pins['red'], GPIO.HIGH)
+            elif status == 'yellow':
+                GPIO.output(pins['yellow'], GPIO.HIGH)
+            elif status == 'green':
+                GPIO.output(pins['green'], GPIO.HIGH)
+    
+    # ----------------------------------------------
+    # MODE CHECKING (Runs in a separate thread)
+    # ----------------------------------------------
+    def check_mode_loop(self):
+        """Periodically checks the database for the current operating mode."""
+        while not self.stop_threads:
+            # 🌟 Check DB Status first
+            is_connected, status_msg = check_db_connection_status()
+            self.db_status = status_msg
+            
+            if not is_connected:
+                # If DB is down, remain in current mode, log error, and retry later
+                # print(f"🚨 DB Status: {status_msg}. Cannot check for new mode.")
+                time.sleep(5) 
+                continue 
+
+            # DB is connected, proceed to fetch mode
+            new_mode = fetch_current_mode_from_db()
+            
+            if new_mode != self.mode and new_mode in ['Auto', 'Caution', 'Stop']:
+                print(f"DB Mode changed from '{self.mode}' to '{new_mode}'")
+                
+                # หากเปลี่ยนจาก Auto ไปโหมดอื่น ให้เปลี่ยนโหมดทันทีหลังจบรอบเฟสปัจจุบัน
+                if self.mode == 'Auto':
+                    self.pending_mode = new_mode
+                    print(f"Pending mode change to: {self.pending_mode}. Waiting for phase end.")
+                else:
+                    # หากเปลี่ยนจาก Caution/Stop กลับไป Auto หรือเปลี่ยนระหว่าง Caution/Stop ให้เปลี่ยนทันที
+                    self.mode = new_mode
+                    self.pending_mode = None
+                    print(f"Immediate mode change to: {self.mode}")
+                    
+            time.sleep(3)
+    
+    # ----------------------------------------------
+    # MAIN CYCLE CONTROL (Runs in the main cycle thread)
+    # ----------------------------------------------
+    def run_mode(self):
+        """Executes the appropriate function based on the fetched mode."""
+        while not self.stop_threads:
+            current_mode = self.mode
+            
+            if current_mode == 'Auto':
+                self.auto_mode_cycle()
+            elif current_mode == 'Caution':
+                self.start_flashing_yellow()
+            elif current_mode == 'Stop':
+                self.start_flashing_red()
+            else:
+                # ถ้า Mode_Name ไม่ตรงกับที่กำหนด
+                self.set_lights('red', 'red', 'red', 'red')
+                time.sleep(1) 
+
+
+    def delay_with_mode_check(self, duration):
+        """A non-blocking delay that checks for pending mode change every 0.1s."""
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            if self.pending_mode:
+                self.mode = self.pending_mode
+                self.pending_mode = None
+                print(f"Mode switch during phase: Changing to: {self.mode}")
+                return True # Indicate that mode has changed and cycle should stop
+            time.sleep(0.1)
+        return False # Indicate that delay completed normally
+
+
+    def run_directional_phase(self, active_dir: str, duration_key: str, status: str):
+        """A generic function to run a single status (G/Y) for one direction."""
+        duration = CONFIG['traffic_light'][duration_key]
+        
+        # 1. Set Lights
+        n_status = status if active_dir == 'N' else 'red'
+        e_status = status if active_dir == 'E' else 'red'
+        s_status = status if active_dir == 'S' else 'red'
+        w_status = status if active_dir == 'W' else 'red'
+        
+        self.set_lights(n_status, e_status, s_status, w_status)
+        
+        print(f"Phase {active_dir} is {status} for {duration}s. Mode: {self.mode}. DB Status: {self.db_status}")
+        
+        # 2. Wait or Check for Mode Change during the delay
+        if self.delay_with_mode_check(duration):
+            return True # Mode changed
+
+        return False # Delay completed
+
+
+    def auto_mode_cycle(self):
+        """Runs the sequential 4-way traffic light cycle (N -> E -> S -> W)."""
+        all_red_duration = CONFIG['traffic_light']['all_red_duration']
+        
+        # Define the sequence of directions
+        sequence = ['N', 'E', 'S', 'W']
+
+        for direction in sequence:
+            if self.mode != 'Auto' or self.stop_threads: return
+            
+            # --- 1. GREEN Phase ---
+            if self.run_directional_phase(direction, 'green_duration', 'green'): return
+            
+            # --- 2. YELLOW Phase ---
+            if self.run_directional_phase(direction, 'yellow_duration', 'yellow'): return
+            
+            # --- 3. ALL RED (Safety Transition) ---
+            if self.mode == 'Auto':
+                self.set_lights('red', 'red', 'red', 'red')
+                print(f"All Red for {all_red_duration}s. DB Status: {self.db_status}")
+                time.sleep(all_red_duration)
+            else:
+                return # Mode changed during All Red delay (via threading/mode check)
+
+
+    def start_flashing_yellow(self):
+        """Flashes Yellow lights for all directions while the mode is 'Caution'."""
+        print(f"Entering Caution Mode (Flashing Yellow). DB Status: {self.db_status}")
+        while self.mode == 'Caution' and not self.stop_threads:
+            
+            # State ON (All Yellow)
+            self.set_lights('yellow', 'yellow', 'yellow', 'yellow')
+            time.sleep(0.5)
+            
+            if self.mode != 'Caution': break # Check mode change
+            
+            # State OFF (All lights low / Blackout)
+            # 💡 ใช้สถานะที่ไม่ตรงกัน ('off') เพื่อให้ set_lights ปิดไฟทุกดวง
+            self.set_lights('off', 'off', 'off', 'off') 
+            time.sleep(0.5)
+
+    def start_flashing_red(self):
+        """Flashes Red lights for all directions while the mode is 'Stop'."""
+        print(f"Entering Stop Mode (Flashing Red). DB Status: {self.db_status}")
+        while self.mode == 'Stop' and not self.stop_threads:
+            
+            # State ON (All Red)
+            self.set_lights('red', 'red', 'red', 'red') # This ensures red is on
+            time.sleep(0.5)
+            
+            if self.mode != 'Stop': break # Check mode change
+            
+            # State OFF (All lights low / Blackout)
+            # 💡 ใช้สถานะที่ไม่ตรงกัน ('off') เพื่อให้ set_lights ปิดไฟทุกดวง
+            self.set_lights('off', 'off', 'off', 'off')
+            time.sleep(0.5)
+
+# =========================================================================
+# Main Execution Block
+# =========================================================================
+
+if __name__ == "__main__":
+    controller = TrafficControllerGPIO()
+    try:
+        # Main thread simply waits for Ctrl+C
+        while True:
+            time.sleep(1) 
+    except KeyboardInterrupt:
+        controller.cleanup()
+        sys.exit(0)

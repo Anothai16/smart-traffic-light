@@ -16,6 +16,6 @@ gui:
 database:
   driver: "{ODBC Driver 17 for SQL Server}"
   server: "DESKTOP-QDN7QAS"
-  name: "Smart_Traffic_Light"
+  name: "Smart_Traffic_Light2"
   uid: "admin"
   pwd: "1234"

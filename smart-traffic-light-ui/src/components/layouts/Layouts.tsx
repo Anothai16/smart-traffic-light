@@ -12,7 +12,10 @@ import {
 import useAuth from '@/utils/hooks/useAuth'
 import useDirection from '@/utils/hooks/useDirection'
 import useLocale from '@/utils/hooks/useLocale'
-import useOnlineStatus from '../../hooks/useOnlineStatus';
+
+// 🔑 NEW: นำเข้า GlobalSocketListener
+
+
 const layouts = {
     [LAYOUT_TYPE_CLASSIC]: lazy(() => import('./ClassicLayout')),
     [LAYOUT_TYPE_MODERN]: lazy(() => import('./ModernLayout')),
@@ -30,7 +33,8 @@ const Layout = () => {
     useDirection()
 
     useLocale()
-    useOnlineStatus();
+
+    
     const AppLayout = useMemo(() => {
         if (authenticated) {
             return layouts[layoutType]
@@ -46,6 +50,9 @@ const Layout = () => {
                 </div>
             }
         >
+            {/* 🔑 FIX: วาง GlobalSocketListener ไว้ที่นี่ */}
+            {/* มันจะทำงานอยู่เสมอเมื่อ authenticated เป็น true หรือเมื่อ AppLayout เป็น Layout ที่ใช้งานอยู่ */}
+            
             <AppLayout />
         </Suspense>
     )

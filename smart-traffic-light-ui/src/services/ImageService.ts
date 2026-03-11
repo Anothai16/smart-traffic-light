@@ -1,52 +1,63 @@
-// src/services/ImageService.ts (UPDATED FOR LANE PARAMETER)
+// src/services/ImageService.ts
 
-import ApiService from './ApiService';
-import type { AxiosResponse } from 'axios';
+import ApiService from './ApiService'
 
-// 1. Interface สำหรับ Object รูปภาพที่คาดหวังจาก API
 export interface ImageObject {
-    id: string; // ID ของรูปภาพ
-    url: string; // URL สาธารณะสำหรับแสดงรูปภาพ
-    title: string; // ชื่อไฟล์หรือคำบรรยาย
-    timestamp: string; // วันที่/เวลาของรูปภาพ
-    lane: string; // ✅ เพิ่ม: Lane ที่รูปภาพนี้มาจาก
+    id: string
+    url: string
+    title: string
+    timestamp: string
+    lane: string
 }
 
-// 2. Interface สำหรับ Response เมื่อดึงรายการวันที่ที่มีรูปภาพ
-interface DateListApiResponse {
-    dates: string[]; // เช่น ['2025-02-06', '2025-02-07', ...]
+export interface LogRecord {
+    key: string
+    date: string
+    time: string
 }
 
-// 3. ฟังก์ชัน API สำหรับดึงรายการวันที่/Folder ที่มีรูปภาพ
-/**
- * ดึงรายการวันที่ (Folder) ที่มีรูปภาพอยู่ 
- * @param laneName ชื่อ Lane ที่เลือก (เช่น 'Lane 1 (PC-A)') 
- * @returns {Promise<string[]>} Array ของวันที่ในรูปแบบ 'YYYY-MM-DD'
- */
-export async function apiGetAvailableImageDates(laneName: string): Promise<string[]> { // 🔴 FIX 1: เพิ่ม laneName: string 
-    const response = await ApiService.fetchData<DateListApiResponse>({
-        // 🔴 FIX 2: ส่ง laneName ไปใน Query Parameter
-        url: `/image-log/dates?lane=${encodeURIComponent(laneName)}`, 
-        method: 'get', 
-    });
-    return response.data.dates;
+export interface IntersectionData {
+    Intersection_ID: number
+    Name: string
+    IP_Address?: string
+    Location?: string
 }
 
-// 4. ฟังก์ชัน API สำหรับดึงรูปภาพทั้งหมดตามวันที่และ Lane ที่เลือก
-/**
- * ดึงรายการรูปภาพทั้งหมดสำหรับวันที่และ Lane ที่ระบุ
- * @param dateString วันที่ที่เลือกในรูปแบบ 'YYYY-MM-DD'
- * @param laneName ชื่อ Lane ที่เลือก (เช่น 'Lane 1 (PC-A)')
- * @returns {Promise<ImageObject[]>} Array ของ Object รูปภาพพร้อม URL
- */
-export async function apiGetImagesByDateAndLane(dateString: string, laneName: string) { // 🔴 อัปเดตชื่อฟังก์ชันและรับ laneName
+export async function apiGetLogRecords(
+    laneName: string = 'Lane_1',
+): Promise<LogRecord[]> {
+    const response = await ApiService.fetchData<LogRecord[]>({
+        url: `/image-log/records?lane=${encodeURIComponent(laneName)}`,
+        method: 'get',
+    })
+    return response.data
+}
+
+export async function apiGetImagesByDateAndLane(
+    date: string,
+    lane: string,
+): Promise<ImageObject[]> {
     const response = await ApiService.fetchData<ImageObject[]>({
-        // 🔴 แก้ไข URL: ส่ง date และ lane เป็น Query Parameter
-        url: `/image-log/images?date=${dateString}&lane=${encodeURIComponent(laneName)}`, 
-        method: 'get', 
-    });
-    return response.data;
+        url: `/image-log/images?date=${date}&lane=${encodeURIComponent(lane)}`,
+        method: 'get',
+    })
+    return response.data
 }
 
-// 🔴 Export ฟังก์ชันใหม่เพื่อใช้ใน Component
-export { apiGetImagesByDateAndLane as apiGetImagesByDate };
+export async function apiGetIntersectionData(): Promise<IntersectionData[]> {
+    const response = await ApiService.fetchData<IntersectionData[]>({
+        url: 'master/intersection',
+        method: 'get',
+    })
+
+    return response.data
+}
+
+// ✅ เพิ่มฟังก์ชันลบไฟล์
+export async function apiDeleteLogRecord(filename: string, lane: string): Promise<any> {
+    return ApiService.fetchData({
+        url: '/image-log/delete',
+        method: 'delete',
+        data: { filename, lane } // ส่ง Body ไป
+    })
+}

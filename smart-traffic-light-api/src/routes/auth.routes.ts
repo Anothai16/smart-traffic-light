@@ -87,4 +87,39 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
             console.log('❌ Unauthorized: Token verification failed.');
             return { message: 'Token verification failed.' };
         }
+    })
+
+    .get('/me', async ({ jwt, set, headers }) => {
+        const authHeader = headers['authorization'];
+        
+        if (!authHeader) {
+            set.status = 401;
+            return { message: 'Unauthorized' };
+        }
+
+        const token = authHeader.split(' ')[1];
+        
+        try {
+            // ตรวจสอบความถูกต้องและวันหมดอายุของ Token
+            const payload = await jwt.verify(token);
+            
+            if (!payload) {
+                set.status = 401; // สำคัญ: ต้องส่ง 401 เพื่อให้ Frontend รู้ว่าต้องเด้งออก
+                return { message: 'Token expired' };
+            }
+
+            // ถ้า Token ยังไม่หมดอายุ ส่งข้อมูล User กลับไป
+            return { 
+                success: true, 
+                user: {
+                    userId: payload.userId,
+                    email: payload.email,
+                    authority: payload.authority
+                }
+            };
+
+        } catch (error) {
+            set.status = 401;
+            return { message: 'Token verification failed' };
+        }
     });

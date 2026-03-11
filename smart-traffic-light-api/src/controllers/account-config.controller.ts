@@ -61,7 +61,7 @@ export const AccountConfigController = {
         try {
             const rowsAffected = await AccountConfigService.deleteAccounts(accountIds);
             return {
-                message: `${rowsAffected[0]} accounts deleted successfully!`,
+                message: `${rowsAffected} accounts deleted successfully!`,
             };
         } catch (error: any) {
             throw new Error(error.message);

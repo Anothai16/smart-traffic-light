@@ -1,15 +1,19 @@
+// src/store/slices/sessionSlice.ts
+
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { SLICE_BASE_NAME } from './constants'
-import { socket } from '@/services/socket'
 
 export interface SessionState {
     signedIn: boolean
     token: string | null
 }
 
+// ✅ แก้ไข 1: ดึง Token จาก LocalStorage มาเป็นค่าเริ่มต้น
+const storedToken = localStorage.getItem('token'); 
+
 const initialState: SessionState = {
-    signedIn: false,
-    token: null,
+    signedIn: !!storedToken, // ถ้ามี token ให้ถือว่า login แล้ว
+    token: storedToken,      // ใส่ token ที่เก็บไว้ลงไป
 }
 
 const sessionSlice = createSlice({
@@ -19,14 +23,14 @@ const sessionSlice = createSlice({
         signInSuccess(state, action: PayloadAction<string>) {
             state.signedIn = true
             state.token = action.payload
-            // เชื่อมต่อกับ Socket.IO เมื่อล็อกอินสำเร็จ
-            socket.connect()
+            // ✅ แก้ไข 2: บันทึกลง LocalStorage เมื่อ Login สำเร็จ
+            localStorage.setItem('token', action.payload); 
         },
         signOutSuccess(state) {
             state.signedIn = false
             state.token = null
-            // ตัดการเชื่อมต่อกับ Socket.IO เมื่อล็อกเอาท์
-            socket.disconnect()
+            // ✅ แก้ไข 3: ลบออกจาก LocalStorage เมื่อ Logout
+            localStorage.removeItem('token');
         },
     },
 })

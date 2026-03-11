@@ -1,156 +1,153 @@
-// src/services/image-log.service.ts (FINAL FIX: URL ENCODING)
-
+// src/services/image-log.service.ts
+ 
 import * as fs from 'fs';
 import * as path from 'path';
-
-// 🔴 1. ดึง Configuration จาก process.env โดยตรง
-const IMAGE_ROOT_PATH = process.env.IMAGE_ROOT_PATH || 'C:\\\\TrafficData'; 
+import { getDbPool } from '../config/db.config';
+import { RowDataPacket } from 'mysql2';
+ 
+const IMAGE_ROOT_PATH = process.env.IMAGE_ROOT_PATH || 'traffic_data';
 const STATIC_PREFIX = process.env.STATIC_PREFIX || '/static/traffic-images';
-const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL || 'http://localhost:8091';
-
-// 🔴 2. สร้าง LANE_CONFIG ใน Service
+const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL ?? 'http://localhost:3000';
+ 
 const LANE_CONFIG: { [laneName: string]: string } = {
-    [process.env.LANE_1_NAME || 'Lane 1 (PC-A)']: path.join(IMAGE_ROOT_PATH, process.env.LANE_1_FOLDER || 'Lane 1 (PC-A)'),
-    [process.env.LANE_2_NAME || 'Lane 2 (PC-B)']: path.join(IMAGE_ROOT_PATH, process.env.LANE_2_FOLDER || 'Lane 2 (PC-B)'),
-    [process.env.LANE_3_NAME || 'Lane 3 (PC-C)']: path.join(IMAGE_ROOT_PATH, process.env.LANE_3_FOLDER || 'Lane 3 (PC-C)'),
-    [process.env.LANE_4_NAME || 'Lane 4 (PC-D)']: path.join(IMAGE_ROOT_PATH, process.env.LANE_4_FOLDER || 'Lane 4 (PC-D)'),
+    'Lane_1': path.join(IMAGE_ROOT_PATH, 'Lane_1'),
+    'Lane_2': path.join(IMAGE_ROOT_PATH, 'Lane_2'),
+    'Lane_3': path.join(IMAGE_ROOT_PATH, 'Lane_3'),
+    'Lane_4': path.join(IMAGE_ROOT_PATH, 'Lane_4'),
 };
-
-// 🔴 สร้าง Base URL ล่วงหน้า
-const BASE_URL = `${BACKEND_BASE_URL}${STATIC_PREFIX}/`; 
-
-// Helper Functions
-const getAvailableLanes = (): string[] => {
-    return Object.keys(LANE_CONFIG);
-};
-
-const getLanePath = (laneName: string): string | undefined => {
-    return LANE_CONFIG[laneName];
-};
-
+ 
 export interface ImageObject {
     id: string;
-    url: string; 
+    url: string;
     title: string;
-    timestamp: string; 
+    timestamp: string;
     lane: string;
 }
-
+ 
+export interface LogRecord {
+    key: string;
+    date: string;
+    time: string;
+}
+ 
 export const ImageLogService = {
-    
-    /**
-     * สแกนหา Folder วันที่ทั้งหมดที่มีรูปภาพอยู่ใน Lane ที่กำหนด
-     * @param laneName ชื่อ Lane ที่จะทำการสแกน
-     * @returns {string[]} Array ของวันที่
-     */
-    scanAvailableDates: (laneName: string): string[] => { // 🔴 FIX: รับ laneName
-        // 1. หา Path Root ของ Lane นั้นๆ
-        const lanePath = LANE_CONFIG[laneName]; // 💡 ใช้ laneName ในการหา Path
-        if (!lanePath || !fs.existsSync(lanePath)) {
-            console.warn(`[ImageLog] Lane path not found or configured for: ${laneName}`);
-            return [];
-        }
-
-        // 2. สแกนหา Folder (วันที่) ภายใน lanePath
+    getLogRecordsFromFiles: async (laneName: string): Promise<LogRecord[]> => {
         try {
-            const folders = fs.readdirSync(lanePath, { withFileTypes: true })
-                .filter(dirent => dirent.isDirectory())
-                .map(dirent => dirent.name)
-                .filter(name => /^\d{4}-\d{2}-\d{2}$/.test(name)); 
-            
-            console.log(`[ImageLog] Found available dates for ${laneName}: ${folders.join(', ')}`);
-            return folders;
-
+            const pool = await getDbPool();
+ 
+            // ใช้ GROUP BY เพื่อไม่ให้เวลามันซ้ำกันในตารางแสดงผล
+            const query = `
+                SELECT Picture_Path, DATE_FORMAT(Date, '%Y-%m-%d') as DateStr, Time
+                FROM Traffic_Log
+                WHERE Picture_Path IS NOT NULL
+                  AND Picture_Path LIKE ?
+                GROUP BY DateStr, Time, Picture_Path
+                ORDER BY Date DESC, Time DESC
+            `;
+           
+            const [rows] = await pool.query<RowDataPacket[]>(query, [`%${laneName}%`]);
+ 
+            const records: LogRecord[] = rows.map((row) => ({
+                key: row.Picture_Path,
+                date: row.DateStr,
+                time: row.Time
+            }));
+ 
+            return records;
         } catch (error) {
-            console.error(`[ImageLog] ❌ ERROR during date folder scan for ${lanePath}:`, error);
+            console.error('❌ Error fetching log records from database:', error);
             return [];
         }
     },
-
-     /**
-     * ดึงรายการรูปภาพทั้งหมดสำหรับวันที่และ Lane ที่ระบุ
-     */
+ 
     async getImagesByDateAndLane(date: string, laneName: string): Promise<ImageObject[]> {
-        const lanePath = LANE_CONFIG[laneName];
-
-        if (!lanePath) {
-            console.error(`[ImageLog] Lane configuration not found for: ${laneName}`);
-            return [];
-        }
-
-        const datePath = path.join(lanePath, date);
-        const BASE_URL = `${BACKEND_BASE_URL}${STATIC_PREFIX}/`;
-
-        console.log(`[ImageLog] Root Path (from .env): ${IMAGE_ROOT_PATH}`);
-        console.log(`[ImageLog] Target Date Path (System): ${datePath}`);
-
-        if (!fs.existsSync(datePath)) {
-            console.warn(`[ImageLog] Image directory not found for date: ${datePath}`);
-            return [];
-        }
-        
         try {
-            const fileNames = fs.readdirSync(datePath);
-            const allImages: ImageObject[] = [];
-
-            const filteredFiles = fileNames.filter(name => name.match(/(\.jpg|\.jpeg|\.png|\.gif|\.webp|\.svg)$/i));
-            console.log(`[ImageLog] Found ${filteredFiles.length} image files in: ${datePath}`);
-
-            // 🛠️ FIX 1: ใช้ String Manipulation ที่เสถียรที่สุดแทน Regex
-            // 1. Normalize Root Path (C:/TrafficData หรือ C:\TrafficData) ให้เป็น Forward Slash และลงท้ายด้วย /
-            const normalizedRootPath = IMAGE_ROOT_PATH.replace(/\\/g, '/').replace(/\/$/, '') + '/';
-
-            filteredFiles.forEach(fileName => {
-                const fullPath = path.join(datePath, fileName);
-                
-                // 2. Normalize Full Path (C:\TrafficData\...) ให้เป็น Forward Slash ทั้งหมด
-                const normalizedFullPath = fullPath.replace(/\\/g, '/');
-                
-                let relativeUrlPath = '';
-
-                // 3. ตัด Root Path ออกด้วย String Manipulation
-                if (normalizedFullPath.startsWith(normalizedRootPath)) {
-                    relativeUrlPath = normalizedFullPath.substring(normalizedRootPath.length);
-                }
-                
-                // 🔴 LOG CHECK: เพิ่ม Log เพื่อยืนยันการตัด Path
-                console.log(`[ImageLog Check] Normalized Root: ${normalizedRootPath}`);
-                console.log(`[ImageLog Check] Normalized Full: ${normalizedFullPath}`);
-                
-                // 🔴 Check: ถ้าการแทนที่ล้มเหลว (Path ไม่สั้นลง)
-                if (relativeUrlPath === '' || normalizedFullPath === relativeUrlPath) {
-                    console.error(`[ImageLog] 🚨 CRITICAL ERROR: Failed to remove Root Path. Full Path: ${fullPath}`);
-                    console.error(`[ImageLog] 💡 Hint: Check Root Path (from .env) vs Actual Path structure.`);
-                    return; // ข้ามไฟล์นี้
-                }
-                
-                // 4. URL Encode Path เพื่อจัดการ Space และ ()
-                const encodedRelativePath = encodeURIComponent(relativeUrlPath)
-                    // 💡 ต้องเปลี่ยน %2F (จากการเข้ารหัส /) กลับเป็น /
-                    .replace(/%2F/g, '/'); 
-
-                const imageUrl = `${BACKEND_BASE_URL}${STATIC_PREFIX}/${encodedRelativePath}`; 
-
-                if (allImages.length === 0) {
-                    console.log(`[ImageLog] Example Relative Path (Un-encoded): ${relativeUrlPath}`);
-                    console.log(`[ImageLog] Example Encoded Path: ${encodedRelativePath}`);
-                    console.log(`[ImageLog] Example Final URL: ${imageUrl}`);
-                }
-
-                allImages.push({
-                    id: `${date}-${laneName}-${path.basename(fileName, path.extname(fileName))}`,
-                    url: imageUrl, 
+            const pool = await getDbPool();
+ 
+            // ✅ เพิ่มการ JOIN กับ Master_Intersection เพื่อดึงชื่อแยก (m.Name)
+            const query = `
+                SELECT
+                    t.Picture_Path,
+                    DATE_FORMAT(t.Date, '%Y-%m-%d') as DateStr,
+                    t.Time,
+                    m.Name as IntersectionName
+                FROM Traffic_Log t
+                LEFT JOIN Master_Intersection m ON t.Intersection_ID = m.Intersection_ID
+                WHERE t.Date = ?
+                  AND t.Picture_Path IS NOT NULL
+                  AND t.Picture_Path LIKE ?
+                ORDER BY t.Time DESC
+            `;
+           
+            const [rows] = await pool.query<RowDataPacket[]>(query, [date, `%${laneName}%`]);
+ 
+            const allImages: ImageObject[] = rows.map((row) => {
+                const fileName = row.Picture_Path;
+                const imageUrl = `${BACKEND_BASE_URL}${STATIC_PREFIX}/${laneName}/${date}/${encodeURIComponent(fileName)}`;
+ 
+                return {
+                    id: `${date}-${laneName}-${fileName}`,
+                    url: imageUrl,
                     title: fileName,
-                    timestamp: date,
-                    lane: laneName, 
-                });
+                    timestamp: `${row.DateStr} ${row.Time}`,
+                    // ✅ ส่งชื่อภาษาไทยกลับไปให้ Frontend แสดงผลแทนคำว่า Loading...
+                    lane: row.IntersectionName || laneName,
+                };
             });
-
-            return allImages.sort((a, b) => a.title.localeCompare(b.title));
-
+ 
+            return allImages;
         } catch (error) {
-            console.error(`[ImageLog] ❌ CRITICAL ERROR during file reading for ${datePath}:`, error);
+            console.error('❌ Error fetching images from database:', error);
             return [];
         }
+    },
+ 
+    // ✅ ปรับเปลี่ยน: ให้ลบทั้ง 4 เลน และลบใน Database จาก Date + Time แทนแค่ชื่อไฟล์เดียว
+    deleteLogRecord: async (filename: string, laneName: string) => {
+        // คาดหวังรูปแบบชื่อไฟล์: 2026-03-05_21-44-49_Lane_1.jpg
+        const match = filename.match(/^(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})_/);
+        if (!match) throw new Error('Invalid Filename Format');
+       
+        const dateFolder = match[1]; // "2026-03-05"
+        const timePrefix = match[2]; // "21-44-49"
+ 
+        const timeForDB = timePrefix.replace(/-/g, ':'); // แปลงกลับเป็น 21:44:49 สำหรับเช็คใน DB
+ 
+        console.log(`🗑️ Attempting to delete event at Date: ${dateFolder}, Time: ${timeForDB}`);
+ 
+        // 1. วนลบไฟล์จริงออกจากฮาร์ดดิสก์ ทั้ง 4 โฟลเดอร์ Lane_1 ถึง Lane_4
+        Object.keys(LANE_CONFIG).forEach(laneKey => {
+            const lanePath = LANE_CONFIG[laneKey];
+            if (lanePath) {
+                // สร้างชื่อไฟล์ตาม Pattern เช่น 2026-03-05_21-44-49_Lane_X.jpg
+                const fileToDelete = `${dateFolder}_${timePrefix}_${laneKey}.jpg`;
+                const fullFilePath = path.join(lanePath, dateFolder, fileToDelete);
+               
+                if (fs.existsSync(fullFilePath)) {
+                    try {
+                        fs.unlinkSync(fullFilePath);
+                        console.log(`✅ Deleted file: ${fullFilePath}`);
+                    } catch (err) {
+                        console.error(`⚠️ Failed to delete file: ${fullFilePath}`, err);
+                    }
+                }
+            }
+        });
+ 
+        // 2. เคลียร์ข้อมูลใน Database ทุก Record ที่มี Date และ Time ตรงกัน
+        try {
+            const pool = await getDbPool();
+            // อัปเดต Picture_Path ให้เป็น NULL ทุกแถวที่ตรงกับเงื่อนไข
+            const result = await pool.query(
+                `UPDATE Traffic_Log SET Picture_Path = NULL WHERE Date = ? AND Time = ?`,
+                [dateFolder, timeForDB]
+            );
+            console.log(`✅ Cleared Picture_Path in database for event ${dateFolder} ${timeForDB}`);
+        } catch (dbError) {
+            console.error('❌ Failed to clear Picture_Path in database:', dbError);
+            throw new Error('Database update failed');
+        }
+ 
+        return { success: true, message: 'Event (all lanes) deleted successfully' };
     }
 };

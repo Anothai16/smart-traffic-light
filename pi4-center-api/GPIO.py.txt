@@ -31,7 +31,7 @@ import time
              },
              'database': {
                  'driver': "{ODBC Driver 17 for SQL Server}",
-                 'server': "DESKTOP-QDN7QAS",
+                 'server': "192.168.1.100",
                  'name': "Smart_Traffic_Light",
                  'uid': "admin",
                  'pwd': "1234"

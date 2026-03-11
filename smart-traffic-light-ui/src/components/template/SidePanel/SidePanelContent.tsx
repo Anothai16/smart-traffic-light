@@ -1,87 +1,136 @@
-import React, { useEffect, useState } from 'react'
-import { useAppSelector } from '@/store'
-import { socket } from '@/services/socket'
-import { HiOutlineRefresh } from 'react-icons/hi'
+// SidePanelContent.tsx
+import React, { useState } from 'react';
+import { Button, Space, Typography, message } from 'antd';
+import { CaretRightOutlined, ControlOutlined, StopOutlined } from '@ant-design/icons';
+// ✅ นำเข้า apiStopPiController เพิ่มเข้ามา
+import { apiStartVideo, apiStopVideo, apiStartPiController, apiStopPiController } from "../../../services/SystemControlService";
 
 export type SidePanelContentProps = {
-    callBackClose: () => void
-}
+    callBackClose: () => void;
+};
 
 const SidePanelContent = (props: SidePanelContentProps) => {
-    // ดึงข้อมูลผู้ใช้ปัจจุบัน (currentUser) จาก Redux store
-    const currentUser = useAppSelector((state) => state.auth.user)
-    const [onlineUsers, setOnlineUsers] = useState<any[]>([])
+    const [isLoadingStart, setIsLoadingStart] = useState(false);
+    const [isLoadingStop, setIsLoadingStop] = useState(false);
+    const [isLoadingPi, setIsLoadingPi] = useState(false); 
+    // ✅ เพิ่ม State สำหรับปุ่ม Stop PI
+    const [isLoadingStopPi, setIsLoadingStopPi] = useState(false); 
 
-    useEffect(() => {
-        // ดักฟัง event 'update_online_users' ที่ถูกส่งมาจาก Server
-        socket.on('update_online_users', (users) => {
-            setOnlineUsers(users)
-        })
-
-        // Cleanup function: ยกเลิกการดักฟัง event เมื่อ Component ถูก Unmount
-        return () => {
-            socket.off('update_online_users')
+    // --- Actions ---
+    const handlePlayVideo = async () => {
+        setIsLoadingStart(true);
+        try {
+            const response = await apiStartVideo();
+            message.success(response.message || 'ส่งคำสั่งเปิดระบบเรียบร้อยแล้ว');
+        } catch (error) {
+            console.error(error);
+            message.error('เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อกับ Server ได้');
+        } finally {
+            setIsLoadingStart(false);
         }
-    }, [])
+    };
 
-    const handleRefresh = () => {
-        socket.emit('request_online_users')
-    }
+    const handleStopVideo = async () => {
+        setIsLoadingStop(true);
+        try {
+            const response = await apiStopVideo();
+            message.success(response.message || 'ส่งคำสั่งหยุดระบบเรียบร้อยแล้ว');
+        } catch (error) {
+            console.error(error);
+            message.error('เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อกับ Server ได้');
+        } finally {
+            setIsLoadingStop(false);
+        }
+    };
 
-    // กรองบัญชีที่ล็อกอินอยู่ออกไปจากรายการ
-    const otherOnlineUsers = onlineUsers.filter(
-        (user) => user.socketId !== socket.id
-    )
+    const handlePiController = async () => {
+        setIsLoadingPi(true);
+        try {
+            const response = await apiStartPiController();
+            message.success(response.message || 'ส่งคำสั่งเริ่ม PI Controller เรียบร้อยแล้ว');
+        } catch (error) {
+            console.error(error);
+            message.error('เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อกับ Server ได้');
+        } finally {
+            setIsLoadingPi(false);
+        }
+    };
+
+    // ✅ เพิ่มฟังก์ชันสำหรับหยุด PI Controller
+    const handleStopPiController = async () => {
+        setIsLoadingStopPi(true);
+        try {
+            const response = await apiStopPiController();
+            message.success(response.message || 'ส่งคำสั่งหยุด PI Controller เรียบร้อยแล้ว');
+        } catch (error) {
+            console.error(error);
+            message.error('เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อกับ Server ได้');
+        } finally {
+            setIsLoadingStopPi(false);
+        }
+    };
 
     return (
-        <div className="p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">
-                    Online Users ({onlineUsers.length})
-                </h3>
-                <button
-                    onClick={handleRefresh}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-                >
-                    <HiOutlineRefresh className="text-base" />
-                    <span>Refresh</span>
-                </button>
-            </div>
-            <div className="flex flex-col gap-4">
-                {currentUser.firstName && (
-                    <div className="flex items-center gap-2 border-b pb-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                            {currentUser.firstName.charAt(0)}
-                        </div>
-                        <div>
-                            <p className="font-bold text-gray-900">
-                                {currentUser.firstName}
-                            </p>
-                            <p className="text-sm text-gray-500">You</p>
-                        </div>
-                    </div>
-                )}
-                <ul className="space-y-4">
-                    {otherOnlineUsers.map((user) => (
-                        <li key={user.socketId} className="flex items-center gap-2">
-                            <div className="relative">
-                                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold">
-                                    {user.firstName?.charAt(0)}
-                                </div>
-                                <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white bg-green-400"></span>
-                            </div>
-                            <div>
-                                <p className="font-medium text-gray-900">
-                                    {user.firstName}
-                                </p>
-                                <p className="text-sm text-gray-500">Online</p>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+        <div className="h-full w-full p-4">
+            <div className="flex flex-col items-center pt-4">
+                <Typography.Text strong className="mb-4 text-gray-500 uppercase tracking-widest text-xs">
+                    System Control
+                </Typography.Text>
+
+                <Space direction="vertical" size="middle" style={{ width: '100%' }} className="items-center">
+                    
+                    {/* ปุ่มที่ 1: Play Video */}
+                    <Button 
+                        type="primary" 
+                        icon={<CaretRightOutlined />} 
+                        size="large"
+                        onClick={handlePlayVideo}
+                        loading={isLoadingStart}
+                        className="w-48 flex items-center justify-center"
+                    >
+                        Play Video
+                    </Button>
+
+                    {/* ปุ่มที่ 2: Stop Video */}
+                    <Button 
+                        type="primary" 
+                        danger 
+                        icon={<StopOutlined />} 
+                        size="large"
+                        onClick={handleStopVideo}
+                        loading={isLoadingStop}
+                        className="w-48 flex items-center justify-center"
+                    >
+                        Stop Video
+                    </Button>
+
+                    {/* ปุ่มที่ 3: PI Controller */}
+                    <Button 
+                        icon={<ControlOutlined />} 
+                        size="large"
+                        onClick={handlePiController}
+                        loading={isLoadingPi}
+                        className="w-48 flex items-center justify-center"
+                    >
+                        PI Controller
+                    </Button>
+
+                    {/* ✅ ปุ่มที่ 4: Stop Controller */}
+                    <Button 
+                        danger // ทำให้เป็นสีแดง
+                        icon={<StopOutlined />} 
+                        size="large"
+                        onClick={handleStopPiController}
+                        loading={isLoadingStopPi}
+                        className="w-48 flex items-center justify-center"
+                    >
+                        Stop Controller
+                    </Button>
+
+                </Space>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default SidePanelContent
+export default SidePanelContent;

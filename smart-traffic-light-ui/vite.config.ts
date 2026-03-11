@@ -1,16 +1,15 @@
-// vite.config.ts (Corrected)
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import dynamicImport from 'vite-plugin-dynamic-import'
 
+
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+
 export default defineConfig({
   plugins: [react({
     babel: {
-      plugins: [
-        'babel-plugin-macros'
-      ]
+      plugins: ['babel-plugin-macros']
     }
   }),
   dynamicImport()],
@@ -23,15 +22,36 @@ export default defineConfig({
   build: {
     outDir: 'build'
   },
-  // --- Add this block ---
   server: {
+    allowedHosts: true,
+    host: true, 
+    port: 5173,
+    watch: {
+      usePolling: true
+    },
+    hmr: {
+      clientPort: 443 // บังคับให้ระบบ Hot Reload วิ่งผ่าน HTTPS ของ Cloudflare
+    },
     proxy: {
-      '/api': {
-        target: 'http://localhost:8091', // <-- Make sure this is your backend's URL and port
+      // ✅ 1. Socket.io (ใช้ตัวแปร backendUrl)
+      '/socket.io': {
+        target: backendUrl,
+        ws: true,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+
+      // ✅ 2. รูปภาพ (ใช้ตัวแปร backendUrl)
+      '/static': {
+        target: backendUrl,
+        changeOrigin: true,
+      },
+
+      // ✅ 3. API หลัก (ใช้ตัวแปร backendUrl)
+      '/api': {
+        target: backendUrl,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''), 
       },
     },
-    host: true,
   },
 });
