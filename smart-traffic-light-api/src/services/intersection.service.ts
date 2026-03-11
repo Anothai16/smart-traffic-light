@@ -5,7 +5,6 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 export interface Intersection {
     Intersection_ID?: number;
     Name: string;
-    Intersection_Number: number;
     IP_Address: string;
     Location: string;
     Lane_Sequence: number;
@@ -51,9 +50,9 @@ export const IntersectionService = {
     async create(data: Intersection): Promise<number> {
         const pool = await getDbPool();
         const [result] = await pool.execute<ResultSetHeader>(
-            `INSERT INTO Master_Intersection (Name, Intersection_Number, IP_Address, Location, Lane_Sequence, Status, Create_Date, Update_Date)
-             VALUES (?, ?, ?, ?, ?, 'Offline', NOW(), NOW())`, 
-            [data.Name, data.Intersection_Number, data.IP_Address, data.Location, data.Lane_Sequence ?? null]
+            `INSERT INTO Master_Intersection (Name, IP_Address, Location, Lane_Sequence, Status, Create_Date, Update_Date)
+             VALUES (?, ?, ?, ?, 'Offline', NOW(), NOW())`, 
+            [data.Name, data.IP_Address, data.Location, data.Lane_Sequence ?? null]
         );
         return result.insertId;
     },
@@ -63,9 +62,9 @@ export const IntersectionService = {
         const pool = await getDbPool();
         await pool.execute(
             `UPDATE Master_Intersection 
-             SET Name = ?, Intersection_Number = ?, IP_Address = ?, Location = ?, Lane_Sequence = ?, Update_Date = NOW()
+             SET Name = ?, IP_Address = ?, Location = ?, Lane_Sequence = ?, Update_Date = NOW()
              WHERE Intersection_ID = ?`, 
-            [data.Name, data.Intersection_Number, data.IP_Address, data.Location, data.Lane_Sequence ?? null, id]
+            [data.Name, data.IP_Address, data.Location, data.Lane_Sequence ?? null, id]
         );
     },
 
