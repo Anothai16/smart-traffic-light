@@ -7,7 +7,6 @@ import { accountConfigRoutes } from './routes/account-config.routes';
 import { trafficRoutes } from './routes/traffic.routes';
 import { settingHistoryRoutes } from './routes/settingHistory.routes';
 import { imageLogRoutes } from './routes/image-log.routes'; 
-import { permissionRoutes } from './routes/permission.routes'; 
 import { intersectionRoutes } from './routes/intersection.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
 import { imageViolationRoutes } from './routes/image-violation.routers';
@@ -21,7 +20,6 @@ export const appRoutes = new Elysia()
     .use(settingHistoryRoutes)
     .use(imageLogRoutes)
     .use(imageViolationRoutes)
-    .use(permissionRoutes) 
     .use(intersectionRoutes)
     .use(dashboardRoutes)
     .use(systemRoutes)
