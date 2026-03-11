@@ -57,7 +57,6 @@ export const TestCleanupService = {
         // --- 2. อัปเดต Database ให้ Picture_Path เป็น NULL ตามวันและเวลาที่กำหนด ---
         try {
             const pool = await getDbPool();
-            // 🟢 เคลียร์ค่า Picture_Path ให้เป็น NULL โดยเช็คทั้ง Date และ Time
             const [result] = await pool.execute(`
                 UPDATE Traffic_Log 
                 SET Picture_Path = NULL 

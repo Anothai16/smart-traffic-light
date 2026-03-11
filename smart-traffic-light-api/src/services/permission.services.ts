@@ -21,7 +21,6 @@ const STATIC_MENU_ITEMS = [
     { key: 'dashboard_view', title: 'Dashboard' },
     { key: 'traffic_manage', title: 'Traffic Management' },
     { key: 'account_config', title: 'Account Configuration' },
-    // ... เพิ่มเมนูอื่นๆ ตามต้องการ
 ];
 
 export interface PermissionConfigData {
@@ -45,7 +44,6 @@ export const PermissionService = {
     
     async updateRolePermissions(roleName: string, changes: any): Promise<void> {
         console.warn('Update permission is disabled in Schema-less mode.');
-        // ไม่ทำอะไร เพราะไม่มีตารางให้บันทึก
         return;
     }
 };

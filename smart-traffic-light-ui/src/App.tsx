@@ -7,16 +7,11 @@ import { PersistGate } from 'redux-persist/integration/react'
 import store, { persistor } from './store'
 import Theme from '@/components/template/Theme'
 import Layout from '@/components/layouts'
-import mockServer from './mock'
 import appConfig from '@/configs/app.config'
 import './locales'
 import BaseService from '@/services/BaseService' 
 
 const environment = process.env.NODE_ENV
-
-if (environment !== 'production' && appConfig.enableMock) {
-    mockServer({ environment })
-}
 
 const SessionKicker = () => {
     useEffect(() => {

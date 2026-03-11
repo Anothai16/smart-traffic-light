@@ -22,7 +22,6 @@ export const TrafficController = {
         }
     },
 
-    // ✅ เพิ่มฟังก์ชันใหม่เพื่อจัดการการอัปเดตข้อมูลแยก
      async updateIntersections(
         body: { intersections: { Intersection_ID: number; New_Red_Duration: number; New_Green_Duration: number }[] },
         adminId: number
@@ -46,7 +45,6 @@ export const TrafficController = {
         }
     },
 
-    // ✅ เพิ่มฟังก์ชันใหม่สำหรับอัปเดตโหมด
     async updateTrafficMode(body: { modeName: string }, adminId: number) {
         try {
             await TrafficService.updateTrafficMode(body.modeName, adminId);

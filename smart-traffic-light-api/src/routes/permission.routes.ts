@@ -1,6 +1,6 @@
 // src/routes/permission.routes.ts
 
-import { Elysia, t } from 'elysia'; // 💡 ต้อง Import 't' สำหรับ Body Schema
+import { Elysia, t } from 'elysia'; 
 import { PermissionService } from '../services/permission.services';
 import { 
     getPermissionConfigController, 
@@ -9,13 +9,9 @@ import {
 
 // Route สำหรับดึงสิทธิ์การเข้าถึง (Permission Keys)
 export const permissionRoutes = new Elysia({ prefix: '/permissions' })
-    
-    // 🚀 [NEW ROUTE 1] ดึงข้อมูลมาแสดงผล (GET /permissions/config)
-    // 💡 ต้องวาง Route STATIC นี้ไว้ 'ก่อน' Route DYNAMIC
+
     .get('/config', getPermissionConfigController) 
     
-    // 🚀 [NEW ROUTE 2] แก้ไขสิทธิ์ (POST /permissions/config)
-    // 💡 ต้องวาง Route STATIC นี้ไว้ 'ก่อน' Route DYNAMIC
     .post(
         '/config', 
         updateRolePermissionsController,
@@ -40,7 +36,6 @@ export const permissionRoutes = new Elysia({ prefix: '/permissions' })
         
         try {
             const permissions = await PermissionService.getPermissionsByRole(roleName);
-            // ส่ง authorities กลับไป ซึ่ง Frontend จะนำไปเก็บใน Redux
             return { authorities: permissions }; 
         } catch (error) {
             console.error('Error fetching permissions:', error);
