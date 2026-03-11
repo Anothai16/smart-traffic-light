@@ -290,7 +290,7 @@ const ProjectDashboard = () => {
                         style={{ margin: 0 }}
                         className="text-gray-800"
                     >
-                        Smart Traffic Operations Dashboard
+                        Traffic Dashboard
                     </Title>
                     <Flex gap="middle" align="center" wrap="wrap">
                         {/* เปลี่ยนจาก DatePickerFormItem เป็น DatePicker ตรงๆ */}
@@ -305,7 +305,10 @@ const ProjectDashboard = () => {
                                     if (!d) {
                                         setEndDate(null)
                                     }
-                                    console.log('Selected Start Date:', d ? d.format('YYYY-MM-DD') : 'None')
+                                    console.log(
+                                        'Selected Start Date:',
+                                        d ? d.format('YYYY-MM-DD') : 'None',
+                                    )
                                 }}
                                 disabledDate={disabledStartDate}
                                 allowClear
@@ -323,7 +326,10 @@ const ProjectDashboard = () => {
                                     if (!d) {
                                         setStartDate(null)
                                     }
-                                    console.log('Selected End Date:', d ? d.format('YYYY-MM-DD') : 'None')
+                                    console.log(
+                                        'Selected End Date:',
+                                        d ? d.format('YYYY-MM-DD') : 'None',
+                                    )
                                 }}
                                 disabledDate={disabledEndDate}
                                 allowClear
