@@ -10,7 +10,7 @@ export const TestCleanupService = {
         // 🎯 [HARDCODE ตรงนี้] ระบุ "วันที่" และ "เวลา" ที่ต้องการจะลบ
         // =======================================================
         const targetDate = '2026-03-10';  // รูปแบบ YYYY-MM-DD
-        const targetTime = '12:00:00';    // รูปแบบ HH:MM:SS (ตามที่อยู่ใน Database)
+        const targetTime = '11:24:22';    // รูปแบบ HH:MM:SS (ตามที่อยู่ใน Database)
 
         console.log(`\n🧹 [Test Cleanup] กำลังค้นหาและลบรูปภาพ+DB ของวันที่: ${targetDate} เวลา: ${targetTime}`);
 
