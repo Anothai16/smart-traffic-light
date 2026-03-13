@@ -136,7 +136,13 @@ const SettingHistory: React.FC = () => {
             dataIndex: 'Admin_Name',
             key: 'Admin_Name',
             width: 200,
-            render: (name) => name || <Tag color="orange">Hardware</Tag>,
+            render: (name, record) => {
+                // 🟢 เช็คว่าถ้า Admin_ID เป็น 0 (โดนลบไปแล้ว) ให้ขึ้น User Not Found
+                if (record.Admin_ID === 0) {
+                    return <Tag color="red">User Not Found</Tag>
+                }
+                return name || <Tag color="orange">Hardware</Tag>
+            },
         },
         {
             title: 'Traffic Mode',
@@ -259,11 +265,13 @@ const SettingHistory: React.FC = () => {
                                         className="font-medium"
                                         style={{
                                             fontWeight: 'bold',
-                                            color: '#000',
+                                            color: latestModeConfig.Admin_ID === 0 ? 'red' : '#000',
                                         }}
                                     >
-                                        {latestModeConfig.Admin_Name ||
-                                            'Hardware'}
+                                        {/* 🟢 เช็คว่า Admin_ID เป็น 0 หรือไม่ */}
+                                        {latestModeConfig.Admin_ID === 0
+                                            ? 'User Not Found'
+                                            : latestModeConfig.Admin_Name || 'Hardware'}
                                     </span>
                                 </p>
                                 <p className="text-xs text-gray-500">

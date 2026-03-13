@@ -206,14 +206,16 @@ const PictureLog = () => {
 
     const columns: ColumnsType<LogRecord> = [
         {
-            title: 'Date',
+            title: <span className="text-lg">Date</span>,
             dataIndex: 'date',
             key: 'date',
-            render: (d) => dayjs(d).format('DD MMMM YYYY'),
+            render: (d) => <span className="text-lg">{dayjs(d).format('DD MMMM YYYY')}</span>,
         },
-        { title: 'Time', dataIndex: 'time', key: 'time' },
+        { title: <span className="text-lg">Time</span>, dataIndex: 'time', key: 'time',
+                render: (t) => <span className="text-lg">{t}</span>,
+         },
         {
-            title: 'Action',
+            title: <span className="text-lg">Action</span>,
             key: 'action',
             width: 100,
             align: 'center',
@@ -227,7 +229,7 @@ const PictureLog = () => {
                         cancelText="No"
                         okButtonProps={{ danger: true }}
                     >
-                        <Button danger type="text" icon={<DeleteOutlined />} />
+                        <Button danger type="text" style={{ fontSize: 22 }} icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </div>
             ),
@@ -336,7 +338,7 @@ const PictureLog = () => {
                                                 style={{
                                                     minWidth: 80,
                                                     textAlign: 'center',
-                                                    fontSize: 14,
+                                                    fontSize: 16,
                                                 }}
                                             >
                                                 {info?.Name ||
@@ -387,7 +389,7 @@ const PictureLog = () => {
                                             ) : (
                                                 <Text
                                                     type="secondary"
-                                                    style={{ fontSize: 12 }}
+                                                    style={{ fontSize: 18 }}
                                                 >
                                                     No image matched
                                                 </Text>

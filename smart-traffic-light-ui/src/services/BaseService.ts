@@ -45,16 +45,22 @@ BaseService.interceptors.request.use(
 BaseService.interceptors.response.use(
     (response) => response,
     (error) => {
-        const { response } = error
+        // 🟢 ดึง config ออกมาด้วย เพื่อเช็คว่ายิง API เส้นไหนไป
+        const { response, config } = error 
 
         if (response && unauthorizedCode.includes(response.status)) {
+            
+            // 🟢 [จุดที่แก้ไข] ถ้าเป็น API สำหรับล็อกอิน (เช่น /sign-in) ให้ข้ามการเตะออกไปเลย
+            if (config.url?.includes('/sign-in') || config.url?.includes('/login')) {
+                return Promise.reject(error)
+            }
+
             // 1. สั่งเคลียร์ State ใน Redux (Logout)
             store.dispatch(signOutSuccess())
 
             // 2. บังคับเปลี่ยนหน้าไปที่ Login ทันที
-            // ใช้ window.location.href แทน reload() เพื่อความชัวร์ในการเปลี่ยน Path
-            if (window.location.pathname !== '/sign-in-simple') {
-                window.location.href = '/sign-in-simple'
+            if (window.location.pathname !== '/sign-in-simple' && window.location.pathname !== '/sign-in') {
+                window.location.href = '/sign-in' // 🟢 ปรับให้เด้งไปที่หน้า /sign-in พื้นฐาน
             }
         }
 

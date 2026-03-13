@@ -54,14 +54,6 @@ interface Account {
     Phone_Number: string
 }
 
-interface AccountApiResponse {
-    accounts: Account[]
-}
-
-interface DeleteAccountResponse {
-    message: string
-}
-
 interface ErrorResponseData {
     message: string
 }
@@ -92,7 +84,11 @@ const AccountConfiguration: React.FC = () => {
             setLoading(true)
             const response = await apiGetAccounts()
             if (response.status === 200) {
-                setAccounts(response.data.accounts)
+                // 🟢 กรองเอา ID 0 (User Not Found) ออก ไม่ให้แสดงในตาราง
+                const activeAccounts = response.data.accounts.filter(
+                    (account: Account) => account.Admin_ID !== 0
+                )
+                setAccounts(activeAccounts)
             }
         } catch (error) {
             console.error('Failed to fetch accounts:', error)
@@ -113,6 +109,13 @@ const AccountConfiguration: React.FC = () => {
 
     const handleSearch = (value: string) => {
         setSearchText(value)
+        
+        // 🟢 ถ้าลบคำค้นหาจนว่างเปล่า ให้ดึงข้อมูลใหม่กลับมาแสดงทั้งหมด
+        if (!value) {
+            fetchAccounts()
+            return
+        }
+
         const filteredData = accounts.filter((account) =>
             Object.values(account).some((val) =>
                 String(val).toLowerCase().includes(value.toLowerCase()),
@@ -198,7 +201,6 @@ const AccountConfiguration: React.FC = () => {
                     Email: values.Email,
                     Phone_Number: values.Phone_Number,
                     Role: values.Role,
-                    //  ส่ง Register_Date กลับไป (เป็น String)
                     Register_Date: values.Register_Date
                         ? values.Register_Date.format('YYYY-MM-DD')
                         : null,

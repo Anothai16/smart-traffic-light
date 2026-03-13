@@ -199,20 +199,22 @@ const TrafficViolations = () => {
 
     const columns: ColumnsType<ViolationLogRecord> = [
         {
-            title: 'Date ',
+            title: <span className="text-lg">Date</span>,
             dataIndex: 'date',
             key: 'date',
             render: (date, record) => (
                 <Flex vertical>
-                    <Text strong>{dayjs(date).format('DD MMMM YYYY')}</Text>
+                    <Text strong >
+                       <span className="text-lg">{dayjs(date).format('DD MMMM YYYY')}</span>
+                    </Text>
                     {record.lanes && (
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                        <Text type="secondary" style={{ fontSize: '16px' }}>
                             Detected in:{' '}
                             <Tag
                                 color="blue"
                                 style={{ margin: 0, fontSize: '10px' }}
                             >
-                                {record.lanes}
+                                <span className="text-sm">{record.lanes}</span>
                             </Tag>
                         </Text>
                     )}
@@ -220,10 +222,11 @@ const TrafficViolations = () => {
             ),
         },
         {
-            title: 'Time',
+            title: <span className="text-lg">Time</span>,
             dataIndex: 'time',
             key: 'time',
             width: 120,
+            render: (t) => <span className="text-lg">{t}</span>,
         },
     ]
 
@@ -336,7 +339,7 @@ const TrafficViolations = () => {
                                                 style={{
                                                     minWidth: 80,
                                                     textAlign: 'center',
-                                                    fontSize: 14,
+                                                    fontSize: 16,
                                                 }}
                                             >
                                                 {info?.Name || `Lane ${id}`}
@@ -388,7 +391,7 @@ const TrafficViolations = () => {
                                             ) : (
                                                 <Text
                                                     type="secondary"
-                                                    style={{ fontSize: 12 }}
+                                                    style={{ fontSize: 18 }}
                                                 >
                                                     No image matched
                                                 </Text>

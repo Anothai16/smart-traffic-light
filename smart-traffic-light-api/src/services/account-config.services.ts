@@ -63,6 +63,14 @@ export const AccountConfigService = {
             if (accountIds.length === 0) return 0;
 
             const placeholders = accountIds.map(() => '?').join(',');
+            
+            // 🟢 1. เปลี่ยนประวัติใน Mode_Log ของ User ที่กำลังจะถูกลบ ให้กลายเป็น ID 0
+            await pool.execute(
+                `UPDATE Mode_Log SET Admin_ID = 0 WHERE Admin_ID IN (${placeholders})`,
+                accountIds
+            );
+
+            // 🟢 2. ทำการลบ User ออกจากตาราง Admin
             const [result] = await pool.execute<ResultSetHeader>(
                 `DELETE FROM Admin WHERE Admin_ID IN (${placeholders})`,
                 accountIds

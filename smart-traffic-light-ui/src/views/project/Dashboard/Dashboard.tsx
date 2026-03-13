@@ -211,7 +211,7 @@ const ProjectDashboard = () => {
     const laneWeeklyColumns = useMemo(() => {
         const baseCols = [
             {
-                title: 'Day',
+                title: <span className="text-lg">Day</span>,
                 dataIndex: 'dayName',
                 key: 'dayName',
                 fixed: 'left' as const,
@@ -224,7 +224,7 @@ const ProjectDashboard = () => {
                         }
                         className="font-bold"
                     >
-                        {text}
+                       <span className="text-lg">{text}</span>
                     </Tag>
                 ),
             },
@@ -232,12 +232,12 @@ const ProjectDashboard = () => {
 
         const dynamicCols = activeLaneNames.map((name) => {
             return {
-                title: name,
+                title: <span className="text-lg">{name}</span>,
                 dataIndex: name,
                 key: name,
                 align: 'right' as const,
                 render: (count: number) =>
-                    (Number(count) || 0).toLocaleString(),
+                    <span className="text-lg">{count.toLocaleString()}</span>,
             }
         })
 
@@ -246,8 +246,8 @@ const ProjectDashboard = () => {
             ...dynamicCols,
             {
                 title: (
-                    <Text strong className="text-amber-700">
-                        <CarOutlined /> Total
+                    <Text strong className=" text-amber-700">
+                        <CarOutlined /> <span className="text-lg">Total</span>
                     </Text>
                 ),
                 key: 'total',
@@ -262,7 +262,7 @@ const ProjectDashboard = () => {
                     )
                     return (
                         <Text strong className="text-amber-700">
-                            {calculatedTotal.toLocaleString()}
+                            <span className="text-lg">{calculatedTotal.toLocaleString()}</span>
                         </Text>
                     )
                 },
@@ -503,7 +503,7 @@ const ProjectDashboard = () => {
                         <Card
                             className="shadow-lg rounded-xl"
                             title={
-                                <span className="flex items-center gap-2">
+                                <span className="text-lg flex items-center gap-2">
                                     <CarOutlined className="text-blue-500" />{' '}
                                     Number of Vehicles
                                 </span>
@@ -512,7 +512,7 @@ const ProjectDashboard = () => {
                             <Table
                                 columns={[
                                     {
-                                        title: 'Lane',
+                                        title: <span className="text-lg">Lane</span>,
                                         dataIndex: 'laneName',
                                         key: 'laneName',
                                         render: (t) => (
@@ -520,12 +520,12 @@ const ProjectDashboard = () => {
                                                 color="processing"
                                                 className="text-sm font-medium"
                                             >
-                                                {t}
+                                                <span className="text-lg">{t}</span>
                                             </Tag>
                                         ),
                                     },
                                     {
-                                        title: 'Vehicle Count',
+                                        title: <span className="text-lg">Vehicle Count</span>,
                                         dataIndex: 'Vehicle_Count',
                                         key: 'Vehicle_Count',
                                         align: 'right',
@@ -534,7 +534,7 @@ const ProjectDashboard = () => {
                                                 strong
                                                 className="text-blue-600 font-extrabold"
                                             >
-                                                {Number(v).toLocaleString()}
+                                                <span className="text-lg">{Number(v).toLocaleString()}</span>
                                             </Text>
                                         ),
                                     },
@@ -551,7 +551,7 @@ const ProjectDashboard = () => {
                         <Card
                             className="shadow-lg rounded-xl"
                             title={
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center gap-2 ">
                                     <AlertOutlined className="text-red-500" />{' '}
                                     Red Light Violations
                                 </span>
@@ -560,20 +560,20 @@ const ProjectDashboard = () => {
                             <Table
                                 columns={[
                                     {
-                                        title: 'Lane',
+                                        title: <span className="text-lg">Lane</span>,
                                         dataIndex: 'laneName',
                                         key: 'laneName',
                                         render: (t) => (
                                             <Tag
                                                 color="error"
-                                                className="text-sm font-medium"
+                                                className=" font-medium"
                                             >
-                                                {t}
+                                                <span className="text-lg">{t}</span>
                                             </Tag>
                                         ),
                                     },
                                     {
-                                        title: 'Violations Count',
+                                        title: <span className="text-lg">Violations Count</span>,
                                         dataIndex: 'Violation_Count',
                                         key: 'Violation_Count',
                                         align: 'right',
@@ -583,7 +583,7 @@ const ProjectDashboard = () => {
                                                 strong
                                                 className="font-bold"
                                             >
-                                                {Number(v).toLocaleString()}
+                                                <span className="text-lg">{Number(v).toLocaleString()}</span>
                                             </Text>
                                         ),
                                     },
@@ -602,7 +602,7 @@ const ProjectDashboard = () => {
                 <Card
                     className="shadow-lg rounded-xl"
                     title={
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 text-lg">
                             <TableOutlined className="text-blue-500" />
                             Weekly Report
                         </span>
